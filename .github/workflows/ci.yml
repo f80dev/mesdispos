@@ -1,0 +1,41 @@
+name: CI
+
+# MesDispos — CI (AGENTS.md §12).
+# Les tests unitaires ne sont PAS lancés en v1 (contrat utilisateur §3) :
+# le workflow est volontairement commenté avec `# TODO humain : npm test`.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Format check (Prettier)
+        run: npm run format:check
+
+      # TODO humain : npm test   (tester le runner Vitest une fois la suite verte)
+      # TODO humain : npm run test:e2e   (nécessite `npx playwright install`)
+
+      - name: Build production
+        run: npx ng build --configuration=production
+
+      - name: Upload dist/
+        uses: actions/upload-artifact@v4
+        with:
+          name: mesdispos-dist
+          path: dist/
+          retention-days: 7
