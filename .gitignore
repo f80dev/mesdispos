@@ -50,3 +50,6 @@ Thumbs.db
 .env
 .env.*
 !.env.example
+
+# Identifiants de projet locaux : le modèle versionné est .firebaserc.example
+.firebaserc

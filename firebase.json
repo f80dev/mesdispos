@@ -1,0 +1,30 @@
+{
+  "hosting": {
+    "public": "dist/mesdispos/browser",
+    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+    "rewrites": [{ "source": "**", "destination": "/index.html" }],
+    "headers": [
+      {
+        "//": "SPA : index.html ne doit jamais être mis en cache longue durée, sinon le déploiement est invisible au retour des visiteurs.",
+        "source": "**",
+        "headers": [{ "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }]
+      },
+      {
+        "//": "Les bundles ont un hash dans leur nom : cache long et immuable.",
+        "source": "**/*.@(js|css|woff2|svg)",
+        "headers": [{ "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }]
+      }
+    ]
+  },
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  },
+  "emulators": {
+    "auth": { "port": 9099 },
+    "firestore": { "port": 8080 },
+    "hosting": { "port": 5000 },
+    "ui": { "enabled": true, "port": 4000 },
+    "singleProjectMode": true
+  }
+}

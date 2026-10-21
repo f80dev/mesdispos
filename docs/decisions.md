@@ -2,7 +2,7 @@
 2|
 3|Format d'une entrée :
 4|
-5|```markdown
+5|`markdown
 6|## YYYY-MM-DD — <titre>
 7|
 8|**Contexte :** <pourquoi la question se pose>
@@ -10,8 +10,7 @@
 10|**Décision :** <ce qui a été choisi, défaut appliqué si non tranché>
 11|
 12|**Conséquences :** <compromis>
-13|```
-
+13|`
 
 ## 2026-10-21 — ESLint non câblé en v1 (`ng lint` indisponible)
 
@@ -37,7 +36,6 @@
 
 **Conséquences :** écart mineur avec la ligne « ^12 » du tableau §4. Correction triviale si l'humain veut aligner : `npm i firebase@^12`.
 
-
 ## 2026-10-21 — Initialisation Firebase paresseuse (mode A sans réseau)
 
 **Contexte :** F2 mode A exige « Aucun appel Firebase Auth ; aucune dépendance réseau » pour le parcours « Nom seul ». Or `initializeApp`/`getAuth` lancés au chargement du bundle brisent la compatibilité de la config et contaminent la session anonyme.
@@ -61,7 +59,6 @@
 **Décision :** `app.config.ts` fournit `provideRouter` + `provideBrowserGlobalErrorListeners` uniquement ; les transitions Material 3 s'appuient sur les tokens de motion M3 en CSS. Zoneless : l'app a été générée sans `zone.js` (§4 « zoneless par défaut si proposé par le CLI »), rien à dé-configurer.
 
 **Conséquences :** écart assumé avec la ligne « `provideAnimationsAsync` » de §2, sans impact fonctionnel (snackbar, ripples et dialogs Material 22 n'utilisent plus `@angular/animations`).
-
 
 ## 2026-10-21 — SDK Firebase chargé en import dynamique (bundle initial 887 kB → 378 kB)
 
@@ -95,7 +92,6 @@
 
 **Conséquences :** la valeur du cookie est accessible au JavaScript de la page (XSS). Le risque est mitigé par l'absence totale de données sensibles (un prénom affiché à l'écran), l'absence de tout cookie tiers et le consentement non requis (cookie strictement nécessaire — §13). `Path=/` est indispensable pour que la valeur soit disponible sur `/admin/import` comme sur `/dispos`.
 
-
 ## 2026-10-21 — Fuseaux : lecture Excel en UTC, affichage en local
 
 **Contexte :** F6 impose de convertir les cellules Excel « sans dépendre du fuseau (utiliser les getters UTC d'un côté, locaux de l'autre) ». Le choix dépend du comportement réel de la bibliothèque : `read-excel-file@5.8.8` convertit le numéro de série en `new Date(Math.round((serial - 25569) * 86400000))` (`commonjs/read/parseDate.js`, commentaire explicite « into a corresponding javascript Date in UTC+0 timezone »). Une date Excel pure tombe donc **exactement à minuit UTC**, et une heure pure (base 1899-12-30) sur l'**heure UTC** voulue.
@@ -125,3 +121,35 @@
 **Contexte :** le plan §8 place `core/notif.service.ts` à l'étape 6, mais `adminGuard` (étape 4) doit afficher « Accès réservé à un administrateur ».
 
 **Décision :** le service a été livré à l'étape 4 avec les guards, et l'étape 6 se contente de le consommer (snackbar « Enregistrement impossible. Réessayer »). Aucun doublon, contenu inchangé par rapport à ce qu'aurait livré l'étape 6.
+
+## 2026-10-21 — Règles Firestore : adaptation au mode A sans session
+
+**Contexte :** §11 livre des règles qui exigent `request.auth != null` partout, ce qui exclut le mode A « Nom seul » (aucun appel Firebase Auth). Le cahier demande explicitement d'adapter la règle des disponibilités à `request.auth == null && uid.matches('^anon_[0-9a-f]{12}$')`.
+
+**Décision :** `creneaux` est lisible par tous (`allow read: if true`, écriture `admin()` seule) ; `users/{uid}/dispos` est accessible selon la branche — `connecte() ? (request.auth.uid == uid) : uidAnonymeValide()` ; `admins` reste en lecture pour le concerné et `allow write: if false` ; le catch-all `match /{document=**} { allow read, write: if false; }` est conservé. La syntaxe officielle n'est pas modifiée hors des deux lignes commentées.
+
+**Conséquences :** ⚠️ **compromis de confidentialité connu** : l'`uid` anonyme est le SHA-256 tronqué à 12 caractères hexadécimaux du prénom normalisé. Il est donc **recalculable** par quiconque connaît (ou devine) le pseudonyme : une personne qui saisit « Pauline » peut calculer `anon_85209162cfd3` et lire — voire écrire — ses créneaux. C'est inhérent au mode sans compte demandé par le cahier (§5). Si la confidentialité des disponibilités devient sensible : remplacer le hash du prénom par un identifiant **aléatoire** (UUID) stocké dans le même cookie `mesdispos_nom` (le cookie reste alors la seule source d'identité, et les partitions restent séparées). Question laissée ouverte à l'humain.
+
+## 2026-10-21 — Aucun index composite requis
+
+**Contexte :** F5 utilise exclusivement `onSnapshot(collection(db, 'creneaux'))` et `onSnapshot(collection(db, 'users', uid, 'dispos'))` : ce sont des requêtes mono-collection, donc servies par les index automatiques.
+
+**Décision :** `firestore.indexes.json` est livré avec `indexes: []` et un `fieldOverrides` documenté (groupe `dispos`, sans surcharge). Le fichier reste valide et déployable tel quel, la structure étant prête si un jour une requête `where('date', '>=', …)` apparaît.
+
+**Conséquences :** pas de facturation d'index composites, pas de délai de propagation à l'indexation. Le tri est fait côté client (`trierCreneaux`), ce qui convient au volume attendu (quelques centaines de créneaux).
+
+## 2026-10-21 — Vérification des règles sans Firebase CLI
+
+**Contexte :** le plan §8 exige `npx firebase emulators:exec --only firestore` « si le CLI est dispo ». Le CLI n'est pas installé dans cet environnement (`which firebase` → absent, `npx --no-install firebase` → « could not determine executable to run ») ; l'installer ajouterait plusieurs centaines de Mo pour une vérification que l'humain refait au déploiement.
+
+**Décision :** vérification **syntaxique et structurelle** consignée dans ce journal et rejouable : accolades/parenthèses équilibrées après retrait des commentaires et des chaînes ; présence de `rules_version = '2'`, `service cloud.firestore`, `match /databases/{database}/documents`, des fonctions `connecte()`/`admin()`/`uidAnonymeValide()`, du catch-all `allow read, write: if false`, de `allow read: if true` + écriture admin sur `creneaux`, de la double branche Google/anonyme sur `users/{uid}/dispos` ; `firebase.json`, `firestore.indexes.json` et `.firebaserc.example` parsés en JSON valide ; `uid` calculé (`sha256('Pauline')[:12]`) conforme à `^anon_[0-9a-f]{12}$` ; dossier public `dist/mesdispos/browser` présent.
+
+**Conséquences :** `firebase deploy --only firestore:rules` reste à exécuter par l'humain (AC-10 dispose de cette dérogation explicite). Aucune dépendance supplémentaire n'est ajoutée au projet.
+
+## 2026-10-21 — Hosting : `dist/mesdispos/browser` + cache
+
+**Contexte :** le builder `@angular/build:application` (Angular 22) sort dans `dist/mesdispos/browser` (et non plus `dist/mesdispos` directement) ; un `public` erroné publie un dossier vide.
+
+**Décision :** `firebase.json` pointe sur `dist/mesdispos/browser`, applique la réécriture SPA `** → /index.html`, interdit le cache sur `index.html` et pose `immutable` sur les bundles hachés.
+
+**Conséquences :** un `ng build --configuration=production` suivi de `firebase deploy --only hosting` publie correctement et sans confusion de cache ; `.firebaserc` est ignoré par git (le modèle versionné est `.firebaserc.example`).

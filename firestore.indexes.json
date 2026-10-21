@@ -1,0 +1,15 @@
+{
+  "//": "MesDispos — index Firestore (AGENTS.md §7, §11).",
+  "indexes": [],
+  "fieldOverrides": [
+    {
+      "//": "`dispos` est dénormalisé (date/heureDebut/heureFin dans le document)",
+      "//": "pour un affichage sans jointure ; aucun index composite n'est requis",
+      "//": "car toutes les lectures de l'application sont des requêtes mono-collection",
+      "//": "(onSnapshot sur `creneaux` et sur `users/{uid}/dispos`). L'export reste",
+      "//": "présent et déployable : `firebase deploy --only firestore:indexes`.",
+      "collectionGroup": "dispos",
+      "fieldOverrides": []
+    }
+  ]
+}

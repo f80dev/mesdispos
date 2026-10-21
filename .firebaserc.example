@@ -1,0 +1,8 @@
+{
+  "//": "Copiez ce fichier en `.firebaserc`, puis renseignez l'identifiant de VOTRE projet Firebase.",
+  "//": "Ou, plus simple : `npx firebase use --add` puis `npx firebase use <alias>`.",
+  "//": "L'identifiant se trouve dans la console Firebase → Paramètres du projet → « ID du projet ».",
+  "projects": {
+    "default": "REPLACE_ME"
+  }
+}

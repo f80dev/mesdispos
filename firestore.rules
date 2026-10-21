@@ -1,0 +1,49 @@
+rules_version = '2';
+
+// MesDispos — règles de sécurité Firestore (AGENTS.md §11).
+//
+// Deux modes d'accès coexistent (§11 / F2) :
+//  - mode B « Google »  : `request.auth != null`, `uid` = uid Firebase ;
+//  - mode A « Nom seul » : `request.auth == null`, `uid` = `anon_<sha256[:12]>`.
+//
+// L'admin n'est identifié que par l'existence du document `admins/{uid}`, écrit
+// **manuellement depuis la console Firebase** (jamais depuis l'application).
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function connecte() {
+      return request.auth != null;
+    }
+
+    // Mode A : pas de session Firebase, mais un `uid` d'anonyme bien formé.
+    function uidAnonymeValide() {
+      return request.auth == null && uid.matches('^anon_[0-9a-f]{12}$');
+    }
+
+    function admin() {
+      return connecte() && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
+    // Créneaux proposés : lecture ouverte (mode A compris), écriture admin seule.
+    match /creneaux/{id} {
+      allow read: if true;
+      allow create, update, delete: if admin();
+    }
+
+    // Disponabilités : chaque partition n'est accessible qu'à son titulaire.
+    match /users/{uid}/dispos/{creneauId} {
+      allow read, write: if connecte() ? (request.auth.uid == uid) : uidAnonymeValide();
+    }
+
+    // Liste des administrateurs : lecture par le concerné, écriture interdite
+    // à l'application (console Firebase / Admin SDK uniquement).
+    match /admins/{uid} {
+      allow read: if connecte() && request.auth.uid == uid;
+      allow write: if false; // géré via la console Firebase / Admin SDK
+    }
+
+    // Tout le reste est interdit par défaut.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
