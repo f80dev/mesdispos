@@ -1,1 +1,75 @@
-/* You can add global styles to this file, and also import other style files */
+// =============================================================================
+// MesDispos — Global styles (Material Design 3, dernière spécification)
+// =============================================================================
+
+@use '@angular/material' as mat;
+
+// -----------------------------------------------------------------------------
+// Design tokens (CSS custom properties) — spec Material Design 3 §3 / §17
+// -----------------------------------------------------------------------------
+:root {
+  // Spacing scale MD3 (4 / 8 / 12 / 16 / 24 / 32 px)
+  --md-spacing-1: 4px;
+  --md-spacing-2: 8px;
+  --md-spacing-3: 12px;
+  --md-spacing-4: 16px;
+  --md-spacing-5: 24px;
+  --md-spacing-6: 32px;
+
+  // Motion durations M3
+  --md-motion-duration-short: 150ms;
+  --md-motion-duration-medium: 250ms;
+  --md-motion-duration-long: 400ms;
+
+  // Density — compact par défaut
+  --md-density-default: -1;
+
+  color-scheme: light;
+
+  @include mat.theme((
+    color: (
+      primary: mat.$azure-palette,
+      tertiary: mat.$blue-palette,
+      theme-type: light,
+    ),
+    typography: Roboto,
+    density: var(--md-density-default),
+  ));
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    @include mat.theme((
+      color: (
+        primary: mat.$azure-palette,
+        tertiary: mat.$blue-palette,
+        theme-type: dark,
+      ),
+      typography: Roboto,
+      density: var(--md-density-default),
+    ));
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Base reset (interfaces épurées au sens MD3)
+// -----------------------------------------------------------------------------
+html, body {
+  height: 100%;
+  margin: 0;
+  font-family: Roboto, "Helvetica Neue", sans-serif;
+  background: var(--mat-sys-surface);
+  color: var(--mat-sys-on-surface);
+}
+
+// Empêche le zoom forcé iOS sur les inputs en mobile (< 16px déclenche le zoom)
+input, select, textarea, button {
+  font-size: 16px;
+}
+
+// Cibles tactiles ≥ 48px (règle AC-19 — rendu smartphone)
+.touch-target {
+  min-height: 48px;
+  min-width: 48px;
+}
