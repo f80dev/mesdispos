@@ -212,3 +212,20 @@ Autres constats : bouton « Continuer » `h=48px w=327px` et **désactivé** tan
 **Décision :** `HeaderComponent` vérifie une seule fois au démarrage si `estAdmin(uid)` est vrai, et n'affiche le lien que dans ce cas. Le mode A (anonyme) est exclu d'emblée : `adminGuard` exige `user && !user.anon`.
 
 **Conséquences :** une seule lecture de `admins/{uid}` par session (résultat mémoïsé dans un signal) ; le lien reste absent pour les utilisateurs anonymes et les comptes Google non administrateurs, et l'accès direct à `/admin/import` reste bloqué par `adminGuard` (snackbar « Accès réservé à un administrateur » puis `/dispos`).
+
+
+## 2026-10-21 — Stratégie de test : specs écrits, jamais exécutés par l'agent
+
+**Contexte :** contrat utilisateur §3/§13 — l'agent écrit les tests, l'humain les exécute (`npm test`, `npx playwright test`). L'agent ne peut donc pas s'appuyer sur un « ça passe » pour valider son code.
+
+**Décision :** 8 fichiers de tests écrits (≈ 86 cas) : `date.util.spec.ts`, `cookie.service.spec.ts`, `dispo.service.spec.ts`, `excel-import.service.spec.ts`, `auth.guard.spec.ts`, `dispos-page.component.spec.ts`, `app.component.spec.ts` (spec d'amorçage réécrite : elle attendait le `<h1>Hello, mesdispos</h1>` du placeholder du CLI) et `e2e/mesdispos.spec.ts`. Validation effectuée **sans exécuter les tests** : parsing TypeScript de chaque spec avec esbuild (`esbuild <fichier> --outfile=/dev/null`, 8/8 « syntaxe OK »), puis `ng build --configuration=production` (les specs sont exclues par `tsconfig.app.json`).
+
+**Conséquences :** les specs sont **syntaxiquement** validées mais ni typées ni exécutées : une erreur de type ou un mock mal branché ne sera découvert qu'à la première exécution humaine. C'est la contrepartie directe et assumée du contrat. Pour réduire le risque, les specs mocks les points d'entrée externalisés plutôt que le SDK : `vi.mock('../core/firebase')` (les services n'importent le SDK que dynamiquement) et `vi.mock('read-excel-file')`, ce qui évite d'avoir à comprendre le protocole Firestore.
+
+## 2026-10-21 — E2E Playwright : parcours rendu déterministe sans Firebase
+
+**Contexte :** le parcours « login → sélection → rechargement → créneau retenu » suppose normalement un projet Firebase configuré, donc des identifiants et un réseau.
+
+**Décision :** `e2e/mesdispos.spec.ts` intercepte les appels réseau avec `page.route('**/firestore.googleapis.com/**')` et sert des réponses JSONNEES synthétiques ; les appels Google/Firebase Auth sont interceptés et abandonnés. Le test vérifie alors la vraie logique applicative (mode A par cookie, bascule optimiste, persistance, `aria-pressed`, absence de débordement à 375 px, déconnexion).
+
+**Conséquences :** les e2e sont reproductibles hors ligne et sans projet Firebase, mais ils ne valident **pas** l'intégration Firestore réelle ni les règles de sécurité — qui restent couvertes par `firestore.rules` + un déploiement de test par l'humain. Les navigateurs Playwright ne sont pas installés dans cet environnement (`PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1`) : `npm run test:e2e:install` est nécessaire avant `npm run test:e2e`.
