@@ -6,37 +6,8 @@ import { DispoService, MESSAGE_ECHEC_ECRITURE } from './dispo.service';
 import { CreneauService } from './creneau.service';
 import { AuthService, type Utilisateur } from '../core/auth.service';
 import { NotifService } from '../core/notif.service';
+import { FIRESTORE_BACKEND, type FirestoreBackend } from '../core/firestore.backend';
 import type { Creneau } from './models';
-
-/* -------------------------------------------------------------------------- */
-/* Doubles de test : le SDK Firestore n'est jamais chargé (mock)               */
-/* -------------------------------------------------------------------------- */
-
-type Ecouteur = (instantane: { docs: Array<{ id: string; data: () => unknown }> }) => void;
-
-const etat = vi.hoisted(() => ({
-  setDoc: vi.fn(),
-  deleteDoc: vi.fn(),
-  chemin: [] as unknown[],
-  abonnes: [] as Array<() => void>,
-  emettre: null as Ecouteur | null,
-  snapshotErreur: null as (() => void) | null,
-}));
-
-vi.mock('../core/firebase', () => ({
-  firebaseConfigure: () => true,
-  firebaseDb: async () => ({ instance: 'db' }),
-  chargerFirestore: async () => ({
-    doc: (...chemin: unknown[]) => ({ chemin }),
-    onSnapshot: (_ref: unknown, suivant: Ecouteur, erreur: () => void) => {
-      etat.emettre = suivant;
-      etat.snapshotErreur = erreur;
-      const desabonner = () => undefined;
-      etat.abonnes.push(desabonner);
-      return desabonner;
-    },
-  }),
-}));
 
 const CRENEAU: Creneau = {
   id: '2026-01-12_0845_0930',
@@ -78,18 +49,48 @@ class FauxNotifService {
   info = vi.fn((message: string) => this.messages.push(message));
 }
 
+/** Faux `FirestoreBackend` — enregistre les écritures via `setDispo`/`deleteDispo`,
+ *  expose `ecouterDispos` via une callback que les tests peuvent piloter. */
+function creerFauxBackend(): FirestoreBackend & {
+  setDispoMock: ReturnType<typeof vi.fn>;
+  deleteDispoMock: ReturnType<typeof vi.fn>;
+  emettre: ((s: { docs: Array<{ id: string; data: () => unknown }> }) => void) | null;
+} {
+  const setDispoMock = vi.fn(async (_uid: string, _id: string, _data: unknown) => undefined);
+  const deleteDispoMock = vi.fn(async (_uid: string, _id: string) => undefined);
+  const self: ReturnType<typeof creerFauxBackend> = {
+    configure: true,
+    setDispo: setDispoMock as unknown as FirestoreBackend['setDispo'],
+    deleteDispo: deleteDispoMock as unknown as FirestoreBackend['deleteDispo'],
+    ecouterCreneaux: vi.fn(async () => () => undefined),
+    ecouterDispos: vi.fn(
+      async (
+        _uid: string,
+        suivant: (s: { docs: Array<{ id: string; data: () => unknown }> }) => void,
+        _erreur: () => void,
+      ) => {
+        self.emettre = suivant;
+        return () => undefined;
+      },
+    ) as unknown as FirestoreBackend['ecouterDispos'],
+    listerIdsCreneaux: vi.fn(async () => []),
+    upsertCreneaux: vi.fn(async () => 0),
+    estAdmin: vi.fn(async () => false),
+    setDispoMock,
+    deleteDispoMock,
+    emettre: null,
+  } as unknown as ReturnType<typeof creerFauxBackend>;
+  return self;
+}
+
 describe('DispoService (F4 — sélection immédiate)', () => {
   let service: DispoService;
   let notif: FauxNotifService;
+  let backend: ReturnType<typeof creerFauxBackend>;
   let creneauxService: { creneaux: ReturnType<typeof signal<Creneau[]>> };
 
   beforeEach(() => {
-    etat.setDoc.mockReset();
-    etat.deleteDoc.mockReset();
-    etat.chemin = [];
-    etat.emettre = null;
-    etat.abonnes = [];
-
+    backend = creerFauxBackend();
     creneauxService = { creneaux: signal<Creneau[]>([CRENEAU, AUTRE_CRENEAU]) };
     notif = new FauxNotifService();
 
@@ -99,6 +100,7 @@ describe('DispoService (F4 — sélection immédiate)', () => {
         { provide: AuthService, useValue: new FauxAuthService() },
         { provide: NotifService, useValue: notif },
         { provide: CreneauService, useValue: creneauxService },
+        { provide: FIRESTORE_BACKEND, useValue: backend },
       ],
     });
 
@@ -108,11 +110,16 @@ describe('DispoService (F4 — sélection immédiate)', () => {
   it('sélectionner crée le document dispos/{creneauId} avec les bons champs', async () => {
     await service.basculer(CRENEAU);
 
-    expect(etat.deleteDoc).not.toHaveBeenCalled();
-    expect(etat.setDoc).toHaveBeenCalledTimes(1);
-    expect(etat.chemin).toEqual(['users', 'anon_85209162cfd3', 'dispos', CRENEAU.id]);
+    expect(backend.deleteDispoMock).not.toHaveBeenCalled();
+    expect(backend.setDispoMock).toHaveBeenCalledTimes(1);
 
-    const [, document] = etat.setDoc.mock.calls[0] as unknown as [unknown, Record<string, unknown>];
+    const [uid, id, document] = backend.setDispoMock.mock.calls[0] as [
+      string,
+      string,
+      Record<string, unknown>,
+    ];
+    expect(uid).toBe('anon_85209162cfd3');
+    expect(id).toBe(CRENEAU.id);
     expect(document).toMatchObject({
       creneauId: CRENEAU.id,
       date: '2026-01-12',
@@ -136,8 +143,10 @@ describe('DispoService (F4 — sélection immédiate)', () => {
 
     await service.basculer(CRENEAU);
 
-    expect(etat.setDoc).not.toHaveBeenCalled();
-    expect(etat.deleteDoc).toHaveBeenCalledTimes(1);
+    expect(backend.setDispoMock).not.toHaveBeenCalled();
+    expect(backend.deleteDispoMock).toHaveBeenCalledTimes(1);
+    expect(backend.deleteDispoMock.mock.calls[0]?.[0]).toBe('anon_85209162cfd3');
+    expect(backend.deleteDispoMock.mock.calls[0]?.[1]).toBe(CRENEAU.id);
     expect(service.idsSelectionnes().has(CRENEAU.id)).toBe(false);
   });
 
@@ -160,7 +169,7 @@ describe('DispoService (F4 — sélection immédiate)', () => {
   });
 
   it("échec réseau → rollback de l'état + snackbar « Réessayer »", async () => {
-    etat.setDoc.mockRejectedValueOnce(new Error('permission-denied'));
+    backend.setDispoMock.mockRejectedValueOnce(new Error('permission-denied'));
 
     await service.basculer(CRENEAU);
 
@@ -172,24 +181,24 @@ describe('DispoService (F4 — sélection immédiate)', () => {
   });
 
   it("l'action « Réessayer » du snackbar rejoue l'écriture", async () => {
-    etat.setDoc.mockRejectedValueOnce(new Error('offline'));
+    backend.setDispoMock.mockRejectedValueOnce(new Error('offline'));
 
     await service.basculer(CRENEAU);
-    expect(etat.setDoc).toHaveBeenCalledTimes(1);
+    expect(backend.setDispoMock).toHaveBeenCalledTimes(1);
 
-    etat.setDoc.mockResolvedValueOnce(undefined);
+    backend.setDispoMock.mockResolvedValueOnce(undefined);
     notif.retry?.();
 
     await Promise.resolve();
     await Promise.resolve();
 
-    expect(etat.setDoc).toHaveBeenCalledTimes(2);
+    expect(backend.setDispoMock).toHaveBeenCalledTimes(2);
     expect(service.idsSelectionnes().has(CRENEAU.id)).toBe(true);
   });
 
   it('double-clic rapide → la dernière action gagne', async () => {
     let resolvoir: () => void = () => undefined;
-    etat.setDoc.mockImplementationOnce(
+    backend.setDispoMock.mockImplementationOnce(
       () =>
         new Promise<void>((resolve) => {
           resolvoir = resolve;
@@ -204,15 +213,15 @@ describe('DispoService (F4 — sélection immédiate)', () => {
 
     // La réponse tardive de la première action ne doit pas écraser la seconde.
     expect(service.idsSelectionnes().has(CRENEAU.id)).toBe(false);
-    expect(etat.setDoc).toHaveBeenCalledTimes(1);
-    expect(etat.deleteDoc).toHaveBeenCalledTimes(1);
+    expect(backend.setDispoMock).toHaveBeenCalledTimes(1);
+    expect(backend.deleteDispoMock).toHaveBeenCalledTimes(1);
   });
 
   it('lit les dispos via onSnapshot sur users/{uid}/dispos', () => {
     service.ecouter();
 
-    expect(etat.emettre).not.toBeNull();
-    etat.emettre?.({
+    expect(backend.emettre).not.toBeNull();
+    backend.emettre?.({
       docs: [
         {
           id: CRENEAU.id,

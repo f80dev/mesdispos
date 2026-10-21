@@ -1,12 +1,7 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import type { Unsubscribe } from 'firebase/firestore';
 
-import {
-  MESSAGE_CONFIG_MANQUANTE,
-  chargerFirestore,
-  firebaseConfigure,
-  firebaseDb,
-} from '../core/firebase';
+import { FIRESTORE_BACKEND } from '../core/firestore.backend';
 import { AuthService } from '../core/auth.service';
 import { NotifService } from '../core/notif.service';
 import { CreneauService } from './creneau.service';
@@ -54,12 +49,16 @@ export function versDispo(id: string, data: Record<string, unknown>): Dispo | nu
  * Écritures concurrentes tolérées : chaque créneau porte un compteur de
  * séquence, donc **la dernière action gagne** (une réponse tardive d'une action
  * périmée ne peut ni écraser l'état local ni remettre le spinner).
+ *
+ * Les écritures/lectures passent par `FIRESTORE_BACKEND` (abstraction
+ * injectable), pas par un import direct du module Firebase.
  */
 @Injectable({ providedIn: 'root' })
 export class DispoService {
   private readonly auth = inject(AuthService);
   private readonly creneauxService = inject(CreneauService);
   private readonly notif = inject(NotifService);
+  private readonly backend = inject(FIRESTORE_BACKEND);
 
   /** Disponibilités de l'utilisateur, brutes (temps réel). */
   readonly dispos = signal<Dispo[]>([]);
@@ -144,37 +143,29 @@ export class DispoService {
       this.chargement.set(false);
       return () => undefined;
     }
-    if (!firebaseConfigure()) {
+    if (!this.backend.configure) {
       this.chargement.set(false);
-      this.erreur.set(MESSAGE_CONFIG_MANQUANTE);
       return () => undefined;
     }
-    try {
-      const [db, fs] = await Promise.all([firebaseDb(), chargerFirestore()]);
-      return fs.onSnapshot(
-        fs.collection(db, 'users', uid, 'dispos'),
-        (instantane) => {
-          const liste: Dispo[] = [];
-          for (const doc of instantane.docs) {
-            const dispo = versDispo(doc.id, doc.data() as Record<string, unknown>);
-            if (dispo) {
-              liste.push(dispo);
-            }
+    return this.backend.ecouterDispos(
+      uid,
+      (instantane) => {
+        const liste: Dispo[] = [];
+        for (const doc of instantane.docs) {
+          const dispo = versDispo(doc.id, doc.data());
+          if (dispo) {
+            liste.push(dispo);
           }
-          this.dispos.set(trierCreneaux(liste));
-          this.chargement.set(false);
-          this.erreur.set(null);
-        },
-        () => {
-          this.chargement.set(false);
-          this.erreur.set(MESSAGE_LECTURE_DISPOS);
-        },
-      );
-    } catch {
-      this.chargement.set(false);
-      this.erreur.set(MESSAGE_LECTURE_DISPOS);
-      return () => undefined;
-    }
+        }
+        this.dispos.set(trierCreneaux(liste));
+        this.chargement.set(false);
+        this.erreur.set(null);
+      },
+      () => {
+        this.chargement.set(false);
+        this.erreur.set(MESSAGE_LECTURE_DISPOS);
+      },
+    );
   }
 
   /** Détache l'écoute courante. */
@@ -211,8 +202,6 @@ export class DispoService {
       if (!uid) {
         throw new Error('aucune session');
       }
-      const [db, fs] = await Promise.all([firebaseDb(), chargerFirestore()]);
-      const chemin = fs.doc(db, 'users', uid, 'dispos', creneau.id);
       if (wanted) {
         const dispo: Dispo = {
           creneauId: creneau.id,
@@ -222,9 +211,9 @@ export class DispoService {
           ...(creneau.libelle ? { libelle: creneau.libelle } : {}),
           updatedAt: Date.now(),
         };
-        await fs.setDoc(chemin, dispo);
+        await this.backend.setDispo(uid, creneau.id, dispo);
       } else {
-        await fs.deleteDoc(chemin);
+        await this.backend.deleteDispo(uid, creneau.id);
       }
     } catch {
       // Rollback : on annule l'effet optimiste si aucune action plus récente

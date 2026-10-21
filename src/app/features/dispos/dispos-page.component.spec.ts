@@ -120,6 +120,7 @@ describe('DisposPageComponent (F3 / F4)', () => {
 
   it("affiche l'état vide de chaque section", () => {
     dispo.retenusIds.set([]);
+    dispo.creneaux.set([]);
     fixture.detectChanges();
 
     const textes = fixture.nativeElement.textContent as string;
@@ -142,7 +143,7 @@ describe('DisposPageComponent (F3 / F4)', () => {
     expect(dispo.reecouter).toHaveBeenCalled();
   });
 
-  it('un clic sur un créneau émet basculer (aucun bouton Enregistrer)', () => {
+  it('un clic sur un créneau émet basculer (aucun bouton de sauvegarde)', () => {
     fixture.detectChanges();
 
     const cartes = fixture.nativeElement.querySelectorAll('app-creneau-card button');
@@ -162,10 +163,11 @@ describe('DisposPageComponent (F3 / F4)', () => {
 
   it("n'expose aucun bouton d'enregistrement ni de confirmation", () => {
     fixture.detectChanges();
-    const libelles = [...fixture.nativeElement.querySelectorAll('button')].map((b) =>
-      (b as HTMLElement).textContent?.trim(),
-    );
-    expect(libelles.join(' ')).not.toContain('Enregistrer');
+    const libelles: string[] = [
+      ...fixture.nativeElement.querySelectorAll('button'),
+    ].map((b) => ((b as HTMLElement).textContent ?? '').trim());
+    const toutTexte = libelles.join(' ').toLowerCase();
+    expect(toutTexte).not.toMatch(/enregistr/);
     expect(fixture.nativeElement.querySelector('mat-dialog-container')).toBeNull();
   });
 

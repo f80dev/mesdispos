@@ -74,8 +74,8 @@ describe('normalizeDate', () => {
   });
 
   it('lit un numéro de série Excel', () => {
-    // 46037 = 12/01/2026 dans le calendrier Excel (base 1899-12-30).
-    expect(normalizeDate(46037)).toEqual({ ok: true, valeur: '2026-01-12' });
+    // 46037 = 15/01/2026 dans le calendrier Excel (base 1900-01-01 avec le bug d'année bissextile 1900).
+    expect(normalizeDate(46037)).toEqual({ ok: true, valeur: '2026-01-15' });
   });
 
   it('rejette une date de calendrier inexistante', () => {

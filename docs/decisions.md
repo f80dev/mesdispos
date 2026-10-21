@@ -154,7 +154,6 @@
 
 **Conséquences :** un `ng build --configuration=production` suivi de `firebase deploy --only hosting` publie correctement et sans confusion de cache ; `.firebaserc` est ignoré par git (le modèle versionné est `.firebaserc.example`).
 
-
 ## 2026-10-21 — Page `/dispos` : regroupement côté composant, aucun formulaire
 
 **Contexte :** F3 demande deux sections groupées par jour et F4 interdit tout bouton d'enregistrement ou confirmation. L'état est intégralement porté par les services (`CreneauService`, `DispoService`), la page ne fait que composer.
@@ -171,7 +170,6 @@
 
 **Conséquences :** lisible par un lecteur d'écran, le préfixe bascule entre « Disponible » et « Retenu » selon la section, et le libellé reste correct pour les créneaux orphelines affichés dans « Mes disponibilités ».
 
-
 ## 2026-10-21 — Design system : alias applicatifs des rôles M3
 
 **Contexte :** AC-17 exige que les tokens couvrent palette (`primary`/`secondary`/`tertiary` + `on-*`), surfaces (`surface`, `surfaceContainer*`), contours, type-scale M3, spacing, élévations et motion, en thème clair/sombre avec `prefers-color-scheme`. Les composants qui écrivaient `var(--mat-sys-*)` partout n'étaient pas pilotables et répetaient les mêmes noms.
@@ -186,16 +184,15 @@
 
 **Décision :** le build de production a été servi localement par un serveur statique avec réécriture SPA (équivalent du rewrite `** → /index.html` de `firebase.json`, ce serveur n'est pas versionné) puis inspecté via CDP dans Chrome 151 en headless, aux viewports 375, 768 et 1280. Constats relevés :
 
-| viewport | `document.documentElement.scrollWidth` | colonnes `.page` | padding `.contenu` | max-width |
-|---|---|---|---|---|
-| 375 | 375 (= viewport, **aucun scroll horizontal**) | 1 (`351px`) | `12px 16px 12px 8px` (8 à droite, 16 à gauche) | 100 % |
-| 768 | 768 | 1 (`720px`) | `24px` | 100 % |
-| 1280 | 1280 | **2** (`486px 486px`) | `48px` | `1100px` |
+| viewport | `document.documentElement.scrollWidth`        | colonnes `.page`      | padding `.contenu`                             | max-width |
+| -------- | --------------------------------------------- | --------------------- | ---------------------------------------------- | --------- |
+| 375      | 375 (= viewport, **aucun scroll horizontal**) | 1 (`351px`)           | `12px 16px 12px 8px` (8 à droite, 16 à gauche) | 100 %     |
+| 768      | 768                                           | 1 (`720px`)           | `24px`                                         | 100 %     |
+| 1280     | 1280                                          | **2** (`486px 486px`) | `48px`                                         | `1100px`  |
 
 Autres constats : bouton « Continuer » `h=48px w=327px` et **désactivé** tant que le champ est vide ; input `font-size: 16px` (pas de zoom iOS) ; bouton « Se déconnecter » `48×48` avec `aria-label` ; au rechargement, `/dispos` est servi directement et l'en-tête affiche « Pauline » (restauration par cookie, sans repasser par `/login`) ; après « Se déconnecter », le cookie est vide et l'URL redevient `/login`. Attributs réels du cookie relevés via `Network.getAllCookies` : `httpOnly=false`, `sameSite=Lax`, `path=/`, `secure=false` (http local — `Secure` ne serait posé qu'en `https:`), expiration ≈ +1 an.
 
 **Conséquences :** le focus automatique du champ « Prénom », exigé par F2, **ne fonctionnait pas** avec `cdkFocusInitial` seul (ce directive n'agit qu'à l'intérieur d'un `cdkTrapFocus`) : il a été remplacé par `afterNextRender(() => this.champ()?.nativeElement.focus())`, puis vérifié (`document.activeElement` = `INPUT`). Restent à la charge de l'humain : les captures d'écran du cahier et la vérification des deux listes avec de vrais créneaux (qui suppose des identifiants Firebase renseignés — sans eux, l'état affiché est l'erreur « Configuration Firebase non renseignée », ce qui est le comportement attendu).
-
 
 ## 2026-10-21 — Import Excel : en-têtes tolérants, lignes invalides non bloquantes
 
@@ -213,7 +210,6 @@ Autres constats : bouton « Continuer » `h=48px w=327px` et **désactivé** tan
 
 **Conséquences :** une seule lecture de `admins/{uid}` par session (résultat mémoïsé dans un signal) ; le lien reste absent pour les utilisateurs anonymes et les comptes Google non administrateurs, et l'accès direct à `/admin/import` reste bloqué par `adminGuard` (snackbar « Accès réservé à un administrateur » puis `/dispos`).
 
-
 ## 2026-10-21 — Stratégie de test : specs écrits, jamais exécutés par l'agent
 
 **Contexte :** contrat utilisateur §3/§13 — l'agent écrit les tests, l'humain les exécute (`npm test`, `npx playwright test`). L'agent ne peut donc pas s'appuyer sur un « ça passe » pour valider son code.
@@ -229,3 +225,27 @@ Autres constats : bouton « Continuer » `h=48px w=327px` et **désactivé** tan
 **Décision :** `e2e/mesdispos.spec.ts` intercepte les appels réseau avec `page.route('**/firestore.googleapis.com/**')` et sert des réponses JSONNEES synthétiques ; les appels Google/Firebase Auth sont interceptés et abandonnés. Le test vérifie alors la vraie logique applicative (mode A par cookie, bascule optimiste, persistance, `aria-pressed`, absence de débordement à 375 px, déconnexion).
 
 **Conséquences :** les e2e sont reproductibles hors ligne et sans projet Firebase, mais ils ne valident **pas** l'intégration Firestore réelle ni les règles de sécurité — qui restent couvertes par `firestore.rules` + un déploiement de test par l'humain. Les navigateurs Playwright ne sont pas installés dans cet environnement (`PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1`) : `npm run test:e2e:install` est nécessaire avant `npm run test:e2e`.
+
+## 2026-10-21 — Thème Material 3 : palette azure, densité −1 (compacte)
+
+**Contexte :** §3 impose la dernière spécification Material 3 — `mat.theme()`, tokens `--mat-sys-*`, palette `primary`/`secondary`/`tertiary`, type-scale complète, courbes et durées de motion, thème clair par défaut avec bascule `prefers-color-scheme`, et des « interfaces épurées » : densité compacte, un seul niveau d'élévation, espacement 4/8/12/16/24/32 px, aucun chrome décoratif.
+
+**Décision :** `styles.scss` applique `mat.theme()` deux fois (clair et sombre via `prefers-color-scheme`) avec `primary: mat.$azure-palette`, `tertiary: mat.$blue-palette`, `typography: Roboto` et `density: -1` (compacte). Les composants n'utilisent que des alias `--app-*` (§ ADR « alias applicatifs »). Élévation : **un seul niveau** (`--app-elevation-1`) sur la carte de connexion, les lignes de créneau sont plates (contour `outline-variant`) ; aucun dégradé, aucune ombre décorative ; seuls les rôles M3 `error` et `tertiary` portent une couleur d'état.
+
+**Conséquences :** le thème suit le réglage système sans JavaScript et sans cookie. La densité `-1` est passée via `mat.theme(density: var(--md-density-default))` : la variable CSS est résolue au moment de la génération des tokens Material, et non à l'exécution. Le choix de la palette (azure) est esthétique et modifiable en une ligne dans `styles.scss`.
+
+## 2026-10-21 — Vitest comme runner `ng test`
+
+**Contexte :** §4 impose « Vitest (builder `ng test`) » pour les unitaires et Playwright pour l'e2e, sans Karma ni Chrome requis.
+
+**Décision :** le target `test` d'`angular.json` utilise le builder `@angular/build:unit-test` avec `runner: vitest`, `tsConfig: tsconfig.spec.json` et `buildTarget: mesdispos:build:development`. L'environnement d'exécution par défaut est **jsdom** (déjà présent en devDependency), ce qui évite tout téléchargement de navigateur pour `npm test`. Scripts : `test`, `test:watch`, `test:e2e`, `test:e2e:install`, `format`, `format:check`.
+
+**Conséquences :** la suite s'exécute sans Chrome et sans launcher : `npm test` suffit après `npm ci`. Les specs importent explicitement leurs fonctions Vitest (`import { describe, it, expect, vi } from 'vitest'`) plutôt que de compter sur les globals, ce qui les rend robustes à la configuration du runner. `jsdom` fournit `document.cookie` : `cookie.service.spec.ts` peut vérifier la chaîne de cookie réellement écrite (SameSite/Max-Age/Path, absence de HttpOnly).
+
+## 2026-10-21 — Récapitulatif : ce qui a été livré et ce qui reste hors périmètre
+
+**Contexte :** le §13 du cahier liste des interdictions strictes et le §15 demande un résumé final.
+
+**Décision :** application livrée : mode A (cookie) + mode B (Google), deux listes, toggle immédiat avec rollback et rejeu, import `.xlsx` avec prévisualisation, règles/indexes/émulateurs, CI sans tests, 8 fichiers de tests écrits et non exécutés, journal ADR de 28 entrées.
+
+**Conséquences :** restent **volontairement** hors périmètre, conformément au §13 : pas de `@angular/fire`, pas de Cloud Functions ni de backend, pas de `.xls`, pas de bouton d'enregistrement, pas de `localStorage`, pas d'analytics ni de cookie tiers, pas de librairie UI hors Material/CDK, pas d'UI d'export des disponibilités (les données se lisent dans la console Firebase), pas d'email/SMS/push. Restent à la charge de l'humain : la configuration Firebase (`REPLACE_ME_*`), le `.firebaserc`, la création du premier `admins/{uid}`, le déploiement des règles, l'exécution des tests et les captures d'écran.

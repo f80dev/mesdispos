@@ -1,12 +1,8 @@
-import { Injectable, signal } from '@angular/core';
+import { Injectable, inject, signal } from '@angular/core';
 import type { Unsubscribe } from 'firebase/firestore';
 
-import {
-  MESSAGE_CONFIG_MANQUANTE,
-  chargerFirestore,
-  firebaseConfigure,
-  firebaseDb,
-} from '../core/firebase';
+import { FIRESTORE_BACKEND } from '../core/firestore.backend';
+import { MESSAGE_CONFIG_MANQUANTE } from '../core/firebase';
 import { normalizeDate, normalizeHeure, trierCreneaux } from '../shared/date.util';
 import type { Creneau } from './models';
 
@@ -40,11 +36,13 @@ export function versCreneau(id: string, data: Record<string, unknown>): Creneau 
 /**
  * `CreneauService` — lecture **temps réel** de la collection `creneaux` (F5).
  *
- * Le module `firebase/firestore` est chargé à la demande : un utilisateur qui
- * n'ouvre pas `/dispos` ne télécharge pas le SDK (voir ADR « import dynamique »).
+ * La lecture passe par `FIRESTORE_BACKEND` (abstraction injectable), ce qui
+ * permet aux tests unitaires de fournir un faux backend sans `vi.mock`.
  */
 @Injectable({ providedIn: 'root' })
 export class CreneauService {
+  private readonly backend = inject(FIRESTORE_BACKEND);
+
   /** Créneaux triés par date puis heure de début puis heure de fin (F5). */
   readonly creneaux = signal<Creneau[]>([]);
 
@@ -85,37 +83,29 @@ export class CreneauService {
   }
 
   private async brancher(): Promise<Unsubscribe> {
-    if (!firebaseConfigure()) {
+    if (!this.backend.configure) {
       this.chargement.set(false);
       this.erreur.set(MESSAGE_CONFIG_MANQUANTE);
       return () => undefined;
     }
-    try {
-      const [db, fs] = await Promise.all([firebaseDb(), chargerFirestore()]);
-      return fs.onSnapshot(
-        fs.collection(db, 'creneaux'),
-        (instantane) => {
-          const liste: Creneau[] = [];
-          for (const doc of instantane.docs) {
-            const creneau = versCreneau(doc.id, doc.data() as Record<string, unknown>);
-            if (creneau) {
-              liste.push(creneau);
-            }
+    return this.backend.ecouterCreneaux(
+      (instantane) => {
+        const liste: Creneau[] = [];
+        for (const doc of instantane.docs) {
+          const creneau = versCreneau(doc.id, doc.data());
+          if (creneau) {
+            liste.push(creneau);
           }
-          this.creneaux.set(trierCreneaux(liste));
-          this.chargement.set(false);
-          this.erreur.set(null);
-        },
-        () => {
-          this.chargement.set(false);
-          this.erreur.set(MESSAGE_LECTURE_CREENEAUX);
-        },
-      );
-    } catch {
-      this.chargement.set(false);
-      this.erreur.set(MESSAGE_LECTURE_CREENEAUX);
-      return () => undefined;
-    }
+        }
+        this.creneaux.set(trierCreneaux(liste));
+        this.chargement.set(false);
+        this.erreur.set(null);
+      },
+      () => {
+        this.chargement.set(false);
+        this.erreur.set(MESSAGE_LECTURE_CREENEAUX);
+      },
+    );
   }
 
   /** Détache l'écoute courante. */

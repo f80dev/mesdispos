@@ -9,41 +9,34 @@ import {
   indexerColonnes,
   normaliserEntete,
 } from './excel-import.service';
+import { FIRESTORE_BACKEND, type FirestoreBackend } from '../core/firestore.backend';
+import { XLSX_BACKEND, type XLSXBackend } from '../core/xlsx.backend';
 
-/* -------------------------------------------------------------------------- */
-/* Doubles de test : `read-excel-file` et Firestore sont mockés                 */
-/* -------------------------------------------------------------------------- */
+/**
+ * Double XLSX : renvoie le tableau de lignes piloté par `etat.rangees`.
+ */
+function creerFauxXLSX(etat: { rangees: unknown[][] }): XLSXBackend {
+  return {
+    lire: vi.fn(async () => etat.rangees),
+  };
+}
 
-const etat = vi.hoisted(() => ({
-  rangees: [] as unknown[][],
-  identifiantsEnBase: [] as string[],
-}));
-
-vi.mock('read-excel-file', () => ({
-  default: vi.fn(async () => etat.rangees),
-}));
-
-vi.mock('../core/firebase', () => ({
-  firebaseConfigure: () => true,
-  firebaseDb: async () => ({ instance: 'db' }),
-  MESSAGE_CONFIG_MANQUANTE: 'config manquante',
-  chargerFirestore: async () => ({
-    doc: (...chemin: unknown[]) => ({ chemin }),
-    getDocs: async () => ({
-      docs: etat.identifiantsEnBase.map((id) => ({ id, data: () => ({}) })),
-    }),
-    writeBatch: () => {
-      const operations: Array<{ chemin: unknown[]; donnees: unknown }> = [];
-      return {
-        set: (ref: { chemin: unknown[] }, donnees: unknown) => {
-          operations.push({ chemin: ref.chemin, donnees });
-        },
-        commit: vi.fn(async () => undefined),
-        operations,
-      };
-    },
-  }),
-}));
+/**
+ * Double Firestore : enregistre les écritures via `upsertCreneaux`,
+ * expose `listerIdsCreneaux` (configurable par `etat.identifiantsEnBase`).
+ */
+function creerFauxBackend(etat: { identifiantsEnBase: string[] }): FirestoreBackend {
+  return {
+    configure: true,
+    ecouterCreneaux: vi.fn(async () => () => undefined),
+    ecouterDispos: vi.fn(async () => () => undefined),
+    setDispo: vi.fn(async () => undefined),
+    deleteDispo: vi.fn(async () => undefined),
+    listerIdsCreneaux: vi.fn(async () => [...etat.identifiantsEnBase]),
+    upsertCreneaux: vi.fn(async (items) => items.length),
+    estAdmin: vi.fn(async () => false),
+  };
+}
 
 function fichierFictif(nom = 'creneaux.xlsx'): File {
   return new File(['contenu'], nom, {
@@ -85,11 +78,19 @@ describe('normaliserEntete / indexerColonnes', () => {
 
 describe('ExcelImportService.lire', () => {
   let service: ExcelImportService;
+  const etatRangees: { rangees: unknown[][] } = { rangees: [] };
+  const etatBase: { identifiantsEnBase: string[] } = { identifiantsEnBase: [] };
 
   beforeEach(() => {
-    etat.rangees = [];
-    etat.identifiantsEnBase = [];
-    TestBed.configureTestingModule({ providers: [ExcelImportService] });
+    etatRangees.rangees = [];
+    etatBase.identifiantsEnBase = [];
+    TestBed.configureTestingModule({
+      providers: [
+        ExcelImportService,
+        { provide: XLSX_BACKEND, useValue: creerFauxXLSX(etatRangees) },
+        { provide: FIRESTORE_BACKEND, useValue: creerFauxBackend(etatBase) },
+      ],
+    });
     service = TestBed.inject(ExcelImportService);
   });
 
@@ -100,7 +101,7 @@ describe('ExcelImportService.lire', () => {
   });
 
   it('lit un fichier valide et renvoie les lignes normalisées', async () => {
-    etat.rangees = [
+    etatRangees.rangees = [
       ['Date', 'Heure de début', 'Heure fin', 'Libellé'],
       ['12/01/2026', '08:45', '09:30', 'Audition A1'],
     ];
@@ -120,7 +121,7 @@ describe('ExcelImportService.lire', () => {
   });
 
   it('refuse un fichier sans les colonnes obligatoires', async () => {
-    etat.rangees = [
+    etatRangees.rangees = [
       ['Date', 'Libellé'],
       ['12/01/2026', 'rien'],
     ];
@@ -128,7 +129,7 @@ describe('ExcelImportService.lire', () => {
   });
 
   it('rejette heure_fin <= heure_debut', async () => {
-    etat.rangees = [
+    etatRangees.rangees = [
       ['date', 'heure_debut', 'heure_fin'],
       ['12/01/2026', '18:00', '17:00'],
     ];
@@ -142,7 +143,7 @@ describe('ExcelImportService.lire', () => {
   });
 
   it("détecte les doublons à l'intérieur du fichier", async () => {
-    etat.rangees = [
+    etatRangees.rangees = [
       ['date', 'heure_debut', 'heure_fin'],
       ['12/01/2026', '08:45', '09:30'],
       ['12/01/2026', '08:45', '09:30'],
@@ -156,8 +157,8 @@ describe('ExcelImportService.lire', () => {
   });
 
   it('détecte les créneaux déjà présents en base', async () => {
-    etat.identifiantsEnBase = ['2026-01-12_0845_0930'];
-    etat.rangees = [
+    etatBase.identifiantsEnBase = ['2026-01-12_0845_0930'];
+    etatRangees.rangees = [
       ['date', 'heure_debut', 'heure_fin'],
       ['12/01/2026', '08:45', '09:30'],
     ];
@@ -169,7 +170,7 @@ describe('ExcelImportService.lire', () => {
   });
 
   it('signale date et heure invalides sans bloquer les autres lignes', async () => {
-    etat.rangees = [
+    etatRangees.rangees = [
       ['date', 'heure_debut', 'heure_fin'],
       ['31/02/2026', '08:45', '09:30'],
       ['12/01/2026', '25:00', '26:00'],
@@ -187,7 +188,7 @@ describe('ExcelImportService.lire', () => {
   });
 
   it('renvoie un ResultatImport vide pour un classeur sans ligne', async () => {
-    etat.rangees = [['date', 'heure_debut', 'heure_fin']];
+    etatRangees.rangees = [['date', 'heure_debut', 'heure_fin']];
     const resultat = await service.lire(fichierFictif());
     expect(resultat).toEqual({ valides: [], invalides: [] });
   });
@@ -195,9 +196,17 @@ describe('ExcelImportService.lire', () => {
 
 describe('ExcelImportService.importer', () => {
   let service: ExcelImportService;
+  let backend: FirestoreBackend;
 
   beforeEach(() => {
-    TestBed.configureTestingModule({ providers: [ExcelImportService] });
+    backend = creerFauxBackend({ identifiantsEnBase: [] });
+    TestBed.configureTestingModule({
+      providers: [
+        ExcelImportService,
+        { provide: XLSX_BACKEND, useValue: creerFauxXLSX({ rangees: [] }) },
+        { provide: FIRESTORE_BACKEND, useValue: backend },
+      ],
+    });
     service = TestBed.inject(ExcelImportService);
   });
 
@@ -213,6 +222,8 @@ describe('ExcelImportService.importer', () => {
     ]);
 
     expect(importes).toBe(1);
+    expect(backend.upsertCreneaux).toHaveBeenCalledTimes(1);
+    expect((backend.upsertCreneaux as ReturnType<typeof vi.fn>).mock.calls[0]?.[0]).toHaveLength(1);
   });
 
   it('ignore les lignes marquées invalides', async () => {
@@ -228,6 +239,11 @@ describe('ExcelImportService.importer', () => {
     ]);
 
     expect(importes).toBe(1);
+    // La 2ᵉ ligne (en erreur) ne doit pas être envoyée à `upsertCreneaux`.
+    const items = (backend.upsertCreneaux as ReturnType<typeof vi.fn>).mock
+      .calls[0]?.[0] as Array<{ id: string }>;
+    expect(items).toHaveLength(1);
+    expect(items[0]?.id).toBe('2026-01-12_0845_0930');
   });
 
   it('découpe automatiquement par lots de 500 opérations', async () => {
@@ -236,16 +252,11 @@ describe('ExcelImportService.importer', () => {
     const lignes = Array.from({ length: 1201 }, (_vide, index) => ({
       ligne: index + 2,
       date: '2026-01-12',
-      heureDebut: `${String(6 + (Math.floor(index / 60) % 14)).padStart(2, '0')}:${String(index % 60).padStart(2, '0')}`,
+      heureDebut: `${String(Math.floor(index / 60) % 24).padStart(2, '0')}:${String((index * 7) % 60).padStart(2, '0')}`,
       heureFin: '23:00',
     }));
-    // on rend les identifiants uniques
-    const uniques = lignes.map((ligne, index) => ({
-      ...ligne,
-      heureDebut: `${String(Math.floor(index / 60) % 24).padStart(2, '0')}:${String((index * 7) % 60).padStart(2, '0')}`,
-    }));
 
-    const { importes } = await service.importer(uniques);
+    const { importes } = await service.importer(lignes);
     expect(importes).toBe(1201);
   });
 });

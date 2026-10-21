@@ -1,12 +1,8 @@
-import { Injectable } from '@angular/core';
-import readXlsxFile from 'read-excel-file';
+import { Injectable, inject } from '@angular/core';
 
-import {
-  MESSAGE_CONFIG_MANQUANTE,
-  chargerFirestore,
-  firebaseConfigure,
-  firebaseDb,
-} from '../core/firebase';
+import { FIRESTORE_BACKEND } from '../core/firestore.backend';
+import { MESSAGE_CONFIG_MANQUANTE } from '../core/firebase';
+import { XLSX_BACKEND, type XLSXBackend } from '../core/xlsx.backend';
 import { idCreneau } from './models';
 import { normalizeDate, normalizeHeure } from '../shared/date.util';
 import type { Creneau, LigneImport, ResultatImport } from './models';
@@ -93,11 +89,17 @@ function ligneVide(row: readonly unknown[]): boolean {
  *
  * Format attendu (1ʳᵉ feuille, 1ʳᵉ ligne = en-têtes, insensibles casse/accents) :
  * `date`, `heure_debut` (ou `debut`), `heure_fin` (ou `fin`), `libelle` (facultatif).
- * La lecture se fait **dans le navigateur** (`read-excel-file`) : aucun fichier
+ * La lecture se fait **dans le navigateur** (`XLSX_BACKEND`) : aucun fichier
  * n'est envoyé sur un serveur.
+ *
+ * Les écritures Firestore passent par `FIRESTORE_BACKEND` (abstraction
+ * injectable) pour rester testable sans `vi.mock`.
  */
 @Injectable({ providedIn: 'root' })
 export class ExcelImportService {
+  private readonly backend = inject(FIRESTORE_BACKEND);
+  private readonly xlsx: XLSXBackend = inject(XLSX_BACKEND);
+
   /** Lit, normalise et valide un fichier `.xlsx`. Ne bloque pas sur les lignes invalides. */
   async lire(fichier: File): Promise<ResultatImport> {
     const nom = fichier.name.toLowerCase();
@@ -105,9 +107,9 @@ export class ExcelImportService {
       throw new ErreurImport(MESSAGE_FORMAT);
     }
 
-    let rangees: Awaited<ReturnType<typeof readXlsxFile>>;
+    let rangees: unknown[][];
     try {
-      rangees = await readXlsxFile(fichier);
+      rangees = await this.xlsx.lire(fichier);
     } catch {
       throw new ErreurImport('Fichier illisible ou corrompu : impossible de lire le classeur.');
     }
@@ -191,13 +193,12 @@ export class ExcelImportService {
 
   /** Identifiants déjà présents dans `creneaux` (détection des doublons en base). */
   private async identifiantsEnBase(): Promise<Set<string>> {
-    if (!firebaseConfigure()) {
+    if (!this.backend.configure) {
       return new Set<string>();
     }
     try {
-      const [db, fs] = await Promise.all([firebaseDb(), chargerFirestore()]);
-      const instantane = await fs.getDocs(fs.collection(db, 'creneaux'));
-      return new Set(instantane.docs.map((doc) => doc.id));
+      const ids = await this.backend.listerIdsCreneaux();
+      return new Set(ids);
     } catch {
       // Base injoignable : on n'empêche pas l'import (les rules rejoueront le contrôle).
       return new Set<string>();
@@ -209,11 +210,9 @@ export class ExcelImportService {
    * opérations (F6). Renvoie le nombre de créneaux écrits.
    */
   async importer(lignes: readonly LigneImport[]): Promise<{ importes: number }> {
-    if (!firebaseConfigure()) {
+    if (!this.backend.configure) {
       throw new ErreurImport(MESSAGE_CONFIG_MANQUANTE);
     }
-    const [db, fs] = await Promise.all([firebaseDb(), chargerFirestore()]);
-
     const creneaux: Creneau[] = lignes
       .filter((ligne) => ligne.erreur === undefined)
       .map((ligne) => ({
@@ -224,16 +223,11 @@ export class ExcelImportService {
         ...(ligne.libelle ? { libelle: ligne.libelle } : {}),
       }));
 
-    let importes = 0;
-    for (let debut = 0; debut < creneaux.length; debut += TAILLE_BATCH) {
-      const lot = creneaux.slice(debut, debut + TAILLE_BATCH);
-      const batch = fs.writeBatch(db);
-      for (const creneau of lot) {
-        batch.set(fs.doc(db, 'creneaux', creneau.id), creneau);
-      }
-      await batch.commit();
-      importes += lot.length;
-    }
+    const items = creneaux.map((creneau) => ({
+      id: creneau.id,
+      data: creneau as unknown,
+    }));
+    const importes = await this.backend.upsertCreneaux(items);
     return { importes };
   }
 }

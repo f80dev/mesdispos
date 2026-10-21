@@ -12,19 +12,7 @@ import { adminGuard } from './admin.guard';
 import { authGuard } from './auth.guard';
 import { AuthService, type Utilisateur } from './auth.service';
 import { NotifService } from './notif.service';
-
-/* Doubles de test ---------------------------------------------------------- */
-
-const etat = vi.hoisted(() => ({ admin: false }));
-
-vi.mock('./firebase', () => ({
-  firebaseConfigure: () => true,
-  firebaseDb: async () => ({ instance: 'db' }),
-  chargerFirestore: async () => ({
-    doc: (...chemin: unknown[]) => ({ chemin }),
-    getDoc: async () => ({ exists: () => etat.admin }),
-  }),
-}));
+import { FIRESTORE_BACKEND, type FirestoreBackend } from './firestore.backend';
 
 const ANON: Utilisateur = {
   uid: 'anon_85209162cfd3',
@@ -55,25 +43,36 @@ class FauxNotifService {
   readonly reessayer = vi.fn();
 }
 
+/** Faux `FirestoreBackend` dont `estAdmin` répond `admin`. */
+function creerFauxBackend(admin: boolean): FirestoreBackend {
+  return {
+    configure: true,
+    ecouterCreneaux: vi.fn(async () => () => undefined),
+    ecouterDispos: vi.fn(async () => () => undefined),
+    setDispo: vi.fn(async () => undefined),
+    deleteDispo: vi.fn(async () => undefined),
+    listerIdsCreneaux: vi.fn(async () => []),
+    upsertCreneaux: vi.fn(async () => 0),
+    estAdmin: vi.fn(async () => admin),
+  };
+}
+
 const ROUTE = {} as ActivatedRouteSnapshot;
 const ETAT_ADMIN = { url: '/admin/import' } as RouterStateSnapshot;
-
-function preparer(auth: FauxAuthService): void {
-  TestBed.configureTestingModule({
-    providers: [
-      provideRouter([]),
-      { provide: AuthService, useValue: auth },
-      { provide: NotifService, useValue: new FauxNotifService() },
-    ],
-  });
-}
 
 describe('authGuard', () => {
   let auth: FauxAuthService;
 
   beforeEach(() => {
     auth = new FauxAuthService();
-    preparer(auth);
+    TestBed.configureTestingModule({
+      providers: [
+        provideRouter([]),
+        { provide: AuthService, useValue: auth },
+        { provide: NotifService, useValue: new FauxNotifService() },
+        { provide: FIRESTORE_BACKEND, useValue: creerFauxBackend(false) },
+      ],
+    });
   });
 
   it('laisse passer un utilisateur Google', async () => {
@@ -104,8 +103,7 @@ describe('adminGuard', () => {
   let auth: FauxAuthService;
   let notif: FauxNotifService;
 
-  beforeEach(() => {
-    etat.admin = false;
+  function preparer(admin: boolean): void {
     auth = new FauxAuthService();
     notif = new FauxNotifService();
     TestBed.configureTestingModule({
@@ -113,13 +111,14 @@ describe('adminGuard', () => {
         provideRouter([]),
         { provide: AuthService, useValue: auth },
         { provide: NotifService, useValue: notif },
+        { provide: FIRESTORE_BACKEND, useValue: creerFauxBackend(admin) },
       ],
     });
-  });
+  }
 
   it("refuse l'accès sans document admins/{uid}", async () => {
+    preparer(false);
     auth.utilisateur = GOOGLE;
-    etat.admin = false;
     const router = TestBed.inject(Router);
     const spy = vi.spyOn(router, 'createUrlTree');
 
@@ -131,8 +130,8 @@ describe('adminGuard', () => {
   });
 
   it("refuse l'accès à un utilisateur anonyme même si admins/ le mentionnerait", async () => {
+    preparer(true);
     auth.utilisateur = ANON;
-    etat.admin = true;
 
     const resultat = await TestBed.runInInjectionContext(() => adminGuard(ROUTE, ETAT_ADMIN));
 
@@ -140,15 +139,16 @@ describe('adminGuard', () => {
   });
 
   it('laisse passer un admin en mode B', async () => {
+    preparer(true);
     auth.utilisateur = GOOGLE;
-    etat.admin = true;
 
     const resultat = await TestBed.runInInjectionContext(() => adminGuard(ROUTE, ETAT_ADMIN));
 
     expect(resultat).toBe(true);
   });
 
-  it("renvoie vers /login si personne n'est connecté", async () => {
+  it('renvoie vers /login si personne n\'est connecté', async () => {
+    preparer(false);
     auth.utilisateur = null;
     const router = TestBed.inject(Router);
     const spy = vi.spyOn(router, 'createUrlTree');

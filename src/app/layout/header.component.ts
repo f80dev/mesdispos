@@ -4,7 +4,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { Router, RouterLink } from '@angular/router';
 
 import { AuthService } from '../core/auth.service';
-import { estAdmin } from '../core/admin.guard';
+import { FIRESTORE_BACKEND } from '../core/firestore.backend';
 import { ROUTES } from '../app.routes';
 
 // Mobile: header compact — logo court, avatar sans nom, bouton déconnexion
@@ -19,6 +19,7 @@ import { ROUTES } from '../app.routes';
 export class HeaderComponent {
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
+  private readonly backend = inject(FIRESTORE_BACKEND);
 
   /** Signal unifié : mode A (anonyme) comme mode B (Google). */
   readonly user = this.auth.user;
@@ -46,7 +47,7 @@ export class HeaderComponent {
     if (!utilisateur || utilisateur.anon) {
       return;
     }
-    this.estAdminCourant.set(await estAdmin(utilisateur.uid));
+    this.estAdminCourant.set(await this.backend.estAdmin(utilisateur.uid));
   }
 
   /** Déconnexion : efface le cookie (mode A) ou Firebase (mode B), puis `/login`. */
