@@ -37,6 +37,22 @@
   min-width: 0;
 }
 
+.lien-admin {
+  display: flex;
+  align-items: center;
+  min-height: 48px;
+  padding-inline: var(--md-spacing-3);
+  border-radius: var(--app-corner-full);
+  color: var(--app-primary);
+  text-decoration: none;
+  font: var(--app-type-label-large);
+  white-space: nowrap;
+
+  &:hover {
+    background: color-mix(in srgb, var(--app-primary) 8%, transparent);
+  }
+}
+
 .avatar {
   display: flex;
   align-items: center;
@@ -72,7 +88,7 @@
   color: var(--app-on-surface-variant);
 }
 
-// Mobile ≤ 420 px : header compact, nom masqué (avatar seul), padding 8/16 px.
+// Mobile ≤ 420 px : header compact, nom masqué (avatar seul), lien admin réduit.
 @media (max-width: 420px) {
   .header {
     height: 52px;
@@ -81,6 +97,14 @@
 
   .nom {
     display: none;
+  }
+
+  .lien-admin {
+    padding-inline: var(--md-spacing-2);
+    font: var(--app-type-label-medium);
+    max-width: 12ch;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 }
 

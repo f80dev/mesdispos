@@ -195,3 +195,20 @@
 Autres constats : bouton « Continuer » `h=48px w=327px` et **désactivé** tant que le champ est vide ; input `font-size: 16px` (pas de zoom iOS) ; bouton « Se déconnecter » `48×48` avec `aria-label` ; au rechargement, `/dispos` est servi directement et l'en-tête affiche « Pauline » (restauration par cookie, sans repasser par `/login`) ; après « Se déconnecter », le cookie est vide et l'URL redevient `/login`. Attributs réels du cookie relevés via `Network.getAllCookies` : `httpOnly=false`, `sameSite=Lax`, `path=/`, `secure=false` (http local — `Secure` ne serait posé qu'en `https:`), expiration ≈ +1 an.
 
 **Conséquences :** le focus automatique du champ « Prénom », exigé par F2, **ne fonctionnait pas** avec `cdkFocusInitial` seul (ce directive n'agit qu'à l'intérieur d'un `cdkTrapFocus`) : il a été remplacé par `afterNextRender(() => this.champ()?.nativeElement.focus())`, puis vérifié (`document.activeElement` = `INPUT`). Restent à la charge de l'humain : les captures d'écran du cahier et la vérification des deux listes avec de vrais créneaux (qui suppose des identifiants Firebase renseignés — sans eux, l'état affiché est l'erreur « Configuration Firebase non renseignée », ce qui est le comportement attendu).
+
+
+## 2026-10-21 — Import Excel : en-têtes tolérants, lignes invalides non bloquantes
+
+**Contexte :** F6 impose des en-têtes « insensibles à la casse/accents » et quatre colonnes (`date`, `heure_debut`|`debut`, `heure_fin`|`fin`, `libelle`). Les fichiers du monde réel s'écrivent « Date », « Heure de début », « Heure fin », « Libellé », « DATE SEANCE », « heure de fin (hh:mm) »…
+
+**Décision :** `normaliserEntete()` réduit un en-tête à une clé sans accents, sans casse ni séparateur (« Heure de début » → `heurededebut`), puis `indexerColonnes()` recherche chaque champ **par inclusion**, dans l'ordre `date` → `heure_debut` → `heure_fin` → `libelle`, sans jamais réutiliser un même en-tête pour deux champs. Chaque ligne est validée indépendamment (date, heures, `heureFin > heureDebut`, doublon dans le fichier, doublon déjà en base via `getDocs('creneaux')`) ; les lignes invalides sont retournées avec un message français et n'empêchent pas l'import des valides. L'import écrit par `writeBatch` par lots de 500 (`TAILLE_BATCH`), en `setDoc` (upsert).
+
+**Conséquences :** **bug corrigé grâce à une sonde hors tests** : la première implémentation comparait des clés à `_` (`heure_de_debut`) et rejetait un fichier parfaitement valide dont l'en-tête était « Heure de début » ; la sonde a produit `ErreurImport : Colonnes attendues…`, ce qui a mené à la stratégie par inclusion ci-dessus. La détection de doublon en base est tolérante à l'échec (base injoignable → on n'empêche pas l'import, les rules rejoueront le contrôle). Une ligne ne contenant qu'un libellé sans date ni heures est listée comme invalide plutôt que silencieusement ignorée : le fichier tells what's wrong.
+
+## 2026-10-21 — Lien « Importer des créneaux » réservé aux admins connectés (mode B)
+
+**Contexte :** l'étape 10 impose un lien d'accès dans le header « uniquement pour les admins », alors que le header est rendu par le composant racine (donc pour tous).
+
+**Décision :** `HeaderComponent` vérifie une seule fois au démarrage si `estAdmin(uid)` est vrai, et n'affiche le lien que dans ce cas. Le mode A (anonyme) est exclu d'emblée : `adminGuard` exige `user && !user.anon`.
+
+**Conséquences :** une seule lecture de `admins/{uid}` par session (résultat mémoïsé dans un signal) ; le lien reste absent pour les utilisateurs anonymes et les comptes Google non administrateurs, et l'accès direct à `/admin/import` reste bloqué par `adminGuard` (snackbar « Accès réservé à un administrateur » puis `/dispos`).

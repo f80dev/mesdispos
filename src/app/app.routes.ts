@@ -1,5 +1,6 @@
 import { Routes } from '@angular/router';
 
+import { adminGuard } from './core/admin.guard';
 import { authGuard } from './core/auth.guard';
 
 /** Chemins applicatifs (source de vérité des redirections et des guards). */
@@ -28,6 +29,12 @@ export const routes: Routes = [
     canActivate: [authGuard],
     loadComponent: () =>
       import('./features/dispos/dispos-page.component').then((m) => m.DisposPageComponent),
+  },
+  {
+    // Accès admin : connecté (mode B obligatoire) ET document `admins/{uid}`.
+    path: ROUTES.admin.slice(1),
+    canActivate: [adminGuard],
+    loadComponent: () => import('./features/admin/import.component').then((m) => m.ImportComponent),
   },
   { path: '', pathMatch: 'full', redirectTo: ROUTES.dispos.slice(1) },
   { path: '**', redirectTo: '' },

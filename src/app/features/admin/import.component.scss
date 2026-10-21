@@ -1,0 +1,212 @@
+:host {
+  display: block;
+}
+
+.page-import {
+  display: flex;
+  flex-direction: column;
+  gap: var(--md-spacing-4);
+  width: 100%;
+}
+
+.entete h1 {
+  margin: 0 0 var(--md-spacing-2);
+  font: var(--app-type-headline-medium);
+}
+
+.aide {
+  margin: 0;
+  color: var(--app-on-surface-variant);
+  font: var(--app-type-body-medium);
+
+  code {
+    font-family: ui-monospace, 'SFMono-Regular', Menlo, monospace;
+    background: var(--app-surface-container);
+    border-radius: var(--app-corner-small);
+    padding: 0 4px;
+  }
+}
+
+.zone-depot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--md-spacing-1);
+  min-height: 128px;
+  padding: var(--md-spacing-5) var(--md-spacing-4);
+  box-sizing: border-box;
+  border: 2px dashed var(--app-outline-variant);
+  border-radius: var(--app-corner-large);
+  background: var(--app-surface-container-lowest);
+  color: var(--app-on-surface-variant);
+  cursor: pointer;
+  text-align: center;
+
+  &:hover,
+  &.survol {
+    border-color: var(--app-primary);
+    background: color-mix(in srgb, var(--app-primary) 6%, var(--app-surface-container-lowest));
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--app-primary);
+    outline-offset: 2px;
+  }
+
+  mat-icon {
+    font-size: 32px;
+    width: 32px;
+    height: 32px;
+    color: var(--app-primary);
+  }
+}
+
+.zone-texte {
+  margin: 0;
+  font: var(--app-type-title-medium);
+  color: var(--app-on-surface);
+}
+
+.zone-sous-texte {
+  margin: 0;
+  font: var(--app-type-body-small);
+}
+
+.input-fichier {
+  display: none;
+}
+
+.nom-fichier {
+  margin: 0;
+  font: var(--app-type-body-medium);
+  color: var(--app-on-surface-variant);
+}
+
+.titre-section {
+  margin: 0;
+  font: var(--app-type-title-medium);
+}
+
+.table-wrapper {
+  overflow-x: auto;
+  border: 1px solid var(--app-outline-variant);
+  border-radius: var(--app-corner-medium);
+  background: var(--app-surface-container-lowest);
+}
+
+.tableau {
+  width: 100%;
+  border-collapse: collapse;
+  font: var(--app-type-body-medium);
+
+  th,
+  td {
+    padding: var(--md-spacing-2) var(--md-spacing-3);
+    text-align: left;
+    border-bottom: 1px solid var(--app-outline-variant);
+    white-space: nowrap;
+  }
+
+  th {
+    color: var(--app-on-surface-variant);
+    font: var(--app-type-label-large);
+  }
+
+  tr:last-child td {
+    border-bottom: none;
+  }
+}
+
+.bouton-importer {
+  align-self: flex-start;
+  display: flex;
+  align-items: center;
+  gap: var(--md-spacing-2);
+  min-height: 48px;
+  padding-inline: var(--md-spacing-5);
+}
+
+.invalides {
+  border: 1px solid var(--app-outline-variant);
+  border-radius: var(--app-corner-medium);
+  padding: var(--md-spacing-3);
+  background: color-mix(in srgb, var(--app-error) 8%, var(--app-surface-container-lowest));
+
+  summary {
+    cursor: pointer;
+    min-height: 48px;
+    display: flex;
+    align-items: center;
+    font: var(--app-type-label-large);
+    color: var(--app-on-surface);
+  }
+}
+
+.liste-invalides {
+  margin: var(--md-spacing-2) 0 0;
+  padding-left: var(--md-spacing-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--md-spacing-1);
+  font: var(--app-type-body-medium);
+  color: var(--app-on-surface);
+}
+
+.rappel {
+  color: var(--app-on-surface-variant);
+}
+
+.message-erreur {
+  margin: 0;
+  padding: var(--md-spacing-3);
+  border-radius: var(--app-corner-medium);
+  background: color-mix(in srgb, var(--app-error) 12%, var(--app-surface-container));
+  color: var(--app-on-surface);
+  font: var(--app-type-body-medium);
+}
+
+.vide {
+  margin: 0;
+  color: var(--app-on-surface-variant);
+  font: var(--app-type-body-medium);
+}
+
+// Mobile ≤ 600 px : le tableau devient une liste de cartes (F7).
+@media (max-width: 600px) {
+  .tableau thead {
+    display: none;
+  }
+
+  .tableau,
+  .tableau tbody,
+  .tableau tr,
+  .tableau td {
+    display: block;
+    width: 100%;
+  }
+
+  .tableau tr {
+    border-bottom: 1px solid var(--app-outline-variant);
+    padding: var(--md-spacing-2) 0;
+  }
+
+  .tableau td {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--md-spacing-3);
+    border-bottom: none;
+    white-space: normal;
+  }
+
+  .tableau td::before {
+    content: attr(data-intitule);
+    color: var(--app-on-surface-variant);
+    font: var(--app-type-label-large);
+  }
+
+  .bouton-importer {
+    align-self: stretch;
+    justify-content: center;
+  }
+}

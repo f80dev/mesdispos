@@ -1,0 +1,128 @@
+<!--
+  Mobile  : zone de dépôt pleine largeur (≥ 48 px), aperçu en cartes groupées
+            par jour, détail des lignes invalides replié, bouton 48 px.
+  Desktop : aperçu en tableau à 4 colonnes, zone de dépôt centrée.
+-->
+<section class="page-import">
+  <header class="entete">
+    <h1>Importer des créneaux</h1>
+    <p class="aide">
+      Fichier Excel <code>.xlsx</code> — colonnes <code>date</code>, <code>heure_debut</code>,
+      <code>heure_fin</code> et <code>libelle</code> (facultatif). La lecture se fait dans votre
+      navigateur : le fichier n'est jamais envoyé sur un serveur.
+    </p>
+  </header>
+
+  <div
+    class="zone-depot"
+    [class.survol]="survol()"
+    role="button"
+    tabindex="0"
+    aria-label="Déposer un fichier Excel ou cliquer pour parcourir"
+    (click)="choisirFichier()"
+    (keyup.enter)="choisirFichier()"
+    (keyup.space)="choisirFichier()"
+    (dragover)="$event.preventDefault(); survol.set(true)"
+    (dragleave)="survol.set(false)"
+    (drop)="surDepot($event)"
+  >
+    <mat-icon aria-hidden="true">upload_file</mat-icon>
+    <p class="zone-texte">Déposez votre fichier .xlsx ici</p>
+    <p class="zone-sous-texte">ou cliquez pour le choisir</p>
+    <input
+      #fichier
+      type="file"
+      accept=".xlsx"
+      class="input-fichier"
+      (change)="surFichier($event)"
+    />
+  </div>
+
+  @if (nomFichier(); as nom) {
+    <p class="nom-fichier">
+      Fichier : <strong>{{ nom }}</strong>
+    </p>
+  }
+
+  @if (lectureEnCours()) {
+    <mat-progress-bar mode="indeterminate" aria-label="Lecture du fichier" />
+  }
+
+  @if (message(); as texte) {
+    <p class="message-erreur" role="alert">{{ texte }}</p>
+  }
+
+  @if (resultat(); as analyse) {
+    @if (analyse.valides.length === 0 && analyse.invalides.length === 0) {
+      <p class="vide">Le fichier ne contient aucune ligne de créneau exploitable.</p>
+    }
+
+    @if (totalValides() > 0) {
+      <h2 class="titre-section">{{ totalValides() }} créneaux valides</h2>
+
+      <!-- Desktop : tableau. Mobile : cartes. -->
+      <div class="table-wrapper">
+        <table class="tableau">
+          <thead>
+            <tr>
+              <th scope="col">Ligne</th>
+              <th scope="col">Date</th>
+              <th scope="col">Début</th>
+              <th scope="col">Fin</th>
+              <th scope="col">Libellé</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (ligne of valides(); track ligne.ligne) {
+              <tr>
+                <td data-intitule="Ligne">{{ ligne.ligne }}</td>
+                <td data-intitule="Date">{{ ligne.date | dateGroup }}</td>
+                <td data-intitule="Début">{{ ligne.heureDebut }}</td>
+                <td data-intitule="Fin">{{ ligne.heureFin }}</td>
+                <td data-intitule="Libellé">{{ ligne.libelle ?? '—' }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <button
+        matButton
+        type="button"
+        class="bouton-importer"
+        [disabled]="importEnCours()"
+        (click)="importer()"
+      >
+        @if (importEnCours()) {
+          <mat-spinner diameter="18" />
+        } @else {
+          <mat-icon aria-hidden="true">download</mat-icon>
+        }
+        Importer {{ totalValides() }} créneaux
+      </button>
+    }
+
+    @if (analyse.invalides.length > 0) {
+      <details class="invalides">
+        <summary>
+          {{ analyse.invalides.length }} ligne{{
+            analyse.invalides.length > 1 ? 's' : ''
+          }}
+          invalide{{ analyse.invalides.length > 1 ? 's' : '' }} (détail)
+        </summary>
+        <ul class="liste-invalides">
+          @for (ligne of invalides(); track ligne.ligne) {
+            <li>
+              <strong>Ligne {{ ligne.ligne }}</strong> — {{ ligne.erreur }}
+              @if (ligne.date || ligne.heureDebut) {
+                <span class="rappel">
+                  ({{ ligne.date }} {{ ligne.heureDebut }}–{{ ligne.heureFin }})
+                </span>
+              }
+            </li>
+          }
+        </ul>
+      </details>
+    }
+  }
+</section>

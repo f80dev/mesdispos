@@ -1,12 +1,16 @@
 <!--
   Mobile: logo « MesDispos » + avatar sans nom + bouton déconnexion 48 px.
-  Desktop: idem + nom affiché à côté de l'avatar.
+  Desktop: idem + nom affiché à côté de l'avatar + lien admin si concerné.
 -->
 <header class="header">
   <a class="marque" [routerLink]="ROUTES.dispos">
     <mat-icon aria-hidden="true">event_available</mat-icon>
     <span class="titre">MesDispos</span>
   </a>
+
+  @if (estAdminCourant()) {
+    <a class="lien-admin" [routerLink]="ROUTES.admin">Importer des créneaux</a>
+  }
 
   @if (user(); as utilisateur) {
     <div class="session">

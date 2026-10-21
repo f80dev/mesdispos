@@ -1,9 +1,10 @@
-import { Component, computed, inject } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { Router, RouterLink } from '@angular/router';
 
 import { AuthService } from '../core/auth.service';
+import { estAdmin } from '../core/admin.guard';
 import { ROUTES } from '../app.routes';
 
 // Mobile: header compact — logo court, avatar sans nom, bouton déconnexion
@@ -32,6 +33,21 @@ export class HeaderComponent {
 
   /** Exposé au template pour `routerLink` sans réécrire le chemin en dur. */
   protected readonly ROUTES = ROUTES;
+
+  /** Le lien d'import n'apparaît QUE pour un admin en mode B (F6). */
+  readonly estAdminCourant = signal<boolean>(false);
+
+  constructor() {
+    void this.verifierDroitsAdmin();
+  }
+
+  private async verifierDroitsAdmin(): Promise<void> {
+    const utilisateur = this.auth.user();
+    if (!utilisateur || utilisateur.anon) {
+      return;
+    }
+    this.estAdminCourant.set(await estAdmin(utilisateur.uid));
+  }
 
   /** Déconnexion : efface le cookie (mode A) ou Firebase (mode B), puis `/login`. */
   async seDeconnecter(): Promise<void> {
