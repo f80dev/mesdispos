@@ -6,9 +6,9 @@ import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../core/auth.service';
 import { ROUTES } from '../app.routes';
 
-// Mobile  : header compact — logo court, avatar sans nom, bouton déconnexion
+// Mobile: header compact — logo court, avatar sans nom, bouton déconnexion
 //           48 px. Aucune barre horizontale à 375 px.
-// Desktop : logo « MesDispos », nom + avatar à droite, lien admin si concerné.
+// Desktop: logo « MesDispos », nom + avatar à droite, lien admin si concerné.
 @Component({
   selector: 'app-header',
   imports: [RouterLink, MatIconModule, MatButtonModule],

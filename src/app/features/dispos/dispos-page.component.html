@@ -1,0 +1,75 @@
+<!--
+  Mobile: sections empilées (Créneaux disponibles puis Mes disponibilités),
+            une colonne, en-têtes de jour « lundi 12 janvier 2026 », lignes ≥ 48 px.
+  Desktop: grille 2 colonnes (Disponibles | Mes disponibilités), max 1100 px.
+-->
+@if (chargement()) {
+  <mat-progress-bar mode="indeterminate" aria-label="Chargement des créneaux" />
+}
+
+<div class="page">
+  <section class="section section-disponibles" aria-labelledby="titre-disponibles">
+    <h2 id="titre-disponibles" class="titre-section">
+      <mat-icon aria-hidden="true">event</mat-icon>
+      Créneaux disponibles
+    </h2>
+
+    @if (erreur(); as message) {
+      <div class="etat-erreur" role="alert">
+        <p>{{ message }}</p>
+        <button matButton="outlined" type="button" (click)="reessayerLecture()">Réessayer</button>
+      </div>
+    } @else if (!chargement() && groupesDisponibles().length === 0) {
+      <p class="vide">Aucun créneau proposé pour le moment.</p>
+    } @else {
+      @for (groupe of groupesDisponibles(); track groupe.date) {
+        <div class="jour">
+          <h3 class="jour-titre">{{ groupe.date | dateGroup }}</h3>
+          <ul class="liste">
+            @for (creneau of groupe.creneaux; track creneau.id) {
+              <li>
+                <app-creneau-card
+                  [creneau]="creneau"
+                  [selectionne]="false"
+                  [enCours]="estEnCours(creneau.id)"
+                  (basculer)="basculer($event)"
+                />
+              </li>
+            }
+          </ul>
+        </div>
+      }
+    }
+  </section>
+
+  <section class="section section-retenus" aria-labelledby="titre-retenus">
+    <h2 id="titre-retenus" class="titre-section">
+      <mat-icon aria-hidden="true">event_available</mat-icon>
+      Mes disponibilités ({{ nombreRetenus() }})
+    </h2>
+
+    @if (erreur(); as message) {
+      <p class="vide">{{ message }}</p>
+    } @else if (!chargement() && groupesRetenus().length === 0) {
+      <p class="vide">Vous n'avez pas encore retenu de créneau.</p>
+    } @else {
+      @for (groupe of groupesRetenus(); track groupe.date) {
+        <div class="jour">
+          <h3 class="jour-titre">{{ groupe.date | dateGroup }}</h3>
+          <ul class="liste">
+            @for (creneau of groupe.creneaux; track creneau.id) {
+              <li>
+                <app-creneau-card
+                  [creneau]="creneau"
+                  [selectionne]="true"
+                  [enCours]="estEnCours(creneau.id)"
+                  (basculer)="basculer($event)"
+                />
+              </li>
+            }
+          </ul>
+        </div>
+      }
+    }
+  </section>
+</div>

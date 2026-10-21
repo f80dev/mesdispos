@@ -210,6 +210,46 @@ export function trierCreneaux<T extends CreneauTriable>(creneaux: readonly T[]):
   });
 }
 
+const FORMATTEUR_JOUR = new Intl.DateTimeFormat('fr-FR', {
+  weekday: 'long',
+  day: 'numeric',
+  month: 'long',
+});
+
+/** Élément affichable dans un libellé d'accessibilité. */
+export interface CreneauAffichable {
+  readonly date: string;
+  readonly heureDebut: string;
+  readonly heureFin: string;
+}
+
+/** `'08:45'` → `'8 h 45'` (typographie française, F3). */
+export function libelleHeure(heure: string): string {
+  const morceaux = /^(\d{1,2}):(\d{2})$/.exec(heure.trim());
+  if (!morceaux) {
+    return heure;
+  }
+  const heures = Number.parseInt(morceaux[1] as string, 10);
+  return `${heures} h ${morceaux[2]}`;
+}
+
+/**
+ * Libellé d'accessibilité d'une ligne de créneau (F3) :
+ * « Disponible lundi 12 janvier de 8 h 45 à 9 h 30 », ou « Retenu … » si le
+ * créneau est dans « Mes disponibilités ».
+ */
+export function libelleCreneauAccessible(creneau: CreneauAffichable, selectionne: boolean): string {
+  const morceaux = creneau.date.slice(0, 10).split('-');
+  const annee = Number.parseInt(morceaux[0] ?? '', 10);
+  const mois = Number.parseInt(morceaux[1] ?? '', 10);
+  const jour = Number.parseInt(morceaux[2] ?? '', 10);
+  const jourFr =
+    Number.isNaN(annee) || Number.isNaN(mois) || Number.isNaN(jour)
+      ? creneau.date
+      : FORMATTEUR_JOUR.format(new Date(annee, mois - 1, jour));
+  return `${selectionne ? 'Retenu' : 'Disponible'} ${jourFr} de ${libelleHeure(creneau.heureDebut)} à ${libelleHeure(creneau.heureFin)}`;
+}
+
 /** Regroupe des créneaux par jour en conservant le tri (F3). */
 export function grouperParJour<T extends CreneauTriable>(
   creneaux: readonly T[],

@@ -1,0 +1,86 @@
+:host {
+  display: block;
+}
+
+.ligne {
+  display: flex;
+  align-items: center;
+  gap: var(--md-spacing-3);
+  width: 100%;
+  min-height: 48px;
+  padding: var(--md-spacing-2) var(--md-spacing-3);
+  box-sizing: border-box;
+  border: 1px solid var(--mat-sys-outline-variant);
+  border-radius: var(--mat-sys-corner-medium);
+  background: var(--mat-sys-surface-container-lowest);
+  color: var(--mat-sys-on-surface);
+  font: var(--mat-sys-body-large);
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background-color var(--md-motion-duration-short) var(--md-motion-easing-standard),
+    border-color var(--md-motion-duration-short) var(--md-motion-easing-standard);
+
+  &:hover {
+    background: color-mix(
+      in srgb,
+      var(--mat-sys-primary) 6%,
+      var(--mat-sys-surface-container-lowest)
+    );
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--mat-sys-primary);
+    outline-offset: 2px;
+  }
+}
+
+.ligne.selectionne {
+  border-color: var(--mat-sys-primary);
+  background: color-mix(
+    in srgb,
+    var(--mat-sys-primary) 12%,
+    var(--mat-sys-surface-container-lowest)
+  );
+  color: var(--mat-sys-on-surface);
+}
+
+.horaire {
+  font: var(--mat-sys-title-medium);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.libelle {
+  flex: 1;
+  min-width: 0;
+  color: var(--mat-sys-on-surface-variant);
+  font: var(--mat-sys-body-small);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.etat {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: auto;
+  width: 24px;
+  height: 24px;
+  color: var(--mat-sys-primary);
+
+  mat-icon {
+    font-size: 20px;
+    width: 20px;
+    height: 20px;
+  }
+}
+
+// Mobile ≤ 420 px : la ligne reste confortable au pouce (56 px).
+@media (max-width: 420px) {
+  .ligne {
+    min-height: 56px;
+    padding: var(--md-spacing-2) var(--md-spacing-4) var(--md-spacing-2) var(--md-spacing-3);
+  }
+}

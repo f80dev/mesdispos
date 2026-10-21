@@ -1,5 +1,7 @@
 import { Routes } from '@angular/router';
 
+import { authGuard } from './core/auth.guard';
+
 /** Chemins applicatifs (source de vérité des redirections et des guards). */
 export const ROUTES = {
   login: '/login',
@@ -20,6 +22,12 @@ export const routes: Routes = [
   {
     path: 'login',
     loadComponent: () => import('./features/login/login.component').then((m) => m.LoginComponent),
+  },
+  {
+    path: ROUTES.dispos.slice(1),
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./features/dispos/dispos-page.component').then((m) => m.DisposPageComponent),
   },
   { path: '', pathMatch: 'full', redirectTo: ROUTES.dispos.slice(1) },
   { path: '**', redirectTo: '' },

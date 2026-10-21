@@ -17,7 +17,7 @@ import { LONGUEUR_NOM_MAX } from '../../shared/date.util';
 
 // Mobile : carte unique centrée, champ focalisé, bouton pleine largeur ≥ 48 px,
 // aucun débordement horizontal à 375 px.
-// Desktop : carte centrée 420 px max, deux boutons empilés, beaucoup d'air.
+// Desktop: carte centrée 420 px max, deux boutons empilés, beaucoup d'air.
 @Component({
   selector: 'app-login',
   imports: [

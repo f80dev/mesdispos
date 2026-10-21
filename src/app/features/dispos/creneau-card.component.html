@@ -1,0 +1,28 @@
+<!--
+  Mobile: bouton pleine largeur ≥ 48 px, horaire « 08:45 → 09:30 », libellé
+            éventuel en dessous, état (icône ou spinner 16 px) à droite.
+  Desktop: identique, la section plaçant les cartes en grille.
+-->
+<button
+  type="button"
+  class="ligne"
+  [class.selectionne]="selectionne()"
+  [attr.aria-pressed]="selectionne()"
+  [attr.aria-busy]="enCours()"
+  [attr.aria-label]="libelleAccessible()"
+  (click)="basculer.emit(creneau())"
+>
+  <span class="horaire">
+    {{ creneau().heureDebut }} <span aria-hidden="true">→</span> {{ creneau().heureFin }}
+  </span>
+  @if (creneau().libelle) {
+    <span class="libelle">{{ creneau().libelle }}</span>
+  }
+  <span class="etat" aria-hidden="true">
+    @if (enCours()) {
+      <mat-spinner diameter="16" />
+    } @else {
+      <mat-icon>{{ selectionne() ? 'check_circle' : 'radio_button_unchecked' }}</mat-icon>
+    }
+  </span>
+</button>

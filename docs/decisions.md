@@ -153,3 +153,20 @@
 **Décision :** `firebase.json` pointe sur `dist/mesdispos/browser`, applique la réécriture SPA `** → /index.html`, interdit le cache sur `index.html` et pose `immutable` sur les bundles hachés.
 
 **Conséquences :** un `ng build --configuration=production` suivi de `firebase deploy --only hosting` publie correctement et sans confusion de cache ; `.firebaserc` est ignoré par git (le modèle versionné est `.firebaserc.example`).
+
+
+## 2026-10-21 — Page `/dispos` : regroupement côté composant, aucun formulaire
+
+**Contexte :** F3 demande deux sections groupées par jour et F4 interdit tout bouton d'enregistrement ou confirmation. L'état est intégralement porté par les services (`CreneauService`, `DispoService`), la page ne fait que composer.
+
+**Décision :** `DisposPageComponent` s'abonne dans son constructeur (`ecouter()` sur les deux services) et se désabonne dans `ngOnDestroy`. Le rendu utilise `grouperParJour()` (fonction pure de `shared/date.util.ts`) au-dessus des `computed` `disponibles` / `retenus`, le compteur `N` vient de `DispoService.nombreRetenus`. La ligne est un `<button [attr.aria-pressed]>` qui émet `basculer(creneau)` : le parent appelle `DispoService.basculer()`. Aucun `MatDialog`, aucun `confirm`, aucun formulaire dans le feature.
+
+**Conséquences :** l'état « en cours » est un `Set<string>` par service ; le composant n'a aucun état mutable propre, donc un rechargement de route repart d'un état propre et l'`onSnapshot` rejoue la vérité Firestore. Les en-têtes de jour s'appuient sur `DateGroupPipe` + `Intl.DateTimeFormat('fr-FR')` comme demandé par §F3.
+
+## 2026-10-21 — Accessibilité : libellé F3 généré par une fonction pure
+
+**Contexte :** F3 impose `aria-pressed` et le libellé « Disponible lundi 12 janvier de 8 h 45 à 9 h 30 ».
+
+**Décision :** `libelleCreneauAccessible(creneau, selectionne)` (dans `shared/date.util.ts`) construit ce libellé à partir de `Intl.DateTimeFormat('fr-FR', { weekday, day, month })` et de `libelleHeure()` (« 8 h 45 »). La fonction est pure et testable sans DOM ; le composant ne fait que l'exposer en `computed`.
+
+**Conséquences :** lisible par un lecteur d'écran, le préfixe bascule entre « Disponible » et « Retenu » selon la section, et le libellé reste correct pour les créneaux orphelines affichés dans « Mes disponibilités ».
