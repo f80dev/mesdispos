@@ -1,7 +1,7 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import type { Unsubscribe, User as FirebaseUser } from 'firebase/auth';
 
-import { chargerAuth, firebaseAuth, firebaseConfigure } from './firebase';
+import { MESSAGE_CONFIG_MANQUANTE, chargerAuth, firebaseAuth, firebaseConfigure } from './firebase';
 import { CookieService } from './cookie.service';
 import { normaliserNom } from '../shared/date.util';
 import { sha256Hex } from '../shared/sha256.util';
@@ -26,10 +26,6 @@ export interface Utilisateur {
 
 /** Délai maximal d'attente de la restauration de session avant de laisser passer. */
 const DELAI_SESSION_MS = 5000;
-
-/** Message affiché quand `firebase.config.ts` contient encore des `REPLACE_ME_*`. */
-export const MESSAGE_CONFIG_MANQUANTE =
-  'Configuration Firebase non renseignée : remplacez les valeurs REPLACE_ME_* dans src/environments/firebase.config.ts.';
 
 /** Vrai sur mobile/tablette → le popup Google est remplacé par un redirect. */
 export function estMobile(): boolean {

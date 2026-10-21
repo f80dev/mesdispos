@@ -20,6 +20,10 @@ import { FIREBASE_CONFIG, firebaseConfigure } from '../../environments/firebase.
 
 export { firebaseConfigure };
 
+/** Message affiché quand `firebase.config.ts` contient encore des `REPLACE_ME_*`. */
+export const MESSAGE_CONFIG_MANQUANTE =
+  'Configuration Firebase non renseignée : remplacez les valeurs REPLACE_ME_* dans src/environments/firebase.config.ts.';
+
 /** Module `firebase/app` mémoïsé. */
 let moduleApp: typeof import('firebase/app') | null = null;
 

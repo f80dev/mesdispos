@@ -94,3 +94,34 @@
 **Décision :** `CookieService` écrit `mesdispos_nom=<encodeURIComponent(valeur)>; Max-Age=31536000; Path=/; SameSite=Lax` (+ `; Secure` si `location.protocol === 'https:'`). Le caractère non-`HttpOnly` est documenté dans le code : il est **voulu**, la page devant relire et effacer le cookie sans appel réseau. Suppression immédiate via « Se déconnecter » (button header) ou « Utiliser un autre nom ».
 
 **Conséquences :** la valeur du cookie est accessible au JavaScript de la page (XSS). Le risque est mitigé par l'absence totale de données sensibles (un prénom affiché à l'écran), l'absence de tout cookie tiers et le consentement non requis (cookie strictement nécessaire — §13). `Path=/` est indispensable pour que la valeur soit disponible sur `/admin/import` comme sur `/dispos`.
+
+
+## 2026-10-21 — Fuseaux : lecture Excel en UTC, affichage en local
+
+**Contexte :** F6 impose de convertir les cellules Excel « sans dépendre du fuseau (utiliser les getters UTC d'un côté, locaux de l'autre) ». Le choix dépend du comportement réel de la bibliothèque : `read-excel-file@5.8.8` convertit le numéro de série en `new Date(Math.round((serial - 25569) * 86400000))` (`commonjs/read/parseDate.js`, commentaire explicite « into a corresponding javascript Date in UTC+0 timezone »). Une date Excel pure tombe donc **exactement à minuit UTC**, et une heure pure (base 1899-12-30) sur l'**heure UTC** voulue.
+
+**Décision :** `normalizeDate()` et `normalizeHeure()` lisent les objets `Date` avec les getters **UTC** (`getUTCFullYear`, `getUTCHours`…) ; les getters **locaux** sont réservés au rendu (`date-group.pipe`, qui construit `new Date(année, mois - 1, jour)` avant `Intl.DateTimeFormat('fr-FR')`). Une date Excel reste donc la même le 12 janvier, que le fichier soit lu à Paris, à New York ou à Auckland. Les fractions de journée (`0,363…`) sont aussi acceptées, converties comme la bibliothèque.
+
+**Conséquences :** pas de décalage d'un jour sur les créneaux du matin importés depuis un fuseau négatif, qui est le bug classique de ce type d'import. Le prix : une `Date` affichée telle quelle dans un fuseau exotique montrerait un jour de retard — d'où l'usage systématique des chaînes `'YYYY-MM-DD'` (§13).
+
+## 2026-10-21 — Disponibilités orphelines conservées (jointure mémoire)
+
+**Contexte :** §5 autorise les `dispos` orphelines (créneau supprimé par un admin après sélection) et §14 les affiche dans « Mes disponibilités » via la jointure mémoire avec `creneaux`.
+
+**Décision :** `DispoService.retenus` est un `computed` qui, pour chaque `Dispo`, cherche le `Creneau` du même `id` ; à défaut, il **reconstruit un créneau depuis les champs dénormalisés** du document `Dispo` (`date`, `heureDebut`, `heureFin`, `libelle`). `disponibles` fait l'inverse (créneaux sans document `dispo`).
+
+**Conséquences :** une disponibilité orpheline reste visible et toujours désélectionnable (le `deleteDoc` fonctionne : le document existe encore). Aucun `localStorage` ni cache local : la seule source de vérité de persistance reste Firestore (F4).
+
+## 2026-10-21 — Écritures concurrentes : compteur de séquence par créneau
+
+**Contexte :** F4 demande de tolérer les écritures concurrentes, « la dernière action gagne », l'état local servant à l'affichage et Firestore à la persistance. Un double-clic rapide (ou un rejeu via « Réessayer ») peut faire arriver les réponses dans le désordre.
+
+**Décision :** chaque créneau porte un compteur `sequences: Map<creneauId, number>`. Le rollback et la fin du spinner ne s'appliquent que si la réponse correspond à la séquence courante ; une réponse périmée est ignorée (état local déjà mis à jour par l'action plus récente, Firestore « dernière écriture gagne »).
+
+**Conséquences :** pas de « retour en arrière » visuel après un double-clic rapide. Le `Dispo` écrit contient `updatedAt: Date.now()` purely informatif (§5) — jamais utilisé comme condition de conflit.
+
+## 2026-10-21 — `notif.service.ts` créé à l'étape 4
+
+**Contexte :** le plan §8 place `core/notif.service.ts` à l'étape 6, mais `adminGuard` (étape 4) doit afficher « Accès réservé à un administrateur ».
+
+**Décision :** le service a été livré à l'étape 4 avec les guards, et l'étape 6 se contente de le consommer (snackbar « Enregistrement impossible. Réessayer »). Aucun doublon, contenu inchangé par rapport à ce qu'aurait livré l'étape 6.
