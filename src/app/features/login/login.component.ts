@@ -1,5 +1,13 @@
 import { A11yModule } from '@angular/cdk/a11y';
-import { Component, ElementRef, computed, inject, signal, viewChild } from '@angular/core';
+import {
+  Component,
+  ElementRef,
+  afterNextRender,
+  computed,
+  inject,
+  signal,
+  viewChild,
+} from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
@@ -80,6 +88,11 @@ export class LoginComponent {
     if (nomCookie) {
       this.formulaire.controls.prenom.setValue(nomCookie);
     }
+    // F2 mode A : le champ « Prénom » prend le focus à l'ouverture de /login,
+    // pour que le parcours complet tienne en moins de 3 interactions au pouce.
+    afterNextRender(() => {
+      this.champ()?.nativeElement.focus();
+    });
   }
 
   /** Soumission du formulaire du mode A. */

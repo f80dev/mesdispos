@@ -9,18 +9,18 @@
   gap: var(--md-spacing-3);
   height: 56px;
   padding: 0 var(--md-spacing-4);
-  background: var(--mat-sys-surface-container);
-  color: var(--mat-sys-on-surface);
-  border-bottom: 1px solid var(--mat-sys-outline-variant);
+  background: var(--app-surface-container);
+  color: var(--app-on-surface);
+  border-bottom: 1px solid var(--app-outline-variant);
 }
 
 .marque {
   display: flex;
   align-items: center;
   gap: var(--md-spacing-2);
-  color: var(--mat-sys-primary);
+  color: var(--app-primary);
   text-decoration: none;
-  font: var(--mat-sys-title-large);
+  font: var(--app-type-title-large);
   min-height: 48px;
 
   mat-icon {
@@ -43,10 +43,10 @@
   justify-content: center;
   width: 36px;
   height: 36px;
-  border-radius: var(--mat-sys-corner-full);
-  background: var(--mat-sys-primary-container);
-  color: var(--mat-sys-on-primary-container);
-  font: var(--mat-sys-label-large);
+  border-radius: var(--app-corner-full);
+  background: var(--app-primary-container);
+  color: var(--app-on-primary-container);
+  font: var(--app-type-label-large);
   overflow: hidden;
   flex: 0 0 auto;
 
@@ -58,8 +58,8 @@
 }
 
 .nom {
-  font: var(--mat-sys-body-medium);
-  color: var(--mat-sys-on-surface);
+  font: var(--app-type-body-medium);
+  color: var(--app-on-surface);
   max-width: 22ch;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -69,7 +69,7 @@
 .deconnexion {
   width: 48px;
   height: 48px;
-  color: var(--mat-sys-on-surface-variant);
+  color: var(--app-on-surface-variant);
 }
 
 // Mobile ≤ 420 px : header compact, nom masqué (avatar seul), padding 8/16 px.

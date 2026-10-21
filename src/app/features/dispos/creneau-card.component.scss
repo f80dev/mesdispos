@@ -10,43 +10,35 @@
   min-height: 48px;
   padding: var(--md-spacing-2) var(--md-spacing-3);
   box-sizing: border-box;
-  border: 1px solid var(--mat-sys-outline-variant);
-  border-radius: var(--mat-sys-corner-medium);
-  background: var(--mat-sys-surface-container-lowest);
-  color: var(--mat-sys-on-surface);
-  font: var(--mat-sys-body-large);
+  border: 1px solid var(--app-outline-variant);
+  border-radius: var(--app-corner-medium);
+  background: var(--app-surface-container-lowest);
+  color: var(--app-on-surface);
+  font: var(--app-type-body-large);
   text-align: left;
   cursor: pointer;
   transition:
-    background-color var(--md-motion-duration-short) var(--md-motion-easing-standard),
-    border-color var(--md-motion-duration-short) var(--md-motion-easing-standard);
+    background-color var(--md-motion-duration-short) var(--mat-sys-motion-easing-standard, ease),
+    border-color var(--md-motion-duration-short) var(--mat-sys-motion-easing-standard, ease);
 
   &:hover {
-    background: color-mix(
-      in srgb,
-      var(--mat-sys-primary) 6%,
-      var(--mat-sys-surface-container-lowest)
-    );
+    background: color-mix(in srgb, var(--app-primary) 6%, var(--app-surface-container-lowest));
   }
 
   &:focus-visible {
-    outline: 2px solid var(--mat-sys-primary);
+    outline: 2px solid var(--app-primary);
     outline-offset: 2px;
   }
 }
 
 .ligne.selectionne {
-  border-color: var(--mat-sys-primary);
-  background: color-mix(
-    in srgb,
-    var(--mat-sys-primary) 12%,
-    var(--mat-sys-surface-container-lowest)
-  );
-  color: var(--mat-sys-on-surface);
+  border-color: var(--app-primary);
+  background: color-mix(in srgb, var(--app-primary) 12%, var(--app-surface-container-lowest));
+  color: var(--app-on-surface);
 }
 
 .horaire {
-  font: var(--mat-sys-title-medium);
+  font: var(--app-type-title-medium);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
@@ -54,8 +46,8 @@
 .libelle {
   flex: 1;
   min-width: 0;
-  color: var(--mat-sys-on-surface-variant);
-  font: var(--mat-sys-body-small);
+  color: var(--app-on-surface-variant);
+  font: var(--app-type-body-small);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -68,7 +60,7 @@
   margin-left: auto;
   width: 24px;
   height: 24px;
-  color: var(--mat-sys-primary);
+  color: var(--app-primary);
 
   mat-icon {
     font-size: 20px;

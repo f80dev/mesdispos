@@ -16,12 +16,16 @@
   --md-spacing-5: 24px;
   --md-spacing-6: 32px;
 
-  // Motion durations M3
+  // Padding échelonné du contenu (F7) : desktop 48 / ≤900 24 / ≤700 16 / ≤420 8+16
+  --md-content-padding: 48px;
+
+  // Motion M3 — durées et courbes de la spécification
   --md-motion-duration-short: 150ms;
   --md-motion-duration-medium: 250ms;
   --md-motion-duration-long: 400ms;
+  --md-motion-duration-extra-long: 600ms;
 
-  // Density — compact par défaut
+  // Density — compact par défaut (§3 : « densité compacte par défaut »)
   --md-density-default: -1;
 
   color-scheme: light;
@@ -57,6 +61,74 @@
 }
 
 // -----------------------------------------------------------------------------
+// Alias applicatifs des rôles M3 (`--mat-sys-*` générés par `mat.theme()`)
+// Les composants consomment ces alias courts : changer de palette ou de thème
+// n'oblige pas à réécrire les feuilles de style.
+// -----------------------------------------------------------------------------
+:root {
+  // Palette : primary / secondary / tertiary + rôles « on- »
+  --app-primary: var(--mat-sys-primary);
+  --app-on-primary: var(--mat-sys-on-primary);
+  --app-primary-container: var(--mat-sys-primary-container);
+  --app-on-primary-container: var(--mat-sys-on-primary-container);
+  --app-secondary: var(--mat-sys-secondary);
+  --app-on-secondary: var(--mat-sys-on-secondary);
+  --app-secondary-container: var(--mat-sys-secondary-container);
+  --app-on-secondary-container: var(--mat-sys-on-secondary-container);
+  --app-tertiary: var(--mat-sys-tertiary);
+  --app-on-tertiary: var(--mat-sys-on-tertiary);
+  --app-tertiary-container: var(--mat-sys-tertiary-container);
+  --app-on-tertiary-container: var(--mat-sys-on-tertiary-container);
+
+  // Surfaces : base + conteneurs (niveaux 0 → 5) + « on-surface »
+  --app-surface: var(--mat-sys-surface);
+  --app-on-surface: var(--mat-sys-on-surface);
+  --app-surface-variant: var(--mat-sys-surface-variant);
+  --app-on-surface-variant: var(--mat-sys-on-surface-variant);
+  --app-surface-container-lowest: var(--mat-sys-surface-container-lowest);
+  --app-surface-container-low: var(--mat-sys-surface-container-low);
+  --app-surface-container: var(--mat-sys-surface-container);
+  --app-surface-container-high: var(--mat-sys-surface-container-high);
+  --app-surface-container-highest: var(--mat-sys-surface-container-highest);
+
+  // Contours
+  --app-outline: var(--mat-sys-outline);
+  --app-outline-variant: var(--mat-sys-outline-variant);
+
+  // États : erreur M3 (aucune couleur hors palette)
+  --app-error: var(--mat-sys-error);
+  --app-on-error: var(--mat-sys-on-error);
+  --app-error-container: var(--mat-sys-error-container);
+
+  // Élévations M3 : level0 (aucune) à level5 — 1 seul niveau utilisé par l'app
+  --app-elevation-0: var(--mat-sys-level0);
+  --app-elevation-1: var(--mat-sys-level1);
+  --app-elevation-2: var(--mat-sys-level2);
+  --app-elevation-3: var(--mat-sys-level3);
+  --app-elevation-4: var(--mat-sys-level4);
+  --app-elevation-5: var(--mat-sys-level5);
+
+  // Type-scale M3 : display / headline / title / body / label × large|medium|small
+  --app-type-display-large: var(--mat-sys-display-large);
+  --app-type-display-medium: var(--mat-sys-display-medium);
+  --app-type-headline-large: var(--mat-sys-headline-large);
+  --app-type-headline-medium: var(--mat-sys-headline-medium);
+  --app-type-title-large: var(--mat-sys-title-large);
+  --app-type-title-medium: var(--mat-sys-title-medium);
+  --app-type-body-large: var(--mat-sys-body-large);
+  --app-type-body-medium: var(--mat-sys-body-medium);
+  --app-type-body-small: var(--mat-sys-body-small);
+  --app-type-label-large: var(--mat-sys-label-large);
+  --app-type-label-medium: var(--mat-sys-label-medium);
+
+  // Coins M3
+  --app-corner-small: var(--mat-sys-corner-small);
+  --app-corner-medium: var(--mat-sys-corner-medium);
+  --app-corner-large: var(--mat-sys-corner-large);
+  --app-corner-full: var(--mat-sys-corner-full);
+}
+
+// -----------------------------------------------------------------------------
 // Base reset (interfaces épurées au sens MD3)
 // -----------------------------------------------------------------------------
 html,
@@ -66,9 +138,17 @@ body {
   font-family: Roboto, 'Helvetica Neue', sans-serif;
   background: var(--mat-sys-surface);
   color: var(--mat-sys-on-surface);
+  // Pas de débordement horizontal à 375 px (AC-19) : on coupe les largeur
+  // minimales imposées par les navigateurs plutôt que de décaler la mise en page.
+  overflow-x: hidden;
 }
 
-// Empêche le zoom forcé iOS sur les inputs en mobile (< 16px déclenche le zoom)
+body {
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+// Empêche le zoom forcé iOS sur les inputs en mobile (< 16 px déclenche le zoom)
 input,
 select,
 textarea,
@@ -76,8 +156,33 @@ button {
   font-size: 16px;
 }
 
-// Cibles tactiles ≥ 48px (règle AC-19 — rendu smartphone)
+// Cibles tactiles ≥ 48 px (règle AC-19 — rendu smartphone)
 .touch-target {
   min-height: 48px;
   min-width: 48px;
+}
+
+button {
+  touch-action: manipulation;
+}
+
+// -----------------------------------------------------------------------------
+// Responsive global (F7) — 1280 / 900 / 700 / 420
+// -----------------------------------------------------------------------------
+@media (max-width: 900px) {
+  :root {
+    --md-content-padding: 24px;
+  }
+}
+
+@media (max-width: 700px) {
+  :root {
+    --md-content-padding: 16px;
+  }
+}
+
+@media (max-width: 420px) {
+  :root {
+    --md-content-padding: 16px;
+  }
 }

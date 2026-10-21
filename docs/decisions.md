@@ -170,3 +170,28 @@
 **Décision :** `libelleCreneauAccessible(creneau, selectionne)` (dans `shared/date.util.ts`) construit ce libellé à partir de `Intl.DateTimeFormat('fr-FR', { weekday, day, month })` et de `libelleHeure()` (« 8 h 45 »). La fonction est pure et testable sans DOM ; le composant ne fait que l'exposer en `computed`.
 
 **Conséquences :** lisible par un lecteur d'écran, le préfixe bascule entre « Disponible » et « Retenu » selon la section, et le libellé reste correct pour les créneaux orphelines affichés dans « Mes disponibilités ».
+
+
+## 2026-10-21 — Design system : alias applicatifs des rôles M3
+
+**Contexte :** AC-17 exige que les tokens couvrent palette (`primary`/`secondary`/`tertiary` + `on-*`), surfaces (`surface`, `surfaceContainer*`), contours, type-scale M3, spacing, élévations et motion, en thème clair/sombre avec `prefers-color-scheme`. Les composants qui écrivaient `var(--mat-sys-*)` partout n'étaient pas pilotables et répetaient les mêmes noms.
+
+**Décision :** `styles.scss` déclare un bloc d'alias applicatifs (`--app-primary`, `--app-surface-container-high`, `--app-elevation-3`, `--app-type-headline-medium`, `--app-corner-medium`…) qui pointent tous vers les rôles `--mat-sys-*` générés par `mat.theme()`. Les feuilles de style des composants ne consomment plus que ces alias. Le padding échelonné est porté par un unique token `--md-content-padding` (48 / 24 / 16 px selon le breakpoint), et `overflow-x: hidden` est posé sur `body` pour garantir l'absence de débordement à 375 px.
+
+**Conséquences :** un changement de palette ou de type-scale se fait en un seul endroit ; `grep -c "mat.theme|--mat-sys-" src/styles.scss` = **52** lignes (AC-17 ≥ 10). Le prix : une couche d'indirection supplémentaire, acceptable vu le nombre de composants. Correction d'un token inexistant repérée au passage : `--md-motion-easing-standard` n'existe pas en M3, remplacé par `--mat-sys-motion-easing-standard` avec repli `ease`.
+
+## 2026-10-21 — Vérification responsive manuelle dans Chrome (sans exécuter les tests)
+
+**Contexte :** AC-17(d) et AC-19 demandent des captures ; le contrat §3 interdit à l'agent d'exécuter `playwright test`. Le contrat n'interdit pas de **constater** le rendu dans un navigateur.
+
+**Décision :** le build de production a été servi localement par un serveur statique avec réécriture SPA (équivalent du rewrite `** → /index.html` de `firebase.json`, ce serveur n'est pas versionné) puis inspecté via CDP dans Chrome 151 en headless, aux viewports 375, 768 et 1280. Constats relevés :
+
+| viewport | `document.documentElement.scrollWidth` | colonnes `.page` | padding `.contenu` | max-width |
+|---|---|---|---|---|
+| 375 | 375 (= viewport, **aucun scroll horizontal**) | 1 (`351px`) | `12px 16px 12px 8px` (8 à droite, 16 à gauche) | 100 % |
+| 768 | 768 | 1 (`720px`) | `24px` | 100 % |
+| 1280 | 1280 | **2** (`486px 486px`) | `48px` | `1100px` |
+
+Autres constats : bouton « Continuer » `h=48px w=327px` et **désactivé** tant que le champ est vide ; input `font-size: 16px` (pas de zoom iOS) ; bouton « Se déconnecter » `48×48` avec `aria-label` ; au rechargement, `/dispos` est servi directement et l'en-tête affiche « Pauline » (restauration par cookie, sans repasser par `/login`) ; après « Se déconnecter », le cookie est vide et l'URL redevient `/login`. Attributs réels du cookie relevés via `Network.getAllCookies` : `httpOnly=false`, `sameSite=Lax`, `path=/`, `secure=false` (http local — `Secure` ne serait posé qu'en `https:`), expiration ≈ +1 an.
+
+**Conséquences :** le focus automatique du champ « Prénom », exigé par F2, **ne fonctionnait pas** avec `cdkFocusInitial` seul (ce directive n'agit qu'à l'intérieur d'un `cdkTrapFocus`) : il a été remplacé par `afterNextRender(() => this.champ()?.nativeElement.focus())`, puis vérifié (`document.activeElement` = `INPUT`). Restent à la charge de l'humain : les captures d'écran du cahier et la vérification des deux listes avec de vrais créneaux (qui suppose des identifiants Firebase renseignés — sans eux, l'état affiché est l'erreur « Configuration Firebase non renseignée », ce qui est le comportement attendu).

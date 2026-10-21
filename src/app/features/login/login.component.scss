@@ -11,19 +11,19 @@
   justify-content: center;
   gap: var(--md-spacing-4);
   padding: var(--md-spacing-5) var(--md-spacing-4);
-  background: var(--mat-sys-surface);
-  color: var(--mat-sys-on-surface);
+  background: var(--app-surface);
+  color: var(--app-on-surface);
 }
 
 .marque {
   display: flex;
   align-items: center;
   gap: var(--md-spacing-2);
-  color: var(--mat-sys-primary);
+  color: var(--app-primary);
 
   h1 {
     margin: 0;
-    font: var(--mat-sys-headline-medium);
+    font: var(--app-type-headline-medium);
     letter-spacing: -0.01em;
   }
 
@@ -38,8 +38,8 @@
   margin: 0;
   max-width: 32ch;
   text-align: center;
-  color: var(--mat-sys-on-surface-variant);
-  font: var(--mat-sys-body-medium);
+  color: var(--app-on-surface-variant);
+  font: var(--app-type-body-medium);
 }
 
 .carte {
@@ -49,9 +49,9 @@
   width: 100%;
   max-width: 420px;
   padding: var(--md-spacing-4);
-  border-radius: var(--mat-sys-corner-large);
-  background: var(--mat-sys-surface-container-lowest);
-  box-shadow: var(--mat-sys-level1);
+  border-radius: var(--app-corner-large);
+  background: var(--app-surface-container-lowest);
+  box-shadow: var(--app-elevation-1);
 }
 
 .champ-nom {
@@ -62,7 +62,7 @@
 .bouton-google {
   min-height: 48px;
   width: 100%;
-  font: var(--mat-sys-label-large);
+  font: var(--app-type-label-large);
 }
 
 .bouton-google {
@@ -77,15 +77,15 @@
   min-height: 48px;
   padding: 0 var(--md-spacing-3);
   border: none;
-  border-radius: var(--mat-sys-corner-full);
+  border-radius: var(--app-corner-full);
   background: transparent;
-  color: var(--mat-sys-primary);
-  font: var(--mat-sys-label-large);
+  color: var(--app-primary);
+  font: var(--app-type-label-large);
   text-decoration: underline;
   cursor: pointer;
 
   &:hover {
-    background: color-mix(in srgb, var(--mat-sys-primary) 8%, transparent);
+    background: color-mix(in srgb, var(--app-primary) 8%, transparent);
   }
 }
 
@@ -95,14 +95,14 @@
   gap: var(--md-spacing-3);
   width: 100%;
   max-width: 420px;
-  color: var(--mat-sys-on-surface-variant);
+  color: var(--app-on-surface-variant);
 
   &::before,
   &::after {
     content: '';
     flex: 1;
     height: 1px;
-    background: var(--mat-sys-outline-variant);
+    background: var(--app-outline-variant);
   }
 }
 
@@ -115,16 +115,16 @@
 .aide {
   margin: 0;
   text-align: center;
-  color: var(--mat-sys-on-surface-variant);
-  font: var(--mat-sys-body-small);
+  color: var(--app-on-surface-variant);
+  font: var(--app-type-body-small);
 }
 
 .erreur {
   margin: 0;
   max-width: 420px;
   text-align: center;
-  color: var(--mat-sys-error);
-  font: var(--mat-sys-body-medium);
+  color: var(--app-error);
+  font: var(--app-type-body-medium);
 }
 
 // Mobile ≤ 420 px : padding horizontal échelonné (8 + 16), pas de scroll horizontal.

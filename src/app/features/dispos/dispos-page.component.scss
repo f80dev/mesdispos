@@ -21,11 +21,11 @@
   align-items: center;
   gap: var(--md-spacing-2);
   margin: 0;
-  font: var(--mat-sys-title-medium);
-  color: var(--mat-sys-on-surface);
+  font: var(--app-type-title-medium);
+  color: var(--app-on-surface);
 
   mat-icon {
-    color: var(--mat-sys-primary);
+    color: var(--app-primary);
     font-size: 20px;
     width: 20px;
     height: 20px;
@@ -40,8 +40,8 @@
 
 .jour-titre {
   margin: 0;
-  font: var(--mat-sys-label-large);
-  color: var(--mat-sys-on-surface-variant);
+  font: var(--app-type-label-large);
+  color: var(--app-on-surface-variant);
   text-transform: capitalize;
 }
 
@@ -57,10 +57,10 @@
 .vide {
   margin: 0;
   padding: var(--md-spacing-4);
-  border-radius: var(--mat-sys-corner-medium);
-  background: var(--mat-sys-surface-container);
-  color: var(--mat-sys-on-surface-variant);
-  font: var(--mat-sys-body-medium);
+  border-radius: var(--app-corner-medium);
+  background: var(--app-surface-container);
+  color: var(--app-on-surface-variant);
+  font: var(--app-type-body-medium);
 }
 
 .etat-erreur {
@@ -69,13 +69,13 @@
   align-items: flex-start;
   gap: var(--md-spacing-2);
   padding: var(--md-spacing-4);
-  border-radius: var(--mat-sys-corner-medium);
-  background: color-mix(in srgb, var(--mat-sys-error) 10%, var(--mat-sys-surface-container));
-  color: var(--mat-sys-on-surface);
+  border-radius: var(--app-corner-medium);
+  background: color-mix(in srgb, var(--app-error) 10%, var(--app-surface-container));
+  color: var(--app-on-surface);
 
   p {
     margin: 0;
-    font: var(--mat-sys-body-medium);
+    font: var(--app-type-body-medium);
   }
 
   button {
