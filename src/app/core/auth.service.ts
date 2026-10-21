@@ -1,17 +1,10 @@
-import { Injectable, computed, signal } from '@angular/core';
-import {
-  GoogleAuthProvider,
-  browserLocalPersistence,
-  onAuthStateChanged,
-  setPersistence,
-  signInWithPopup,
-  signInWithRedirect,
-  signOut as firebaseSignOut,
-  type Unsubscribe,
-  type User as FirebaseUser,
-} from 'firebase/auth';
+import { Injectable, computed, inject, signal } from '@angular/core';
+import type { Unsubscribe, User as FirebaseUser } from 'firebase/auth';
 
-import { firebaseAuth, firebaseConfigure } from './firebase';
+import { chargerAuth, firebaseAuth, firebaseConfigure } from './firebase';
+import { CookieService } from './cookie.service';
+import { normaliserNom } from '../shared/date.util';
+import { sha256Hex } from '../shared/sha256.util';
 import { domaineAutorise } from '../../environments/firebase.config';
 
 /**
@@ -33,6 +26,10 @@ export interface Utilisateur {
 
 /** Délai maximal d'attente de la restauration de session avant de laisser passer. */
 const DELAI_SESSION_MS = 5000;
+
+/** Message affiché quand `firebase.config.ts` contient encore des `REPLACE_ME_*`. */
+export const MESSAGE_CONFIG_MANQUANTE =
+  'Configuration Firebase non renseignée : remplacez les valeurs REPLACE_ME_* dans src/environments/firebase.config.ts.';
 
 /** Vrai sur mobile/tablette → le popup Google est remplacé par un redirect. */
 export function estMobile(): boolean {
@@ -58,6 +55,22 @@ export function depuisFirebase(fb: FirebaseUser): Utilisateur {
   };
 }
 
+/**
+ * Identité anonyme déterministe du mode A (§5) : `uid = 'anon_' +
+ * sha256(nom normalisé).slice(0, 12)`. L'`uid` n'est jamais rendu à
+ * l'utilisateur ; le prénom normalisé reste la valeur d'affichage.
+ */
+export function utilisateurAnonyme(nom: string): Utilisateur {
+  const affichable = normaliserNom(nom);
+  return {
+    uid: `anon_${sha256Hex(affichable).slice(0, 12)}`,
+    displayName: affichable,
+    anon: true,
+    email: null,
+    photoURL: null,
+  };
+}
+
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   /** Signal unifié consommé par le header et par les guards (§7). */
@@ -77,29 +90,100 @@ export class AuthService {
 
   private desabonnerAuth: Unsubscribe | null = null;
   private attente: Promise<Utilisateur | null> | null = null;
+  private premiereReponseFirebase = false;
+  private resolversSession: Array<(u: Utilisateur | null) => void> = [];
+  private readonly cookie = inject(CookieService);
+
+  /**
+   * Restauration de session au démarrage (F2 « Header & session ») :
+   * le cookie anonyme (mode A) d'abord, sinon Firebase (mode B).
+   */
+  constructor() {
+    const nom = this.cookie.lireNom();
+    if (nom) {
+      this.user.set(utilisateurAnonyme(nom));
+      this.chargement.set(false);
+    } else {
+      void this.demarrer();
+    }
+  }
+
+  /**
+   * `uid` déterministe du mode A : `anon_` + 12 premiers caractères du SHA-256
+   * du nom normalisé (§5). Jamais affiché : c'est uniquement le chemin Firestore
+   * `users/{uid}/dispos`, distinct des partitions Google (AC-18).
+   */
+  uidAnonyme(nom: string): string {
+    return utilisateurAnonyme(nom).uid;
+  }
+
+  /**
+   * Mode A — connexion par prénom seul (F2). Délègue la validation et la pose
+   * du cookie à `CookieService`, puis publie l'identité anonyme.
+   * Aucun appel Firebase, aucune requête réseau.
+   */
+  async connecterParNom(nom: string): Promise<boolean> {
+    this.erreur.set(null);
+    this.domaineRefuse.set(false);
+    const resultat = this.cookie.setNom(nom);
+    if (!resultat.ok) {
+      this.erreur.set(resultat.erreur);
+      return false;
+    }
+    this.user.set(utilisateurAnonyme(resultat.valeur));
+    return true;
+  }
+
+  /** Mode A — « Utiliser un autre nom » : efface le cookie et l'identité. */
+  oublierNom(): void {
+    this.cookie.effacer();
+    this.user.set(null);
+  }
 
   /**
    * Restauration de session mode B (`onAuthStateChanged`).
-   * Idempotent : les guards l'appellent, la route `/dispos` aussi.
+   * Idempotent : guards, header et page `/dispos` peuvent tous l'appeler.
+   * Charge `firebase/auth` à la demande (import dynamique).
    */
-  demarrer(): void {
-    if (this.desabonnerAuth || !firebaseConfigure()) {
+  async demarrer(): Promise<void> {
+    if (this.desabonnerAuth) {
+      return;
+    }
+    if (!firebaseConfigure()) {
+      this.premiereReponseFirebase = true;
       this.chargement.set(false);
+      this.notifierResolvers();
       return;
     }
     try {
+      const [{ onAuthStateChanged }, auth] = await Promise.all([chargerAuth(), firebaseAuth()]);
+      if (this.desabonnerAuth) {
+        return; // une autre branche a déjà pris le relais
+      }
       this.desabonnerAuth = onAuthStateChanged(
-        firebaseAuth(),
+        auth,
         (fb) => {
           this.appliquerEtatFirebase(fb);
+          this.premiereReponseFirebase = true;
           this.chargement.set(false);
+          this.notifierResolvers();
         },
         () => {
           this.chargement.set(false);
         },
       );
     } catch {
+      this.premiereReponseFirebase = true;
       this.chargement.set(false);
+      this.notifierResolvers();
+    }
+  }
+
+  private notifierResolvers(): void {
+    const enAttente = this.resolversSession;
+    this.resolversSession = [];
+    for (const resoudre of enAttente) {
+      resoudre(this.user());
     }
   }
 
@@ -118,31 +202,18 @@ export class AuthService {
       return Promise.resolve(courant);
     }
     if (!this.attente) {
-      this.attente = this.resoudreSession();
+      this.attente = new Promise<Utilisateur | null>((resolve) => {
+        if (this.premiereReponseFirebase) {
+          resolve(this.user());
+          return;
+        }
+        this.resolversSession.push(resolve);
+        // Filet de sécurité : si Firebase ne répond jamais, on ne bloque pas la route.
+        setTimeout(() => resolve(this.user()), DELAI_SESSION_MS);
+        void this.demarrer();
+      });
     }
     return this.attente;
-  }
-
-  private resoudreSession(): Promise<Utilisateur | null> {
-    if (!firebaseConfigure()) {
-      this.chargement.set(false);
-      return Promise.resolve(null);
-    }
-    this.demarrer();
-    return new Promise<Utilisateur | null>((resolve) => {
-      let repondu = false;
-      const terminer = (): void => {
-        if (!repondu) {
-          repondu = true;
-          this.chargement.set(false);
-          resolve(this.user());
-        }
-      };
-      setTimeout(terminer, DELAI_SESSION_MS);
-      // `onAuthStateChanged` déclenche le premier état (éventuellement null).
-      const souscription = onAuthStateChanged(firebaseAuth(), terminer);
-      setTimeout(() => souscription(), 0);
-    });
   }
 
   /**
@@ -153,12 +224,19 @@ export class AuthService {
     this.erreur.set(null);
     this.domaineRefuse.set(false);
     if (!firebaseConfigure()) {
-      this.erreur.set(
-        'Configuration Firebase non renseignée : remplacez les valeurs REPLACE_ME_* dans src/environments/firebase.config.ts.',
-      );
+      this.erreur.set(MESSAGE_CONFIG_MANQUANTE);
       return;
     }
-    const auth = firebaseAuth();
+    const [
+      auth,
+      {
+        GoogleAuthProvider,
+        browserLocalPersistence,
+        setPersistence,
+        signInWithPopup,
+        signInWithRedirect,
+      },
+    ] = await Promise.all([firebaseAuth(), chargerAuth()]);
     const provider = new GoogleAuthProvider();
     try {
       await setPersistence(auth, browserLocalPersistence);
@@ -180,7 +258,8 @@ export class AuthService {
 
   private async validerDomaine(fb: FirebaseUser): Promise<void> {
     if (!domaineAutorise(fb.email)) {
-      await firebaseSignOut(firebaseAuth());
+      const [auth, { signOut }] = await Promise.all([firebaseAuth(), chargerAuth()]);
+      await signOut(auth);
       this.domaineRefuse.set(true);
       this.erreur.set('Domaine de messagerie non autorisé pour cette application.');
       return;
@@ -188,12 +267,20 @@ export class AuthService {
     this.appliquerEtatFirebase(fb);
   }
 
-  /** Mode B — déconnexion Firebase (le mode A efface le cookie, cf. §7). */
+  /**
+   * Déconnexion (§7) : le mode A efface le cookie `mesdispos_nom`, le mode B
+   * appelle `signOut` Firebase. Dans les deux cas `user` repasse à `null`.
+   */
   async signOut(): Promise<void> {
-    try {
-      await firebaseSignOut(firebaseAuth());
-    } catch {
-      // Firebase déjà déconnecté : on ne bloque pas l'UI.
+    if (this.user()?.anon) {
+      this.cookie.effacer();
+    } else {
+      try {
+        const [auth, { signOut }] = await Promise.all([firebaseAuth(), chargerAuth()]);
+        await signOut(auth);
+      } catch {
+        // Firebase déjà déconnecté ou indisponible : on ne bloque pas l'UI.
+      }
     }
     this.appliquerEtatFirebase(null);
   }

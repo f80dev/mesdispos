@@ -17,6 +17,10 @@ export const ROUTES = {
  * l'eau pour que chaque commit reste buildable.
  */
 export const routes: Routes = [
+  {
+    path: 'login',
+    loadComponent: () => import('./features/login/login.component').then((m) => m.LoginComponent),
+  },
   { path: '', pathMatch: 'full', redirectTo: ROUTES.dispos.slice(1) },
   { path: '**', redirectTo: '' },
 ];

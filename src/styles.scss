@@ -26,45 +26,53 @@
 
   color-scheme: light;
 
-  @include mat.theme((
-    color: (
-      primary: mat.$azure-palette,
-      tertiary: mat.$blue-palette,
-      theme-type: light,
-    ),
-    typography: Roboto,
-    density: var(--md-density-default),
-  ));
+  @include mat.theme(
+    (
+      color: (
+        primary: mat.$azure-palette,
+        tertiary: mat.$blue-palette,
+        theme-type: light,
+      ),
+      typography: Roboto,
+      density: var(--md-density-default),
+    )
+  );
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
     color-scheme: dark;
-    @include mat.theme((
-      color: (
-        primary: mat.$azure-palette,
-        tertiary: mat.$blue-palette,
-        theme-type: dark,
-      ),
-      typography: Roboto,
-      density: var(--md-density-default),
-    ));
+    @include mat.theme(
+      (
+        color: (
+          primary: mat.$azure-palette,
+          tertiary: mat.$blue-palette,
+          theme-type: dark,
+        ),
+        typography: Roboto,
+        density: var(--md-density-default),
+      )
+    );
   }
 }
 
 // -----------------------------------------------------------------------------
 // Base reset (interfaces épurées au sens MD3)
 // -----------------------------------------------------------------------------
-html, body {
+html,
+body {
   height: 100%;
   margin: 0;
-  font-family: Roboto, "Helvetica Neue", sans-serif;
+  font-family: Roboto, 'Helvetica Neue', sans-serif;
   background: var(--mat-sys-surface);
   color: var(--mat-sys-on-surface);
 }
 
 // Empêche le zoom forcé iOS sur les inputs en mobile (< 16px déclenche le zoom)
-input, select, textarea, button {
+input,
+select,
+textarea,
+button {
   font-size: 16px;
 }
 

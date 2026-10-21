@@ -1,0 +1,33 @@
+<!--
+  Mobile  : logo « MesDispos » + avatar sans nom + bouton déconnexion 48 px.
+  Desktop : idem + nom affiché à côté de l'avatar.
+-->
+<header class="header">
+  <a class="marque" [routerLink]="ROUTES.dispos">
+    <mat-icon aria-hidden="true">event_available</mat-icon>
+    <span class="titre">MesDispos</span>
+  </a>
+
+  @if (user(); as utilisateur) {
+    <div class="session">
+      <span class="avatar" [attr.aria-hidden]="true">
+        @if (utilisateur.photoURL; as photo) {
+          <img [src]="photo" alt="" referrerpolicy="no-referrer" />
+        } @else {
+          {{ initiale() }}
+        }
+      </span>
+      <span class="nom">{{ utilisateur.displayName }}</span>
+      <button
+        matIconButton
+        type="button"
+        class="deconnexion"
+        aria-label="Se déconnecter"
+        title="Se déconnecter"
+        (click)="seDeconnecter()"
+      >
+        <mat-icon>logout</mat-icon>
+      </button>
+    </div>
+  }
+</header>

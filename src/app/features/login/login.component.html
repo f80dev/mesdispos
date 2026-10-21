@@ -1,0 +1,73 @@
+<!--
+  Mobile  : carte centrée pleine largeur, un seul champ, « Continuer » ≥ 48 px,
+            focus automatique, aucun scroll horizontal à 375 px.
+  Desktop : carte centrée (max 420 px), sous-titre explicatif, deux actions.
+-->
+<section class="page-login">
+  <header class="marque">
+    <mat-icon aria-hidden="true">event_available</mat-icon>
+    <h1>MesDispos</h1>
+  </header>
+
+  @if (!modeGoogleSeul()) {
+    <p class="sous-titre">
+      Pour déclarer vos disponibilités, saisissez votre prénom (ou un pseudonyme).
+    </p>
+
+    <form class="carte" [formGroup]="formulaire" (ngSubmit)="continuer()" novalidate>
+      <mat-form-field appearance="outline" class="champ-nom">
+        <mat-label>Prénom</mat-label>
+        <input
+          #champ
+          matInput
+          type="text"
+          formControlName="prenom"
+          placeholder="Pauline"
+          autocomplete="off"
+          cdkFocusInitial
+          maxlength="50"
+          enterkeyhint="go"
+          name="prenom"
+          (keyup.enter)="continuer()"
+        />
+        <mat-hint align="end">{{ prenom().length }} / {{ maxLength }}</mat-hint>
+      </mat-form-field>
+
+      <button class="bouton-continuer" matButton type="submit" [disabled]="!peutContinuer()">
+        Continuer
+      </button>
+
+      <button class="lien-secondaire" type="button" (click)="utiliserUnAutreNom()">
+        Utiliser un autre nom
+      </button>
+    </form>
+
+    <div class="separateur"><span>ou</span></div>
+  } @else {
+    <p class="sous-titre">{{ messageGoogle() }}</p>
+  }
+
+  <div class="carte carte-google">
+    <button
+      matButton="outlined"
+      type="button"
+      class="bouton-google"
+      [disabled]="enCoursGoogle()"
+      (click)="connecterGoogle()"
+    >
+      @if (enCoursGoogle()) {
+        <mat-spinner diameter="18" />
+      } @else {
+        <mat-icon aria-hidden="true">account_circle</mat-icon>
+      }
+      Continuer avec Google
+    </button>
+    @if (!modeGoogleSeul()) {
+      <p class="aide">{{ messageGoogle() }}</p>
+    }
+  </div>
+
+  @if (erreur(); as message) {
+    <p class="erreur" role="alert">{{ message }}</p>
+  }
+</section>

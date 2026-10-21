@@ -1,0 +1,147 @@
+:host {
+  display: block;
+}
+
+.page-login {
+  min-height: 100dvh;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--md-spacing-4);
+  padding: var(--md-spacing-5) var(--md-spacing-4);
+  background: var(--mat-sys-surface);
+  color: var(--mat-sys-on-surface);
+}
+
+.marque {
+  display: flex;
+  align-items: center;
+  gap: var(--md-spacing-2);
+  color: var(--mat-sys-primary);
+
+  h1 {
+    margin: 0;
+    font: var(--mat-sys-headline-medium);
+    letter-spacing: -0.01em;
+  }
+
+  mat-icon {
+    font-size: 32px;
+    width: 32px;
+    height: 32px;
+  }
+}
+
+.sous-titre {
+  margin: 0;
+  max-width: 32ch;
+  text-align: center;
+  color: var(--mat-sys-on-surface-variant);
+  font: var(--mat-sys-body-medium);
+}
+
+.carte {
+  display: flex;
+  flex-direction: column;
+  gap: var(--md-spacing-3);
+  width: 100%;
+  max-width: 420px;
+  padding: var(--md-spacing-4);
+  border-radius: var(--mat-sys-corner-large);
+  background: var(--mat-sys-surface-container-lowest);
+  box-shadow: var(--mat-sys-level1);
+}
+
+.champ-nom {
+  width: 100%;
+}
+
+.bouton-continuer,
+.bouton-google {
+  min-height: 48px;
+  width: 100%;
+  font: var(--mat-sys-label-large);
+}
+
+.bouton-google {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--md-spacing-2);
+}
+
+.lien-secondaire {
+  align-self: center;
+  min-height: 48px;
+  padding: 0 var(--md-spacing-3);
+  border: none;
+  border-radius: var(--mat-sys-corner-full);
+  background: transparent;
+  color: var(--mat-sys-primary);
+  font: var(--mat-sys-label-large);
+  text-decoration: underline;
+  cursor: pointer;
+
+  &:hover {
+    background: color-mix(in srgb, var(--mat-sys-primary) 8%, transparent);
+  }
+}
+
+.separateur {
+  display: flex;
+  align-items: center;
+  gap: var(--md-spacing-3);
+  width: 100%;
+  max-width: 420px;
+  color: var(--mat-sys-on-surface-variant);
+
+  &::before,
+  &::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--mat-sys-outline-variant);
+  }
+}
+
+.carte-google {
+  box-shadow: none;
+  background: transparent;
+  padding: 0;
+}
+
+.aide {
+  margin: 0;
+  text-align: center;
+  color: var(--mat-sys-on-surface-variant);
+  font: var(--mat-sys-body-small);
+}
+
+.erreur {
+  margin: 0;
+  max-width: 420px;
+  text-align: center;
+  color: var(--mat-sys-error);
+  font: var(--mat-sys-body-medium);
+}
+
+// Mobile ≤ 420 px : padding horizontal échelonné (8 + 16), pas de scroll horizontal.
+@media (max-width: 420px) {
+  .page-login {
+    padding: var(--md-spacing-5) var(--md-spacing-2) var(--md-spacing-5) var(--md-spacing-4);
+    justify-content: flex-start;
+  }
+
+  .carte {
+    padding: var(--md-spacing-3);
+  }
+}
+
+// Tablette ≤ 900 px : la carte reste centrée mais gagne de l'air.
+@media (max-width: 900px) {
+  .page-login {
+    gap: var(--md-spacing-3);
+  }
+}

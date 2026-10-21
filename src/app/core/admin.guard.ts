@@ -1,8 +1,7 @@
 import { inject } from '@angular/core';
-import { doc, getDoc } from 'firebase/firestore';
 import { Router, type CanActivateFn } from '@angular/router';
 
-import { firebaseConfigure, firebaseDb } from './firebase';
+import { chargerFirestore, firebaseConfigure, firebaseDb } from './firebase';
 import { NotifService } from './notif.service';
 import { AuthService } from './auth.service';
 import { ROUTES } from '../app.routes';
@@ -17,7 +16,8 @@ export async function estAdmin(uid: string): Promise<boolean> {
     return false;
   }
   try {
-    const snapshot = await getDoc(doc(firebaseDb(), 'admins', uid));
+    const [db, { doc, getDoc }] = await Promise.all([firebaseDb(), chargerFirestore()]);
+    const snapshot = await getDoc(doc(db, 'admins', uid));
     return snapshot.exists();
   } catch {
     return false;

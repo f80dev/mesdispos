@@ -1,0 +1,43 @@
+:host {
+  display: block;
+  min-height: 100dvh;
+  background: var(--mat-sys-surface);
+  color: var(--mat-sys-on-surface);
+}
+
+.contenu {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: var(--md-spacing-6) var(--md-spacing-6);
+}
+
+// Desktop ≥ 1280 px : largeur max 1100 px centrée (F7).
+@media (max-width: 1280px) {
+  .contenu {
+    padding: var(--md-spacing-5) var(--md-spacing-6);
+  }
+}
+
+// Tablette ≤ 900 px : padding 24 px.
+@media (max-width: 900px) {
+  .contenu {
+    padding: var(--md-spacing-4);
+  }
+}
+
+// Mobile ≤ 700 px : padding 16 px.
+@media (max-width: 700px) {
+  .contenu {
+    padding: var(--md-spacing-3);
+  }
+}
+
+// Mobile ≤ 420 px : padding 8 px à droite, 16 px à gauche — aucun scroll horizontal.
+@media (max-width: 420px) {
+  .contenu {
+    padding: var(--md-spacing-3) var(--md-spacing-2) var(--md-spacing-3) var(--md-spacing-4);
+  }
+}

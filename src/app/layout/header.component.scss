@@ -1,0 +1,92 @@
+:host {
+  display: block;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--md-spacing-3);
+  height: 56px;
+  padding: 0 var(--md-spacing-4);
+  background: var(--mat-sys-surface-container);
+  color: var(--mat-sys-on-surface);
+  border-bottom: 1px solid var(--mat-sys-outline-variant);
+}
+
+.marque {
+  display: flex;
+  align-items: center;
+  gap: var(--md-spacing-2);
+  color: var(--mat-sys-primary);
+  text-decoration: none;
+  font: var(--mat-sys-title-large);
+  min-height: 48px;
+
+  mat-icon {
+    font-size: 26px;
+    width: 26px;
+    height: 26px;
+  }
+}
+
+.session {
+  display: flex;
+  align-items: center;
+  gap: var(--md-spacing-2);
+  min-width: 0;
+}
+
+.avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--mat-sys-corner-full);
+  background: var(--mat-sys-primary-container);
+  color: var(--mat-sys-on-primary-container);
+  font: var(--mat-sys-label-large);
+  overflow: hidden;
+  flex: 0 0 auto;
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+}
+
+.nom {
+  font: var(--mat-sys-body-medium);
+  color: var(--mat-sys-on-surface);
+  max-width: 22ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.deconnexion {
+  width: 48px;
+  height: 48px;
+  color: var(--mat-sys-on-surface-variant);
+}
+
+// Mobile ≤ 420 px : header compact, nom masqué (avatar seul), padding 8/16 px.
+@media (max-width: 420px) {
+  .header {
+    height: 52px;
+    padding: 0 var(--md-spacing-2) 0 var(--md-spacing-4);
+  }
+
+  .nom {
+    display: none;
+  }
+}
+
+// Tablette ≤ 900 px : on garde le nom, padding resserré.
+@media (min-width: 421px) and (max-width: 900px) {
+  .header {
+    padding: 0 var(--md-spacing-3);
+  }
+}
