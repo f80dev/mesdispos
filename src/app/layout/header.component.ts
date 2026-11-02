@@ -1,4 +1,4 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, effect, inject, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { Router, RouterLink } from '@angular/router';
@@ -21,36 +21,38 @@ export class HeaderComponent {
   private readonly router = inject(Router);
   private readonly backend = inject(FIRESTORE_BACKEND);
 
-  /** Signal unifié : mode A (anonyme) comme mode B (Google). */
+  /** Signal unifié : session « nom seul » ou session Firebase (admin). */
   readonly user = this.auth.user;
 
-  /** Initiale affichée dans l'avatar circulaire quand il n'y a pas de photo. */
+  /** Initiale affichée dans l'avatar circulaire. */
   readonly initiale = computed(() => {
     const nom = this.user()?.displayName?.trim() ?? '';
     return (nom.charAt(0) || '?').toUpperCase();
   });
 
-  readonly url = computed(() => this.router.url);
-
   /** Exposé au template pour `routerLink` sans réécrire le chemin en dur. */
   protected readonly ROUTES = ROUTES;
 
-  /** Le lien d'import n'apparaît QUE pour un admin en mode B (F6). */
+  /** Le lien d'import n'apparaît QUE pour un admin (session Firebase). */
   readonly estAdminCourant = signal<boolean>(false);
 
   constructor() {
-    void this.verifierDroitsAdmin();
+    // Le lien admin dépend de la session Firebase Google : on le recalcule
+    // dès que la session change.
+    effect(() => {
+      void this.verifierDroitsAdmin(this.auth.sessionAdmin()?.uid ?? null);
+    });
   }
 
-  private async verifierDroitsAdmin(): Promise<void> {
-    const utilisateur = this.auth.user();
-    if (!utilisateur || utilisateur.anon) {
+  private async verifierDroitsAdmin(uid: string | null): Promise<void> {
+    if (!uid) {
+      this.estAdminCourant.set(false);
       return;
     }
-    this.estAdminCourant.set(await this.backend.estAdmin(utilisateur.uid));
+    this.estAdminCourant.set(await this.backend.estAdmin(uid));
   }
 
-  /** Déconnexion : efface le cookie (mode A) ou Firebase (mode B), puis `/login`. */
+  /** Déconnexion : efface le cookie (session « nom ») ou ferme la session Firebase. */
   async seDeconnecter(): Promise<void> {
     await this.auth.signOut();
     await this.router.navigateByUrl(ROUTES.login);

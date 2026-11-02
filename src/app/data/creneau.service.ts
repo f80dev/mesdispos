@@ -1,7 +1,6 @@
 import { Injectable, inject, signal } from '@angular/core';
-import type { Unsubscribe } from 'firebase/firestore';
 
-import { FIRESTORE_BACKEND } from '../core/firestore.backend';
+import { AUCUN_ABONNEMENT, FIRESTORE_BACKEND, type Abonnement } from '../core/firestore.backend';
 import { MESSAGE_CONFIG_MANQUANTE } from '../core/firebase';
 import { normalizeDate, normalizeHeure, trierCreneaux } from '../shared/date.util';
 import type { Creneau } from './models';
@@ -52,43 +51,25 @@ export class CreneauService {
   /** Message d'erreur de lecture, `null` si tout va bien. */
   readonly erreur = signal<string | null>(null);
 
-  private arret: Unsubscribe | null = null;
+  private arret: Abonnement | null = null;
 
   /**
    * Abonne `creneaux` à `onSnapshot(collection(db, 'creneaux'))`.
    * @returns fonction de désabonnement (synchrone, §7).
    */
-  ecouter(): Unsubscribe {
+  ecouter(): Abonnement {
     this.arreter();
     this.chargement.set(true);
     this.erreur.set(null);
 
-    let annule = false;
-    let interne: Unsubscribe | null = null;
-    void this.brancher().then((souscription) => {
-      interne = souscription;
-      if (annule) {
-        souscription();
-      }
-    });
-
-    const stopper = (): void => {
-      annule = true;
-      interne?.();
-      interne = null;
-      this.arret = null;
-    };
-    this.arret = stopper;
-    return stopper;
-  }
-
-  private async brancher(): Promise<Unsubscribe> {
     if (!this.backend.configure) {
       this.chargement.set(false);
       this.erreur.set(MESSAGE_CONFIG_MANQUANTE);
-      return () => undefined;
+      this.arret = AUCUN_ABONNEMENT;
+      return this.arret;
     }
-    return this.backend.ecouterCreneaux(
+
+    this.arret = this.backend.ecouterCreneaux(
       (instantane) => {
         const liste: Creneau[] = [];
         for (const doc of instantane.docs) {
@@ -101,11 +82,12 @@ export class CreneauService {
         this.chargement.set(false);
         this.erreur.set(null);
       },
-      () => {
+      (raison) => {
         this.chargement.set(false);
-        this.erreur.set(MESSAGE_LECTURE_CREENEAUX);
+        this.erreur.set(raison ?? MESSAGE_LECTURE_CREENEAUX);
       },
     );
+    return this.arret;
   }
 
   /** Détache l'écoute courante. */

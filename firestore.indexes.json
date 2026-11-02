@@ -1,15 +1,5 @@
 {
-  "//": "MesDispos — index Firestore (AGENTS.md §7, §11).",
+  "//": "MesDispos — index Firestore (AGENTS.md §7, §11). Aucun index composite n'est requis : toutes les lectures de l'application sont mono-collection (onSnapshot sur `creneaux` et sur `users/{uid}/dispos`), et `dispos` est dénormalisé (date/heureDebut/heureFin dans le document) pour un affichage sans jointure. Ce fichier reste déployable via `firebase deploy --only firestore:indexes`.",
   "indexes": [],
-  "fieldOverrides": [
-    {
-      "//": "`dispos` est dénormalisé (date/heureDebut/heureFin dans le document)",
-      "//": "pour un affichage sans jointure ; aucun index composite n'est requis",
-      "//": "car toutes les lectures de l'application sont des requêtes mono-collection",
-      "//": "(onSnapshot sur `creneaux` et sur `users/{uid}/dispos`). L'export reste",
-      "//": "présent et déployable : `firebase deploy --only firestore:indexes`.",
-      "collectionGroup": "dispos",
-      "fieldOverrides": []
-    }
-  ]
+  "fieldOverrides": []
 }

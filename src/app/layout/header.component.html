@@ -14,13 +14,7 @@
 
   @if (user(); as utilisateur) {
     <div class="session">
-      <span class="avatar" [attr.aria-hidden]="true">
-        @if (utilisateur.photoURL; as photo) {
-          <img [src]="photo" alt="" referrerpolicy="no-referrer" />
-        } @else {
-          {{ initiale() }}
-        }
-      </span>
+      <span class="avatar" [attr.aria-hidden]="true">{{ initiale() }}</span>
       <span class="nom">{{ utilisateur.displayName }}</span>
       <button
         matIconButton

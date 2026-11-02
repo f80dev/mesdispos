@@ -162,16 +162,17 @@ Règle de cohérence : `users/{uid}/dispos/{creneauId}` n'existe que si `creneau
 - **Aucun appel Firebase Auth ; aucune dépendance réseau ; ce mode est la valeur par défaut du formulaire.**
 - **Mode A est conçu pour le smartphone** : aucun popup tiers, aucun redirect, aucun appel réseau ; le champ « Prénom » prend le focus automatiquement à l'ouverture de `/login` ; le clavier virtuel standard s'affiche sans zoom forcé (`font-size: 16px` minimum sur l'input pour éviter le zoom iOS) ; le bouton « Continuer » mesure ≥ 48 px de haut pour une cible tactile confortable ; l'ensemble du parcours (login → sélection → confirmation) tient en moins de 3 interactions au pouce.
 
-*Mode B — Google (option, admins et identifiés)*
+*Mode B — Firebase Auth anonyme (réservé à l'espace administrateur)*
 
-- Sous le champ « Prénom » et le bouton « Continuer », un séparateur « ou » puis un `mat-stretched-button` outlined « Continuer avec Google » déclenche `AuthService.connecterGoogle()` (popup desktop, redirect mobile, repli identique à la v0).
-- Après authentification Google : header piloté par `AuthService.user` (`photoURL` ou initiales + `displayName`) ; le cookie `mesdispos_nom` n'est PAS posé ; la déconnexion reste `signOut()` Firebase.
-- L'accès admin (`/admin/import`) reste exclusivement mode B : si l'utilisateur arrive sur `/login` avec une route demandée = `/admin/import`, la carte « Prénom » est remplacée par « Continuer avec Google » (le mode A est refusé pour les routes admin, sans message).
+- **Aucun appel Google n'est effectué par l'application** : ni popup, ni redirect, ni `GoogleAuthProvider`. L'authentification Google est retirée du produit.
+- L'accès admin (`/admin/import`) passe par une session Firebase **anonyme** (`signInAnonymously`, persistance `browserLocalPersistence`) : la page `/login`, lorsqu'une route admin est demandée (`?retour=/admin/import`), affiche un encart « Espace administrateur » (champ « Nom » + bouton « Connexion administrateur »).
+- L'`uid` de cette session doit exister dans la collection `admins` (`admins/{uid}`) pour ouvrir `/admin/import` (`adminGuard`) ; la page de connexion affiche l'`uid` obtenu afin que l'humain puisse l'inscrire depuis la console Firebase.
+- Aucun e-mail, aucun nom de compte, aucune photo ne sont transmis à Firebase : la session est strictement anonyme.
 
 *Header & session (commun aux deux modes)*
 
-- Header permanent (sauf `/login`) : « MesDispos » à gauche ; à droite, en mode A : le `displayName` anonyme (initiale en avatar circulaire) + un `mat-icon-button` « Se déconnecter » qui appelle `CookieService.effacer()` puis redirige `/login` ; en mode B : avatar `photoURL` ou initiales + `displayName` + `mat-icon-button` « Se déconnecter » (`signOut` Firebase).
-- Restauration de session au démarrage : mode B via `onAuthStateChanged` Firebase ; mode A via `CookieService.lireNom()`. Les deux alimentent le même signal `AuthService.user` (forme unifiée `{ uid, displayName, anon: boolean }`). Pas de logout automatique.
+- Header permanent (sauf `/login`) : « MesDispos » à gauche ; à droite : l'initiale de l'`displayName` dans un avatar circulaire + un `mat-icon-button` « Se déconnecter » (mode A : `CookieService.effacer()` ; session Firebase : `signOut` Firebase) puis redirection `/login`.
+- Restauration de session au démarrage : session Firebase via `onAuthStateChanged` ; session « nom seul » via `CookieService.lireNom()` (prioritaire pour l'affichage). Les deux alimentent le signal `AuthService.user` (forme unifiée `{ uid, displayName, session: 'nom' | 'firebase' }`), la session Firebase étant aussi exposée via `AuthService.sessionAdmin`. Pas de logout automatique.
 
 **F3 — Affichage des créneaux (page `/dispos`)**
 - Deux sections, dans cet ordre sur mobile, côte à côte sur desktop (grille 2 colonnes ≥ 900px) :
@@ -230,8 +231,9 @@ Pas d'API HTTP. Contrat = schéma §5 + règles §11 + format Excel §F6. Points
 | `DispoService.basculer(c: Creneau)` | `(): Promise<void>` | toggle optimiste + écriture immédiate + rollback/snackbar en cas d'échec |
 | `ExcelImportService.lire(f: File)` | `Promise<ResultatImport>` | parse `.xlsx`, normalise, valide |
 | `ExcelImportService.importer(lignes)` | `Promise<{importes: number}>` | upsert batch dans `creneaux` |
-| `AuthService.user` | `signal<User \| null>` | `onAuthStateChanged` |
-| `AuthService.connecterGoogle()` | `Promise<void>` | popup, repli redirect |
+| `AuthService.user` | `signal<User \| null>` | signal unifié (cookie « nom seul » ou session Firebase) |
+| `AuthService.sessionAdmin` | `signal<User \| null>` | session Firebase **anonyme** de l'espace administrateur |
+| `AuthService.connecterAnonyme(nom)` | `Promise<boolean>` | `signInAnonymously` (aucun e-mail), remplit `sessionAdmin` |
 
 Méthodes complémentaires (mode A « Nom seul », cf. F2) :
 
@@ -241,10 +243,10 @@ Méthodes complémentaires (mode A « Nom seul », cf. F2) :
 | `CookieService.lireNom()` | `string \| null` | lecture du cookie courant, `null` si absent |
 | `CookieService.effacer()` | `void` | supprime le cookie (max-age 0) |
 | `CookieService.normaliserNom(s)` | `string` | `trim` + collapse interne des espaces |
-| `AuthService.connecterParNom(nom)` | `Promise<void>` | délègue à `CookieService.setNom` puis pose `user = { uid: 'anon_<sha256-courte>', displayName: nom, anon: true }` |
-| `AuthService.signOut()` (étendu) | `Promise<void>` | efface le cookie si l'utilisateur courant est anonyme, sinon `firebase/auth` `signOut` ; remet `user = null` |
+| `AuthService.connecterParNom(nom)` | `Promise<boolean>` | délègue à `CookieService.setNom` puis pose `user = { uid: 'anon_<sha256-courte>', displayName: nom, session: 'nom' }` |
+| `AuthService.signOut()` (étendu) | `Promise<void>` | efface le cookie si la session courante est « nom », sinon `firebase/auth` `signOut` ; remet `user = null` |
 
-`AuthService.user` reste le signal unifié consommé par `header` et par les guards : `authGuard` laisse passer un user (Google **ou** anonyme) ; `adminGuard` exige `user && !user.anon` (mode B obligatoire pour `/admin/import`).
+`AuthService.user` reste le signal unifié consommé par `header` et par les guards : `authGuard` laisse passer un user (session « nom seul » **ou** session Firebase) ; `adminGuard` exige une session Firebase anonyme (`AuthService.sessionAdmin`) dont l'`uid` figure dans `admins/{uid}`.
 
 ## 8. Plan d'exécution (une étape = un commit, dans l'ordre)
 
@@ -327,17 +329,18 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     function connecte() { return request.auth != null; }
+    function uidAnonymeValide(uid) { return uid.matches('^anon_[0-9a-f]{12}$'); }
     function admin() {
       return connecte() && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
     }
 
     match /creneaux/{id} {
-      allow read: if connecte();
+      allow read: if true;
       allow create, update, delete: if admin();
     }
 
     match /users/{uid}/dispos/{creneauId} {
-      allow read, write: if connecte() && request.auth.uid == uid;
+      allow read, write: if (connecte() && request.auth.uid == uid) || uidAnonymeValide(uid);
     }
 
     match /admins/{uid} {
@@ -351,11 +354,11 @@ service cloud.firestore {
 ```
 
 - Les identifiants Firebase web (`firebase.config.ts`) sont **publics par conception** : ils peuvent être commités. En revanche, **jamais** de fichier de compte de service, ni de clé privée, ni de `.env` secret dans le repo.
-- Données personnelles minimales : nom, email, photo Google + créneaux choisis. Pas d'autre donnée, pas d'analytics, pas de cookies tiers. Mention « Données : nom, email et disponibilités, supprimables sur demande » dans le README (RGPD minimal).
+- Données personnelles minimales : nom + créneaux choisis. Pas d'autre donnée, pas d'analytics, pas de cookies tiers. Mention « Données : nom et disponibilités, supprimables sur demande » dans le README (RGPD minimal).
 - **Authentification : deux modes simultanés au choix** (cf. F2) —
   - Mode A — Nom seul (cookie fonctionnel, défaut v1) : pas d'appel Firebase Auth ; le prénom/pseudonyme saisi sur `/login` est stocké dans un cookie `HttpOnly=false`, `SameSite=Lax`, `Secure` (si HTTPS), `Max-Age ≈ 1 an` (`mesdispos_nom`). L'identité anonyme côté Firestore dérive de `sha256(nom normalisé)[:12]` préfixé `anon_` (voir §5 et §11 ci-dessous — règle adaptée).
-  - Mode B — Google (auth Firebase, popup desktop / redirect mobile) : inchangé par rapport à la v0 ; destiné aux admins et aux utilisateurs identifiés.
-  Le domaine autorisé reste configurable via `ALLOWED_EMAIL_DOMAINS` dans `firebase.config.ts` (tableau de domaines, vide = tout compte Google accepté) ; contrôle côté client au login + documenté pour un contrôle rules ultérieur. Le `adminGuard` reste fondé sur `admins/{uid}` et exige le mode B.
+  - Mode B — Firebase Auth **anonyme** (sans e-mail, sans compte tiers) : réservé à l'espace administrateur ; l'`uid` de session doit figurer dans `admins/{uid}`.
+  L'authentification Google est **retirée du produit** : aucun `GoogleAuthProvider`, aucun `ALLOWED_EMAIL_DOMAINS`. Le `adminGuard` reste fondé sur `admins/{uid}` et exige la session Firebase anonyme.
 
 ## 12. CI/CD
 
@@ -392,7 +395,7 @@ Décisions à prendre par l'agent si le besoin se présente, et à journaliser s
 > Conséquences : <compromis>
 > ```
 
-- **Config Firebase (input humain obligatoire)** : `src/environments/firebase.config.ts` doit contenir `export const FIREBASE_CONFIG = { apiKey, authDomain, projectId, appId, storageBucket, messagingSenderId }` et `export const ALLOWED_EMAIL_DOMAINS: string[] = []`. Ces valeurs viennent de la console Firebase → le README documente « remplacer les valeurs de démonstration par celles de votre projet ». Ce n'est pas un placeholder à inventer : livre des valeurs littérales `REPLACE_ME_*` **et** la consigne README, puis signale-le dans le résumé final.
+- **Config Firebase (input humain obligatoire)** : `src/environments/firebase.config.ts` doit contenir `export const FIREBASE_CONFIG = { apiKey, authDomain, projectId, appId, storageBucket, messagingSenderId }`. Ces valeurs viennent de la console Firebase → le README documente « remplacer les valeurs de démonstration par celles de votre projet ». Ce n'est pas un placeholder à inventer : livre des valeurs littérales `REPLACE_ME_*` **et** la consigne README, puis signale-le dans le résumé final.
 - **ID de projet Firebase** : `.firebaserc.example` avec `{"projects": {"default": "REPLACE_ME"}}` + consigne `firebase use --add`.
 - **Admin par défaut** : aucune graine ; le premier admin est ajouté manuellement via la console (collection `admins`, doc = uid, champ `email`).
 - **Duplication éventuelle `heure_fin` chevauchante** : tolérée en v1 (un prof peut déclarer deux créneaux qui se chevauchent si la base les propose) — ADR si l'humain demande un contrôle.

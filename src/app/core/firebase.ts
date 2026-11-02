@@ -9,16 +9,14 @@
  *  - le mode A « Nom seul » (cookie) ne télécharge aucun octet de SDK Firebase
  *    et n'émet aucun appel réseau (F2 mode A) ;
  *  - le bundle initial reste très en dessous du budget de 500 kB ;
- *  - `firebase/auth` n'est chargé que pour restaurer une session Google ou sur
- *    clic sur « Continuer avec Google ».
+ *  - `firebase/auth` n'est chargé que pour la connexion Google de l'espace
+ *    administrateur (aucune authentification Google pour les professeurs).
  */
 import type { FirebaseApp } from 'firebase/app';
 import type { Auth } from 'firebase/auth';
 import type { Firestore } from 'firebase/firestore';
 
-import { FIREBASE_CONFIG, firebaseConfigure } from '../../environments/firebase.config';
-
-export { firebaseConfigure };
+import { FIREBASE_CONFIG } from '../../environments/firebase.config';
 
 /** Message affiché quand `firebase.config.ts` contient encore des `REPLACE_ME_*`. */
 export const MESSAGE_CONFIG_MANQUANTE =
@@ -34,7 +32,7 @@ let moduleAuth: typeof import('firebase/auth') | null = null;
 let moduleFirestore: typeof import('firebase/firestore') | null = null;
 
 /** Charge (une seule fois) le module `firebase/app`. */
-export async function chargerApp(): Promise<typeof import('firebase/app')> {
+async function chargerApp(): Promise<typeof import('firebase/app')> {
   moduleApp ??= await import('firebase/app');
   return moduleApp;
 }
@@ -52,12 +50,12 @@ export async function chargerFirestore(): Promise<typeof import('firebase/firest
 }
 
 /** Instance applicative Firebase (créée au premier usage). */
-export async function firebaseApp(): Promise<FirebaseApp> {
+async function firebaseApp(): Promise<FirebaseApp> {
   const { getApp, getApps, initializeApp } = await chargerApp();
   return getApps().length > 0 ? getApp() : initializeApp(FIREBASE_CONFIG);
 }
 
-/** Instance Auth (mode B « Google » uniquement). */
+/** Instance Auth (session Google de l'espace administrateur uniquement). */
 export async function firebaseAuth(): Promise<Auth> {
   const [app, { getAuth }] = await Promise.all([firebaseApp(), chargerAuth()]);
   return getAuth(app);

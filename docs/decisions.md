@@ -249,3 +249,76 @@ Autres constats : bouton « Continuer » `h=48px w=327px` et **désactivé** tan
 **Décision :** application livrée : mode A (cookie) + mode B (Google), deux listes, toggle immédiat avec rollback et rejeu, import `.xlsx` avec prévisualisation, règles/indexes/émulateurs, CI sans tests, 8 fichiers de tests écrits et non exécutés, journal ADR de 28 entrées.
 
 **Conséquences :** restent **volontairement** hors périmètre, conformément au §13 : pas de `@angular/fire`, pas de Cloud Functions ni de backend, pas de `.xls`, pas de bouton d'enregistrement, pas de `localStorage`, pas d'analytics ni de cookie tiers, pas de librairie UI hors Material/CDK, pas d'UI d'export des disponibilités (les données se lisent dans la console Firebase), pas d'email/SMS/push. Restent à la charge de l'humain : la configuration Firebase (`REPLACE_ME_*`), le `.firebaserc`, la création du premier `admins/{uid}`, le déploiement des règles, l'exécution des tests et les captures d'écran.
+
+## 2026-11-02 — Simplification d'ensemble : un backend par fichier, abonnement synchrone, code mort retiré
+
+**Contexte :** l'abstraction Firestore/XLSX avait été introduite en quatre fichiers (`firestore.backend.ts` + `firestore.backend.reel.ts`, `xlsx.backend.ts` + `xlsx.backend.reel.ts`) pour contourner la désactivation de `vi.mock` sur les imports relatifs par le builder `@angular/build:unit-test`. Chaque service reproduisait ensuite la même danse d'abonnement asynchrone (`ecouter()` → `brancher()` → `annule`/`interne`), et quelques membres publics n'étaient plus référencés nulle part.
+
+**Décision :**
+
+- le contrat et son implémentation production sont **réunis dans un seul fichier** par backend (`core/firestore.backend.ts`, `core/xlsx.backend.ts`) : quatre fichiers deviennent deux, sans changer l'injection (`FIRESTORE_BACKEND`, `XLSX_BACKEND`) ni le câblage de `app.config.ts` ;
+- `ecouterCreneaux()` / `ecouterDispos()` renvoient désormais une **`Abonnement` synchrone** (`() => void`) : la gestion du chargement asynchrone du SDK (import dynamique) est concentrée dans `FirestoreReelBackend.suivre()`, et `CreneauService`/`DispoService` n'ont plus qu'une branche d'abonnement lisible ;
+- la construction du document `dispos` est factorisée (`DispoService.documentDispo()`), le découpage par lots de 500 est défini une seule fois (`TAILLE_BATCH` dans le backend), et la conversion `'YYYY-MM-DD'` → `Date` locale est mutualisée (`shared/date.util.ts` → `dateLocale()`, utilisé par le pipe et le libellé d'accessibilité) ;
+- suppression du code mort : `creneauCoherent()`, `AuthService.deconnecter()`, `AuthService.uidAnonyme()`, `AuthService.connecte`, `AuthService.domaineRefuse` (écrit mais jamais lu), `ImportComponent.groupsValides`, `HeaderComponent.url` ; `core/firebase.ts` n'exporte plus `chargerApp()`/`firebaseApp()` (privés) ni `firebaseConfigure` (ré-export supprimé).
+
+**Conséquences :** l'API publique des services est inchangée hormis les membres morts listés ci-dessus ; les specs fournissent désormais des faux backends **synchrones** (`ecouterCreneaux: () => () => undefined`), ce qui simplifie les doublures. La désinscription reste synchrone comme l'exige le §7, et l'erreur de lecture est toujours signalée via le callback `erreur` (y compris si le chargement du SDK échoue). Vérifié par `npx tsc --noEmit` (sortie vide) et `ng build --configuration=production` (exit 0) ; les tests n'ont pas été exécutés (contrat §3/§13).
+
+## 2026-11-02 — Règles Firestore : portée de `uid` dans les fonctions et déploiement effectif
+
+**Contexte :** l'utilisateur signalait « Impossible de lire les créneaux. Vérifiez votre connexion. » alors que la configuration Firebase était complète. Le diagnostic a montré (1) des règles déployées sur `mesdispos-db623` différentes du fichier du dépôt (lecture de `creneaux` refusée sans session : `403 PERMISSION_DENIED`), et (2) deux défauts dans les règles elles-mêmes : un `fieldOverrides` sans `fieldPath` (rejet du CLI : « Must contain "fieldPath" ») et une fonction de rules qui lisait la variable de chemin `{uid}` sans la recevoir en paramètre (avertissement du compilateur « Invalid variable name: uid »), ce qui rendait la branche anonyme (mode A) inopérante.
+
+**Décision :**
+
+- `firestore.rules` : `function uidAnonymeValide(uid)` reçoit désormais le `uid` en paramètre et l'appel devient `uidAnonymeValide(uid)` — une fonction de rules **ne capture pas** les variables du `match` englobant ;
+- `firestore.indexes.json` : aucune surcharge de champ n'est nécessaire (toutes les lectures sont mono-collection, `dispos` étant dénormalisé) → `fieldOverrides: []`, avec une seule clé `//` de commentaire (les clés `//` dupliquées écrasaient la première et concaténaient la preuve README dans la valeur) ;
+- déploiement effectué sur `mesdispos-db623` : règles et index publiés sans avertissement ; lecture anonyme de `creneaux` → `200`, écriture/suppression anonymes dans `users/anon_<sha256[:12]>/dispos` → `200` (vérifié par requêtes REST directes, document de test supprimé).
+
+**Conséquences :** le mode A (« Nom seul ») est de nouveau opérationnel sur le projet réel. La lecture des messages d'erreur a été enrichie dans le même temps : `raisonErreurFirestore()` traduit le code d'erreur SDK (`permission-denied`, `unavailable`, `not-found`, …) en message actionnable et journalise l'erreur brute dans la console, au lieu du seul libellé générique. Reste à la charge de l'humain : importer des créneaux (la collection `creneaux` est vide) via `/admin/import`, ce qui suppose un document `admins/{uid}` créé dans la console.
+
+## 2026-11-02 — Connexion : liste déroulante des professeurs (API Oasis `/api/v1/profs`)
+
+**Contexte :** le mode A « Nom seul » demandait à l'utilisateur de saisir librement son prénom, ce qui produit des identités ambiguës (« Pauline » n'identifie personne) et des partitions Firestore distinctes pour un même enseignant. L'API REST Oasis expose la liste des enseignants : `GET /api/v1/profs` (route `Ldap\ProfCtrl::selectProfs`, documentation `https://test.ensad.oasispro.fr/testapi/v1/doc#/Professeurs/…`), déjà encapsulée dans `core/cours.services.ts` (`getProfs()`).
+
+**Décision :**
+
+- le champ texte « Prénom » de `/login` est remplacé par une **liste déroulante** (`mat-select`) alimentée par `ProfService` (`data/prof.service.ts`), qui appelle `CoursServices.getProfs()` via le proxy `https://proxyensad.af10.fr` (défini au build dans `angular.json`, `define.proxy`) sur l'année **`year=2026`** ;
+- `normaliserProfs()` (fonction **pure**, testée dans `prof.service.spec.ts`) dédoublonne la réponse par `login` (l'API renvoie chaque enseignant plusieurs fois : 784 entrées pour 399 enseignants, dont 389 présents), écarte les sortants (`present !== 'ACT'`) et trie par nom complet (`localeCompare('fr')`) ;
+- le schéma `ProfSchema` est intégralement typé dans `core/cours.services.ts` (`ProfOasis`), y compris `subjects`, dont la forme réelle est un tableau d'objets `{ code, year, description }` — et non `["Art"]` comme l'annonce la documentation. `libellesSubjects()` tolère les deux formes (chaîne ou objet) et n'en garde que le `code` ;
+- une entrée malformée est **ignorée** (`construireProf()` sous `try/catch`) : elle ne doit pas faire échouer les 388 autres ;
+- le nom affiché est `« Prénom NOM »` ; c'est cette valeur qui est conservée dans le cookie `mesdispos_nom` et qui dérive l'`uid` anonyme (`sha256(nom)`), donc l'identité reste stable d'une visite à l'autre sans appel à Firebase ;
+- l'option **« Autre nom (saisie libre) »** subsiste dans la liste : le cahier F2 autorise un pseudonyme, et l'enseignant peut ne pas figurer dans l'annuaire de l'année interrogée ;
+- au rechargement, `LoginComponent.reprendreNomDuCookie()` resélectionne l'enseignant correspondant au cookie ; si le nom mémorisé n'est pas dans la liste (pseudonyme, annuaire modifié), la saisie libre est restaurée ;
+- `provideHttpClient(withFetch())` est ajouté à `app.config.ts` (Angular 22 : `HttpClientModule` n'existe plus).
+
+**Conséquences :** l'identite est fiabilisée (un enseignant = un `uid` anonyme stable) au prix d'une dépendance réseau au chargement de `/login` : le parcours mode A n'est plus « sans réseau » (F2) et échoue si l'API est indisponible — un message « Liste des professeurs indisponible. Réessayer » avec bouton **Réessayer** est alors affiché, la saisie libre est activée d'emblée et l'utilisateur peut continuer. La liste (~390 entrées) est chargée une fois par session d'onglet et conservée en mémoire, jamais en `localStorage` (§13). Le corps du cookie est désormais un nom complet au lieu d'un prénom : les identifiants anonymes existants (dérivés d'un prénom seul) ne sont **pas** repris — les disponibilités déjà déclarées sous l'ancien identifiant restent orphelines, à déclarer de nouveau.
+
+**Point d'attention (à traiter par l'humain) :** le proxy `proxyensad.af10.fr` applique une **liste blanche d'origines CORS** qui ne contient aujourd'hui que `https://planning.ensad.fr` et `http://localhost:4200` (vérifié par `curl -H "Origin: …"` : les origines Firebase de MesDispos reçoivent `403 Forbidden`). Il faut y ajouter `https://mesdispos-db623.web.app` et `https://mesdispos-db623.firebaseapp.com`, sinon la liste des professeurs reste vide en production. Le repli « Autre nom (saisie libre) » permet de continuer en attendant.
+
+## 2026-11-02 — Suppression de l'authentification Google : session « nom seul » + Firebase Auth anonyme pour l'admin
+
+**Contexte :** l'application proposait deux modes de connexion (F2) : le mode A « Nom seul » (cookie `mesdispos_nom`) et le mode B « Google » (popup/redirect Firebase Auth). La demande de l'utilisateur est de **supprimer la possibilité de s'authentifier avec Google**. Restait à trancher l'accès à l'espace administrateur (`/admin/import`), jusque-là réservé au mode B (F2 : « l'accès admin reste exclusivement mode B »).
+
+**Décision :**
+
+- **Google est retiré de l'application** : plus de `GoogleAuthProvider`, plus de `signInWithPopup`/`signInWithRedirect`, plus de `ALLOWED_EMAIL_DOMAINS` ni de `domaineAutorise()` dans `environments/firebase.config.ts`. Le bouton « Continuer avec Google » disparaît de `/login` ;
+- **l'espace administrateur passe par Firebase Auth _anonyme_** (`signInAnonymously`, persistance `browserLocalPersistence`) : la session obtenue porte un `uid` qui doit être inscrit dans la collection `admins` (`admins/{uid}`) — la console Firebase reste le seul moyen de nommer un admin (`allow write: if false`). La page `/login` affiche, sur demande (`?retour=/admin/import`), un encart « Espace administrateur » qui crée cette session et affiche l'`uid` obtenu, afin que l'humain puisse l'inscrire dans la console ;
+- **deux signaux distincts** dans `AuthService` : `user` (identité d'usage — session « nom seul » si le cookie existe, sinon la session Firebase) et `sessionAdmin` (session Firebase anonyme, seule habilitée à `adminGuard`). `Utilisateur` remplace les champs `anon`/`email`/`photoURL` par `session: 'nom' | 'firebase'` ;
+- `AuthService.uidEcriture()` détermine le chemin d'écriture des disponibilités : partition `anon_<sha256[:12]>` pour une session « nom seul », `uid` Firebase sinon ;
+- `firestore.rules` : la branche anonyme accepte désormais `uid.matches('^anon_[0-9a-f]{12}$')` **indépendamment** de `request.auth` (une session Firebase résiduelle ne doit pas fermer la partition d'un professeur), et la lecture des créneaux reste ouverte (`allow read: if true`) ;
+- le header n'affiche plus de photo (plus de `photoURL`) : l'avatar ne porte que l'initiale.
+
+**Conséquences :** aucune donnée personnelle (email, nom de compte, photo) n'est plus transmise à Firebase — l'admin est un `uid` opaque, ce qui simplifie le volet RGPD (« nom et disponibilités »). Le parcours professeur est inchangé (cookie, aucun appel Auth). L'accès administrateur exige deux étapes côté humain (créer la session, puis inscrire l'`uid` dans `admins`), ce qui est plus lourd que l'ancien bouton Google mais évite toute dépendance à un fournisseur d'identité tiers. `ALLOWED_EMAIL_DOMAINS` disparaît : le filtrage par domaine n'a plus d'objet.
+
+## 2026-11-02 — Google rétabli pour l'administrateur uniquement
+
+**Contexte :** la décision précédente retirait entièrement Google et faisait passer l'admin par une session Firebase anonyme. L'utilisateur demande désormais de **supprimer Google pour les professeurs mais de le conserver pour la page admin**.
+
+**Décision :**
+
+- **professeurs : aucun changement** — session « nom seul » par cookie (`mesdispos_nom`), liste des enseignants Oasis, aucun appel Firebase Auth. Aucun bouton Google n'est visible sur le parcours professeur ;
+- **espace administrateur : retour à Firebase Auth Google** (`GoogleAuthProvider`, popup sur desktop, redirect sur mobile, persistance locale). `AuthService.connecterGoogle()` alimente `sessionAdmin` ; l'encart « Espace administrateur » de `/login` (affiché quand `?retour=/admin/import`) ne propose plus la saisie d'un nom mais « Connexion avec Google » ;
+- `adminGuard` reste fondé sur `admins/{uid}` : l'`uid` Google doit y être inscrit depuis la console Firebase (`allow write: if false`). `authGuard` accepte indifféremment la session « nom seul » (professeur) et la session Google (admin) ;
+- au retour d'un redirect mobile, `onAuthStateChanged` restaure `sessionAdmin` et la page `/login` vérifie automatiquement `admins/{uid}` avant d'ouvrir l'import ;
+- le bouton « Se déconnecter » efface le cookie et ferme la session Google si elle existe.
+
+**Conséquences :** les professeurs restent sans authentification tierce (parcours mobile inchangé, aucun popup). L'admin réutilise un compte Google existant : une seule étape humaine (inscrire son `uid` dans `admins`) au lieu de créer puis autoriser une session anonyme. Le fournisseur Google doit être activé dans la console Firebase. Les données personnelles de l'admin (e-mail/nom de compte) sont de nouveau visibles côté Firebase Auth, mais celles des professeurs ne le sont pas.

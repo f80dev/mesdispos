@@ -1,10 +1,9 @@
 import { ApplicationConfig, provideBrowserGlobalErrorListeners } from '@angular/core';
 import { provideRouter } from '@angular/router';
+import { provideHttpClient, withFetch } from '@angular/common/http';
 
-import { FIRESTORE_BACKEND } from './core/firestore.backend';
-import { FirestoreReelBackend } from './core/firestore.backend.reel';
-import { XLSX_BACKEND } from './core/xlsx.backend';
-import { XLSXReelBackend } from './core/xlsx.backend.reel';
+import { FIRESTORE_BACKEND, FirestoreReelBackend } from './core/firestore.backend';
+import { XLSX_BACKEND, XLSXReelBackend } from './core/xlsx.backend';
 import { routes } from './app.routes';
 
 /**
@@ -19,6 +18,7 @@ export const appConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),
     provideRouter(routes),
+    provideHttpClient(withFetch()),
     { provide: FIRESTORE_BACKEND, useExisting: FirestoreReelBackend },
     { provide: XLSX_BACKEND, useExisting: XLSXReelBackend },
   ],

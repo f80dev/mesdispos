@@ -7,7 +7,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { ErreurImport, ExcelImportService, MESSAGE_FORMAT } from '../../data/excel-import.service';
 import { NotifService } from '../../core/notif.service';
 import { DateGroupPipe } from '../../layout/date-group.pipe';
-import type { LigneImport, ResultatImport } from '../../data/models';
+import type { ResultatImport } from '../../data/models';
 
 // Mobile  : zone de dépôt pleine largeur, aperçu en cartes, détail des lignes
 //           invalides replié, bouton d'import 48 px.
@@ -40,19 +40,6 @@ export class ImportComponent {
   readonly valides = computed(() => this.resultat()?.valides ?? []);
   readonly invalides = computed(() => this.resultat()?.invalides ?? []);
   readonly totalValides = computed(() => this.valides().length);
-
-  readonly groupsValides = computed(() => {
-    const groupes = new Map<string, LigneImport[]>();
-    for (const ligne of this.valides()) {
-      const groupe = groupes.get(ligne.date);
-      if (groupe) {
-        groupe.push(ligne);
-      } else {
-        groupes.set(ligne.date, [ligne]);
-      }
-    }
-    return [...groupes.entries()].map(([date, lignes]) => ({ date, lignes }));
-  });
 
   /** Ouvre le sélecteur de fichiers (la zone de dépôt reste cliquable). */
   choisirFichier(): void {

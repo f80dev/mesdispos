@@ -1,27 +1,28 @@
-import { Injectable, computed, inject, signal } from '@angular/core';
+import { Injectable, inject, signal } from '@angular/core';
 import type { Unsubscribe, User as FirebaseUser } from 'firebase/auth';
 
-import { MESSAGE_CONFIG_MANQUANTE, chargerAuth, firebaseAuth, firebaseConfigure } from './firebase';
+import { MESSAGE_CONFIG_MANQUANTE, chargerAuth, firebaseAuth } from './firebase';
 import { CookieService } from './cookie.service';
 import { normaliserNom } from '../shared/date.util';
 import { sha256Hex } from '../shared/sha256.util';
-import { domaineAutorise } from '../../environments/firebase.config';
+import { firebaseConfigure } from '../../environments/firebase.config';
 
 /**
- * Forme **unifiée** de l'identité, alimentée par les deux modes de F2 :
- *  - mode A « Nom seul »   → `{ uid: 'anon_<sha256[:12]>', displayName, anon: true }`
- *  - mode B « Google »     → `{ uid: <uid Firebase>, displayName, anon: false, … }`
+ * Forme **unifiée** de l'identité. Deux sessions coexistent :
+ *  - session « nom seul »  → `{ uid: 'anon_<sha256[:12]>', displayName, session: 'nom' }`
+ *    (cookie `mesdispos_nom`, aucune session Firebase) ;
+ *  - session « Firebase »  → `{ uid: <uid Google>, displayName, session: 'firebase' }`
+ *    (connexion **Google** réservée à l'espace administrateur).
  *
  * L'`uid` anonyme n'est jamais rendu à l'utilisateur : il sert uniquement de
- * chemin Firestore (sous-collection `users/anon_…/dispos`) et est donc isolé
- * des utilisateurs Google (AC-18, partition stricte).
+ * chemin Firestore (sous-collection `users/anon_…/dispos`) et reste donc isolé
+ * des partitions Firebase (les écritures de l'admin).
  */
 export interface Utilisateur {
   readonly uid: string;
   readonly displayName: string;
-  readonly anon: boolean;
-  readonly email: string | null;
-  readonly photoURL: string | null;
+  /** Nature de la session : cookie seul (« nom ») ou session Firebase. */
+  readonly session: 'nom' | 'firebase';
 }
 
 /** Délai maximal d'attente de la restauration de session avant de laisser passer. */
@@ -39,88 +40,77 @@ export function estMobile(): boolean {
   );
 }
 
-/** Conversion d'un utilisateur Firebase vers la forme unifiée (mode B). */
-export function depuisFirebase(fb: FirebaseUser): Utilisateur {
-  return {
-    uid: fb.uid,
-    displayName:
-      fb.displayName ?? (fb.email ? (fb.email.split('@')[0] ?? 'Utilisateur') : 'Utilisateur'),
-    anon: false,
-    email: fb.email,
-    photoURL: fb.photoURL,
-  };
-}
-
 /**
- * Identité anonyme déterministe du mode A (§5) : `uid = 'anon_' +
- * sha256(nom normalisé).slice(0, 12)`. L'`uid` n'est jamais rendu à
- * l'utilisateur ; le prénom normalisé reste la valeur d'affichage.
+ * Identité « nom seul » (§5) : `uid = 'anon_' + sha256(nom normalisé).slice(0, 12)`.
+ * L'`uid` n'est jamais rendu à l'utilisateur ; le prénom normalisé reste la
+ * valeur d'affichage.
  */
 export function utilisateurAnonyme(nom: string): Utilisateur {
   const affichable = normaliserNom(nom);
   return {
     uid: `anon_${sha256Hex(affichable).slice(0, 12)}`,
     displayName: affichable,
-    anon: true,
-    email: null,
-    photoURL: null,
+    session: 'nom',
+  };
+}
+
+/** Conversion d'un utilisateur Google vers la forme unifiée (espace admin). */
+export function utilisateurGoogle(fb: FirebaseUser): Utilisateur {
+  const repli = fb.email ? (fb.email.split('@')[0] ?? 'Administrateur') : 'Administrateur';
+  return {
+    uid: fb.uid,
+    displayName: fb.displayName?.trim() || repli,
+    session: 'firebase',
   };
 }
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
-  /** Signal unifié consommé par le header et par les guards (§7). */
+  /**
+   * Signal unifié consommé par le header et par les guards (§7) : l'identité
+   * « nom seul » (cookie) si elle existe, sinon la session Firebase.
+   */
   readonly user = signal<Utilisateur | null>(null);
 
-  /** Vrai tant que la restauration de session (mode B) n'a pas répondu. */
+  /**
+   * Session Firebase obtenue par connexion **Google** (candidat
+   * administrateur), quelle que soit la session « nom seul » éventuellement
+   * ouverte : elle conditionne l'accès à `/admin/import` via `admins/{uid}`.
+   */
+  readonly sessionAdmin = signal<Utilisateur | null>(null);
+
+  /** Vrai tant que la restauration de session n'a pas répondu. */
   readonly chargement = signal<boolean>(true);
 
-  /** Message d'erreur d'authentification Google, `null` si aucun. */
+  /** Message d'erreur d'authentification, `null` si aucun. */
   readonly erreur = signal<string | null>(null);
-
-  /** Vrai si le compte Google connecté est hors `ALLOWED_EMAIL_DOMAINS`. */
-  readonly domaineRefuse = signal<boolean>(false);
-
-  /** Identité connue ? (syntaxe courte pour les templates) */
-  readonly connecte = computed(() => this.user() !== null);
 
   private desabonnerAuth: Unsubscribe | null = null;
   private attente: Promise<Utilisateur | null> | null = null;
   private premiereReponseFirebase = false;
-  private resolversSession: Array<(u: Utilisateur | null) => void> = [];
+  private resolveurSession: ((u: Utilisateur | null) => void) | null = null;
   private readonly cookie = inject(CookieService);
 
   /**
-   * Restauration de session au démarrage (F2 « Header & session ») :
-   * le cookie anonyme (mode A) d'abord, sinon Firebase (mode B).
+   * Restauration de session au démarrage : le cookie « nom seul » d'abord,
+   * puis la session Firebase (Google) de l'espace administrateur.
    */
   constructor() {
     const nom = this.cookie.lireNom();
     if (nom) {
       this.user.set(utilisateurAnonyme(nom));
       this.chargement.set(false);
-    } else {
-      void this.demarrer();
     }
+    void this.demarrer();
   }
 
   /**
-   * `uid` déterministe du mode A : `anon_` + 12 premiers caractères du SHA-256
-   * du nom normalisé (§5). Jamais affiché : c'est uniquement le chemin Firestore
-   * `users/{uid}/dispos`, distinct des partitions Google (AC-18).
-   */
-  uidAnonyme(nom: string): string {
-    return utilisateurAnonyme(nom).uid;
-  }
-
-  /**
-   * Mode A — connexion par prénom seul (F2). Délègue la validation et la pose
-   * du cookie à `CookieService`, puis publie l'identité anonyme.
-   * Aucun appel Firebase, aucune requête réseau.
+   * Session « nom seul » : délègue la validation et la pose du cookie à
+   * `CookieService`, puis publie l'identité anonyme.
+   * Aucun appel Firebase Auth, aucune requête réseau.
    */
   async connecterParNom(nom: string): Promise<boolean> {
     this.erreur.set(null);
-    this.domaineRefuse.set(false);
     const resultat = this.cookie.setNom(nom);
     if (!resultat.ok) {
       this.erreur.set(resultat.erreur);
@@ -130,14 +120,64 @@ export class AuthService {
     return true;
   }
 
-  /** Mode A — « Utiliser un autre nom » : efface le cookie et l'identité. */
+  /** « Utiliser un autre nom » : efface le cookie et l'identité. */
   oublierNom(): void {
     this.cookie.effacer();
     this.user.set(null);
   }
 
   /**
-   * Restauration de session mode B (`onAuthStateChanged`).
+   * Connexion **Google** — réservée à l'espace administrateur.
+   *
+   * L'uid obtenu doit être inscrit une fois dans la collection `admins`
+   * (console Firebase) pour ouvrir `/admin/import` (`adminGuard`).
+   * Popup sur desktop, redirect sur mobile ; le redirect est rattrapé au
+   * démarrage par `onAuthStateChanged` (retour sur `/login`).
+   */
+  async connecterGoogle(): Promise<boolean> {
+    this.erreur.set(null);
+    if (!firebaseConfigure()) {
+      this.erreur.set(MESSAGE_CONFIG_MANQUANTE);
+      return false;
+    }
+    try {
+      const [
+        auth,
+        {
+          GoogleAuthProvider,
+          browserLocalPersistence,
+          setPersistence,
+          signInWithPopup,
+          signInWithRedirect,
+        },
+      ] = await Promise.all([firebaseAuth(), chargerAuth()]);
+      const provider = new GoogleAuthProvider();
+      await setPersistence(auth, browserLocalPersistence);
+      if (estMobile()) {
+        await signInWithRedirect(auth, provider);
+        return true;
+      }
+      const credential = await signInWithPopup(auth, provider);
+      this.appliquerAdmin(credential.user);
+      return true;
+    } catch {
+      // Popup bloqué / non supporté → redirect.
+      try {
+        const [auth, { GoogleAuthProvider, signInWithRedirect }] = await Promise.all([
+          firebaseAuth(),
+          chargerAuth(),
+        ]);
+        await signInWithRedirect(auth, new GoogleAuthProvider());
+        return true;
+      } catch {
+        this.erreur.set('Connexion Google impossible. Réessayez dans un autre navigateur.');
+        return false;
+      }
+    }
+  }
+
+  /**
+   * Restauration de session Firebase (`onAuthStateChanged`).
    * Idempotent : guards, header et page `/dispos` peuvent tous l'appeler.
    * Charge `firebase/auth` à la demande (import dynamique).
    */
@@ -160,9 +200,6 @@ export class AuthService {
         auth,
         (fb) => {
           this.appliquerEtatFirebase(fb);
-          this.premiereReponseFirebase = true;
-          this.chargement.set(false);
-          this.notifierResolvers();
         },
         () => {
           this.chargement.set(false);
@@ -175,16 +212,49 @@ export class AuthService {
     }
   }
 
-  private notifierResolvers(): void {
-    const enAttente = this.resolversSession;
-    this.resolversSession = [];
-    for (const resoudre of enAttente) {
-      resoudre(this.user());
+  private appliquerAdmin(fb: FirebaseUser): void {
+    const admin = utilisateurGoogle(fb);
+    this.sessionAdmin.set(admin);
+    // Le cookie « nom seul » prime pour l'affichage : la session Google
+    // reste ouverte mais ne remplace pas l'identité du professeur.
+    if (!this.cookie.lireNom()) {
+      this.user.set(admin);
     }
   }
 
   private appliquerEtatFirebase(fb: FirebaseUser | null): void {
-    this.user.set(fb ? depuisFirebase(fb) : null);
+    if (fb) {
+      this.appliquerAdmin(fb);
+    } else {
+      this.sessionAdmin.set(null);
+      if (!this.cookie.lireNom()) {
+        this.user.set(null);
+      }
+    }
+    this.premiereReponseFirebase = true;
+    this.chargement.set(false);
+    this.notifierResolvers();
+  }
+
+  private notifierResolvers(): void {
+    const resoudre = this.resolveurSession;
+    this.resolveurSession = null;
+    resoudre?.(this.user());
+  }
+
+  /**
+   * `uid` sous lequel les disponibilités sont écrites.
+   *
+   * - session « nom seul » → `anon_<sha256[:12]>` (règle : `request.auth == null`) ;
+   * - session Firebase (administrateur) → l'uid Firebase, qui correspond à
+   *   `request.auth.uid` (règle : `request.auth.uid == uid`).
+   */
+  uidEcriture(): string | null {
+    const courant = this.user();
+    if (courant?.session === 'nom') {
+      return courant.uid;
+    }
+    return this.sessionAdmin()?.uid ?? courant?.uid ?? null;
   }
 
   /**
@@ -203,9 +273,12 @@ export class AuthService {
           resolve(this.user());
           return;
         }
-        this.resolversSession.push(resolve);
+        this.resolveurSession = resolve;
         // Filet de sécurité : si Firebase ne répond jamais, on ne bloque pas la route.
-        setTimeout(() => resolve(this.user()), DELAI_SESSION_MS);
+        setTimeout(() => {
+          this.resolveurSession = null;
+          resolve(this.user());
+        }, DELAI_SESSION_MS);
         void this.demarrer();
       });
     }
@@ -213,64 +286,12 @@ export class AuthService {
   }
 
   /**
-   * Mode B — connexion Google : popup sur desktop, redirect sur mobile,
-   * repli popup → redirect si le popup est bloqué (F2 mode B, §0).
-   */
-  async connecterGoogle(): Promise<void> {
-    this.erreur.set(null);
-    this.domaineRefuse.set(false);
-    if (!firebaseConfigure()) {
-      this.erreur.set(MESSAGE_CONFIG_MANQUANTE);
-      return;
-    }
-    const [
-      auth,
-      {
-        GoogleAuthProvider,
-        browserLocalPersistence,
-        setPersistence,
-        signInWithPopup,
-        signInWithRedirect,
-      },
-    ] = await Promise.all([firebaseAuth(), chargerAuth()]);
-    const provider = new GoogleAuthProvider();
-    try {
-      await setPersistence(auth, browserLocalPersistence);
-      if (estMobile()) {
-        await signInWithRedirect(auth, provider);
-        return;
-      }
-      const credential = await signInWithPopup(auth, provider);
-      await this.validerDomaine(credential.user);
-    } catch {
-      // Popup bloqué / non supporté → redirect (§0 « repli identique à la v0 »).
-      try {
-        await signInWithRedirect(auth, provider);
-      } catch {
-        this.erreur.set('Connexion Google impossible. Réessayez dans un autre navigateur.');
-      }
-    }
-  }
-
-  private async validerDomaine(fb: FirebaseUser): Promise<void> {
-    if (!domaineAutorise(fb.email)) {
-      const [auth, { signOut }] = await Promise.all([firebaseAuth(), chargerAuth()]);
-      await signOut(auth);
-      this.domaineRefuse.set(true);
-      this.erreur.set('Domaine de messagerie non autorisé pour cette application.');
-      return;
-    }
-    this.appliquerEtatFirebase(fb);
-  }
-
-  /**
-   * Déconnexion (§7) : le mode A efface le cookie `mesdispos_nom`, le mode B
-   * appelle `signOut` Firebase. Dans les deux cas `user` repasse à `null`.
+   * Déconnexion : efface le cookie « nom seul » et ferme la session Firebase
+   * (Google) si elle existe. Dans les deux cas `user` repasse à `null`.
    */
   async signOut(): Promise<void> {
-    if (this.user()?.anon) {
-      this.cookie.effacer();
-    } else {
+    this.cookie.effacer();
+    if (this.sessionAdmin()) {
       try {
         const [auth, { signOut }] = await Promise.all([firebaseAuth(), chargerAuth()]);
         await signOut(auth);
@@ -278,11 +299,7 @@ export class AuthService {
         // Firebase déjà déconnecté ou indisponible : on ne bloque pas l'UI.
       }
     }
-    this.appliquerEtatFirebase(null);
-  }
-
-  /** Alias français du contrat §7 (`AuthService.signOut()`). */
-  deconnecter(): Promise<void> {
-    return this.signOut();
+    this.sessionAdmin.set(null);
+    this.user.set(null);
   }
 }

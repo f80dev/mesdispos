@@ -24,16 +24,16 @@ const AUTRE_CRENEAU: Creneau = {
   heureFin: '15:00',
 };
 
-/** Faux AuthService : un utilisateur anonyme connecté, comme en mode A. */
+/** Faux AuthService : une session « nom seul » (cookie) active. */
 class FauxAuthService {
   readonly user = signal<Utilisateur | null>({
     uid: 'anon_85209162cfd3',
     displayName: 'Pauline',
-    anon: true,
-    email: null,
-    photoURL: null,
+    session: 'nom',
   });
+  readonly sessionAdmin = signal<Utilisateur | null>(null);
   readonly attendreSession = vi.fn(async () => this.user());
+  readonly uidEcriture = vi.fn(() => this.user()?.uid ?? null);
 }
 
 /** Faux NotifService : on capture l'action « Réessayer ». */
@@ -62,9 +62,9 @@ function creerFauxBackend(): FirestoreBackend & {
     configure: true,
     setDispo: setDispoMock as unknown as FirestoreBackend['setDispo'],
     deleteDispo: deleteDispoMock as unknown as FirestoreBackend['deleteDispo'],
-    ecouterCreneaux: vi.fn(async () => () => undefined),
+    ecouterCreneaux: vi.fn(() => () => undefined),
     ecouterDispos: vi.fn(
-      async (
+      (
         _uid: string,
         suivant: (s: { docs: Array<{ id: string; data: () => unknown }> }) => void,
         _erreur: () => void,

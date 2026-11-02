@@ -17,23 +17,21 @@ import { FIRESTORE_BACKEND, type FirestoreBackend } from './firestore.backend';
 const ANON: Utilisateur = {
   uid: 'anon_85209162cfd3',
   displayName: 'Pauline',
-  anon: true,
-  email: null,
-  photoURL: null,
+  session: 'nom',
 };
 
-const GOOGLE: Utilisateur = {
+const ADMIN: Utilisateur = {
   uid: 'uid-firebase',
-  displayName: 'Pauline D.',
-  anon: false,
-  email: 'pauline@example.fr',
-  photoURL: null,
+  displayName: 'Administrateur',
+  session: 'firebase',
 };
 
 class FauxAuthService {
   utilisateur: Utilisateur | null = null;
   readonly user = signal<Utilisateur | null>(null);
+  readonly sessionAdmin = signal<Utilisateur | null>(null);
   readonly attendreSession = vi.fn(async () => this.utilisateur);
+  readonly uidEcriture = vi.fn(() => this.utilisateur?.uid ?? null);
 }
 
 class FauxNotifService {
@@ -47,8 +45,8 @@ class FauxNotifService {
 function creerFauxBackend(admin: boolean): FirestoreBackend {
   return {
     configure: true,
-    ecouterCreneaux: vi.fn(async () => () => undefined),
-    ecouterDispos: vi.fn(async () => () => undefined),
+    ecouterCreneaux: vi.fn(() => () => undefined),
+    ecouterDispos: vi.fn(() => () => undefined),
     setDispo: vi.fn(async () => undefined),
     deleteDispo: vi.fn(async () => undefined),
     listerIdsCreneaux: vi.fn(async () => []),
@@ -75,13 +73,13 @@ describe('authGuard', () => {
     });
   });
 
-  it('laisse passer un utilisateur Google', async () => {
-    auth.utilisateur = GOOGLE;
+  it('laisse passer une session Firebase (administrateur)', async () => {
+    auth.utilisateur = ADMIN;
     const resultat = await TestBed.runInInjectionContext(() => authGuard(ROUTE, ETAT_ADMIN));
     expect(resultat).toBe(true);
   });
 
-  it('laisse passer un utilisateur anonyme (mode A)', async () => {
+  it('laisse passer une session « nom seul » (cookie)', async () => {
     auth.utilisateur = ANON;
     const resultat = await TestBed.runInInjectionContext(() => authGuard(ROUTE, ETAT_ADMIN));
     expect(resultat).toBe(true);
@@ -118,7 +116,8 @@ describe('adminGuard', () => {
 
   it("refuse l'accès sans document admins/{uid}", async () => {
     preparer(false);
-    auth.utilisateur = GOOGLE;
+    auth.utilisateur = ADMIN;
+    auth.sessionAdmin.set(ADMIN);
     const router = TestBed.inject(Router);
     const spy = vi.spyOn(router, 'createUrlTree');
 
@@ -129,7 +128,7 @@ describe('adminGuard', () => {
     expect(spy).toHaveBeenCalledWith(['/dispos']);
   });
 
-  it("refuse l'accès à un utilisateur anonyme même si admins/ le mentionnerait", async () => {
+  it("refuse l'accès à une session « nom seul » même si admins/ le mentionnerait", async () => {
     preparer(true);
     auth.utilisateur = ANON;
 
@@ -138,9 +137,10 @@ describe('adminGuard', () => {
     expect(resultat).not.toBe(true);
   });
 
-  it('laisse passer un admin en mode B', async () => {
+  it('laisse passer un administrateur authentifié', async () => {
     preparer(true);
-    auth.utilisateur = GOOGLE;
+    auth.utilisateur = ADMIN;
+    auth.sessionAdmin.set(ADMIN);
 
     const resultat = await TestBed.runInInjectionContext(() => adminGuard(ROUTE, ETAT_ADMIN));
 

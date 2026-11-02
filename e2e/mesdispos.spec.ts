@@ -41,6 +41,8 @@ let retenus = new Set<string>();
 async function maquiller(page: Page): Promise<void> {
   await page.route('**/googleapis.com/**', (route) => route.abort());
   await page.route('**/identitytoolkit.googleapis.com/**', (route) => route.abort());
+  // Annuaire Oasis indisponible : l'application bascule en saisie libre.
+  await page.route('**/api/v1/profs**', (route) => route.abort());
   await page.route('**/firestore.googleapis.com/**', (route) => {
     const url = route.request().url();
     const creneaux = url.includes('/creneaux');

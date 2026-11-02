@@ -210,6 +210,30 @@ export function trierCreneaux<T extends CreneauTriable>(creneaux: readonly T[]):
   });
 }
 
+/**
+ * Convertit une date `'YYYY-MM-DD'` en `Date` **locale** (minuit local), ou
+ * `null` si la chaîne n'est pas une date de calendrier valide.
+ *
+ * La reconstruction est volontairement locale (`new Date(a, m - 1, j)`) et non
+ * passée à `new Date('2026-01-12')` (qui vaut minuit UTC et reculerait d'un
+ * jour dans les fuseaux à l'ouest de Greenwich).
+ */
+export function dateLocale(valeur: string): Date | null {
+  const morceaux = valeur.slice(0, 10).split('-');
+  if (morceaux.length !== 3) {
+    return null;
+  }
+  const [annee, mois, jour] = morceaux.map((partie) => Number.parseInt(partie, 10));
+  if (Number.isNaN(annee) || Number.isNaN(mois) || Number.isNaN(jour)) {
+    return null;
+  }
+  const date = new Date(annee, mois - 1, jour);
+  if (date.getFullYear() !== annee || date.getMonth() !== mois - 1 || date.getDate() !== jour) {
+    return null;
+  }
+  return date;
+}
+
 const FORMATTEUR_JOUR = new Intl.DateTimeFormat('fr-FR', {
   weekday: 'long',
   day: 'numeric',
@@ -239,14 +263,8 @@ export function libelleHeure(heure: string): string {
  * créneau est dans « Mes disponibilités ».
  */
 export function libelleCreneauAccessible(creneau: CreneauAffichable, selectionne: boolean): string {
-  const morceaux = creneau.date.slice(0, 10).split('-');
-  const annee = Number.parseInt(morceaux[0] ?? '', 10);
-  const mois = Number.parseInt(morceaux[1] ?? '', 10);
-  const jour = Number.parseInt(morceaux[2] ?? '', 10);
-  const jourFr =
-    Number.isNaN(annee) || Number.isNaN(mois) || Number.isNaN(jour)
-      ? creneau.date
-      : FORMATTEUR_JOUR.format(new Date(annee, mois - 1, jour));
+  const date = dateLocale(creneau.date);
+  const jourFr = date ? FORMATTEUR_JOUR.format(date) : creneau.date;
   return `${selectionne ? 'Retenu' : 'Disponible'} ${jourFr} de ${libelleHeure(creneau.heureDebut)} à ${libelleHeure(creneau.heureFin)}`;
 }
 

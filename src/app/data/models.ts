@@ -51,8 +51,3 @@ export interface ResultatImport {
 export function idCreneau(creneau: Pick<Creneau, 'date' | 'heureDebut' | 'heureFin'>): string {
   return `${creneau.date}_${creneau.heureDebut.replace(':', '')}_${creneau.heureFin.replace(':', '')}`;
 }
-
-/** Un créneau est valide si `heureFin` est strictement postérieure à `heureDebut`. */
-export function creneauCoherent(creneau: Pick<Creneau, 'heureDebut' | 'heureFin'>): boolean {
-  return creneau.heureFin > creneau.heureDebut;
-}

@@ -5,9 +5,10 @@ import { AuthService } from './auth.service';
 import { ROUTES } from '../app.routes';
 
 /**
- * `authGuard` — laisse passer un utilisateur **Google (mode B) ou anonyme
- * (mode A)** ; sinon redirection vers `/login` en mémorisant la route
- * demandée (`?retour=…`) pour y revenir après connexion (F1, §7).
+ * `authGuard` — laisse passer un professeur (« nom seul », cookie) ou un
+ * administrateur (session Firebase Google) ; sinon redirection vers `/login`
+ * en mémorisant la route demandée (`?retour=…`) pour y revenir après
+ * connexion (F1, §7).
  */
 export const authGuard: CanActivateFn = async (_route, state) => {
   const auth = inject(AuthService);

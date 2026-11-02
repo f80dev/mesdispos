@@ -1,7 +1,6 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
-import type { Unsubscribe } from 'firebase/firestore';
 
-import { FIRESTORE_BACKEND } from '../core/firestore.backend';
+import { AUCUN_ABONNEMENT, FIRESTORE_BACKEND, type Abonnement } from '../core/firestore.backend';
 import { AuthService } from '../core/auth.service';
 import { NotifService } from '../core/notif.service';
 import { CreneauService } from './creneau.service';
@@ -106,48 +105,26 @@ export class DispoService {
   /** Compteur « Mes disponibilités (N) » (F3). */
   readonly nombreRetenus = computed(() => this.retenus().length);
 
-  private arret: Unsubscribe | null = null;
+  private arret: Abonnement | null = null;
   private readonly sequences = new Map<string, number>();
 
   /**
    * Abonne `dispos` à `onSnapshot(users/{uid}/dispos)` (F4 multi-appareil).
    * @returns fonction de désabonnement (synchrone, §7).
    */
-  ecouter(): Unsubscribe {
+  ecouter(): Abonnement {
     this.arreter();
     this.chargement.set(true);
     this.erreur.set(null);
 
-    let annule = false;
-    let interne: Unsubscribe | null = null;
-    void this.brancher().then((souscription) => {
-      interne = souscription;
-      if (annule) {
-        souscription();
-      }
-    });
-
-    const stopper = (): void => {
-      annule = true;
-      interne?.();
-      interne = null;
-      this.arret = null;
-    };
-    this.arret = stopper;
-    return stopper;
-  }
-
-  private async brancher(): Promise<Unsubscribe> {
-    const uid = this.auth.user()?.uid;
-    if (!uid) {
+    const uid = this.auth.uidEcriture();
+    if (!uid || !this.backend.configure) {
       this.chargement.set(false);
-      return () => undefined;
+      this.arret = AUCUN_ABONNEMENT;
+      return this.arret;
     }
-    if (!this.backend.configure) {
-      this.chargement.set(false);
-      return () => undefined;
-    }
-    return this.backend.ecouterDispos(
+
+    this.arret = this.backend.ecouterDispos(
       uid,
       (instantane) => {
         const liste: Dispo[] = [];
@@ -161,11 +138,12 @@ export class DispoService {
         this.chargement.set(false);
         this.erreur.set(null);
       },
-      () => {
+      (raison) => {
         this.chargement.set(false);
-        this.erreur.set(MESSAGE_LECTURE_DISPOS);
+        this.erreur.set(raison ?? MESSAGE_LECTURE_DISPOS);
       },
     );
+    return this.arret;
   }
 
   /** Détache l'écoute courante. */
@@ -198,26 +176,19 @@ export class DispoService {
     this.majOptimiste(creneau, wanted);
 
     try {
-      const uid = this.auth.user()?.uid;
+      const uid = this.auth.uidEcriture();
       if (!uid) {
         throw new Error('aucune session');
       }
       if (wanted) {
-        const dispo: Dispo = {
-          creneauId: creneau.id,
-          date: creneau.date,
-          heureDebut: creneau.heureDebut,
-          heureFin: creneau.heureFin,
-          ...(creneau.libelle ? { libelle: creneau.libelle } : {}),
-          updatedAt: Date.now(),
-        };
-        await this.backend.setDispo(uid, creneau.id, dispo);
+        await this.backend.setDispo(uid, creneau.id, this.documentDispo(creneau));
       } else {
         await this.backend.deleteDispo(uid, creneau.id);
       }
-    } catch {
+    } catch (e) {
       // Rollback : on annule l'effet optimiste si aucune action plus récente
       // n'a pris le relais sur ce créneau.
+      console.warn('[MesDispos] Écriture de la disponibilité impossible :', e);
       if (this.sequences.get(creneau.id) === sequence) {
         this.majOptimiste(creneau, !wanted);
       }
@@ -235,20 +206,24 @@ export class DispoService {
   private majOptimiste(creneau: Creneau, selected: boolean): void {
     const dejaPresent = this.idsSelectionnes().has(creneau.id);
     if (selected && !dejaPresent) {
-      const dispo: Dispo = {
-        creneauId: creneau.id,
-        date: creneau.date,
-        heureDebut: creneau.heureDebut,
-        heureFin: creneau.heureFin,
-        ...(creneau.libelle ? { libelle: creneau.libelle } : {}),
-        updatedAt: Date.now(),
-      };
-      this.dispos.set(trierCreneaux([...this.dispos(), dispo]));
+      this.dispos.set(trierCreneaux([...this.dispos(), this.documentDispo(creneau)]));
       return;
     }
     if (!selected && dejaPresent) {
       this.dispos.set(this.dispos().filter((dispo) => dispo.creneauId !== creneau.id));
     }
+  }
+
+  /** Document `dispos/{creneauId}` dénormalisé (affichage sans jointure). */
+  private documentDispo(creneau: Creneau): Dispo {
+    return {
+      creneauId: creneau.id,
+      date: creneau.date,
+      heureDebut: creneau.heureDebut,
+      heureFin: creneau.heureFin,
+      ...(creneau.libelle ? { libelle: creneau.libelle } : {}),
+      updatedAt: Date.now(),
+    };
   }
 
   private marquerEnCours(creneauId: string, actif: boolean): void {

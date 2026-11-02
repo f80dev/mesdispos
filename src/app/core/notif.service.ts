@@ -11,7 +11,12 @@ export class NotifService {
 
   /** Message de succès (ex. « 12 créneaux importés, 2 lignes ignorées »). */
   succes(message: string, duree = 3000): void {
-    this.snackBar.open(message, 'Fermer', { duration: duree, politeness: 'polite' });
+    this.afficher(message, duree, 'polite');
+  }
+
+  /** Info neutre (ex. « Accès réservé à un administrateur »). */
+  info(message: string, duree = 4000): void {
+    this.afficher(message, duree, 'polite');
   }
 
   /** Message d'erreur, avec action facultative (bouton de droite). */
@@ -27,8 +32,7 @@ export class NotifService {
     this.erreur(message, { label: 'Réessayer', executer });
   }
 
-  /** Info neutre (ex. « Accès réservé à un administrateur »). */
-  info(message: string, duree = 4000): void {
-    this.snackBar.open(message, 'Fermer', { duration: duree, politeness: 'polite' });
+  private afficher(message: string, duree: number, politeness: 'polite' | 'assertive'): void {
+    this.snackBar.open(message, 'Fermer', { duration: duree, politeness });
   }
 }

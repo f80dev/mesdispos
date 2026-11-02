@@ -2,9 +2,10 @@ rules_version = '2';
 
 // MesDispos — règles de sécurité Firestore (AGENTS.md §11).
 //
-// Deux modes d'accès coexistent (§11 / F2) :
-//  - mode B « Google »  : `request.auth != null`, `uid` = uid Firebase ;
-//  - mode A « Nom seul » : `request.auth == null`, `uid` = `anon_<sha256[:12]>`.
+// Deux natures de session coexistent :
+//  - session « nom seul » : `request.auth == null`, `uid` = `anon_<sha256[:12]>` ;
+//  - session Firebase (administrateur) : `request.auth != null`, `uid` =
+//    `request.auth.uid` (connexion **anonyme**, aucun compte tiers).
 //
 // L'admin n'est identifié que par l'existence du document `admins/{uid}`, écrit
 // **manuellement depuis la console Firebase** (jamais depuis l'application).
@@ -14,24 +15,33 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    // Mode A : pas de session Firebase, mais un `uid` d'anonyme bien formé.
-    function uidAnonymeValide() {
-      return request.auth == null && uid.matches('^anon_[0-9a-f]{12}$');
+    // Session « nom seul » : `uid` d'anonyme bien formé (sha256 du nom).
+    // La forme du `uid` suffit à valider la partition : la session Firebase
+    // éventuelle (administrateur) ne doit pas empêcher un professeur de
+    // déclarer ses disponibilités dans sa propre partition.
+    // NB : une fonction de rules **ne capture pas** les variables du chemin
+    // (`{uid}`) : le `uid` doit être passé en paramètre, sinon le compilateur
+    // signale « Invalid variable name: uid » et la branche anonyme est refusée.
+    function uidAnonymeValide(uid) {
+      return uid.matches('^anon_[0-9a-f]{12}$');
     }
 
     function admin() {
       return connecte() && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
     }
 
-    // Créneaux proposés : lecture ouverte (mode A compris), écriture admin seule.
+    // Créneaux proposés : lecture ouverte (toute session comprise), écriture
+    // admin seule.
     match /creneaux/{id} {
       allow read: if true;
       allow create, update, delete: if admin();
     }
 
-    // Disponabilités : chaque partition n'est accessible qu'à son titulaire.
+    // Disponibilités : chaque partition n'est accessible qu'à son titulaire.
+    //  - partition Firebase (administrateur) : `request.auth.uid == uid` ;
+    //  - partition « nom seul » : `uid` de la forme `anon_<sha256[:12]>`.
     match /users/{uid}/dispos/{creneauId} {
-      allow read, write: if connecte() ? (request.auth.uid == uid) : uidAnonymeValide();
+      allow read, write: if (connecte() && request.auth.uid == uid) || uidAnonymeValide(uid);
     }
 
     // Liste des administrateurs : lecture par le concerné, écriture interdite

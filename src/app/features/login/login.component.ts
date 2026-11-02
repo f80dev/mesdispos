@@ -4,6 +4,7 @@ import {
   ElementRef,
   afterNextRender,
   computed,
+  effect,
   inject,
   signal,
   viewChild,
@@ -15,17 +16,23 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatSelect, MatSelectModule } from '@angular/material/select';
 import { ActivatedRoute, Router } from '@angular/router';
 import { map } from 'rxjs';
 
 import { AuthService } from '../../core/auth.service';
 import { CookieService } from '../../core/cookie.service';
+import { FIRESTORE_BACKEND } from '../../core/firestore.backend';
 import { ROUTES } from '../../app.routes';
+import { ProfService, type Prof } from '../../data/prof.service';
 import { LONGUEUR_NOM_MAX } from '../../shared/date.util';
 
-// Mobile : carte unique centrée, champ focalisé, bouton pleine largeur ≥ 48 px,
-// aucun débordement horizontal à 375 px.
-// Desktop: carte centrée 420 px max, deux boutons empilés, beaucoup d'air.
+/** Valeur synthétique du sélecteur : « je ne suis pas dans la liste ». */
+export const CHOIX_AUTRE = '__autre__';
+
+// Mobile : carte unique centrée, liste déroulante ≥ 48 px, aucun scroll
+//           horizontal à 375 px.
+// Desktop: carte centrée 420 px max, liste déroulante + bouton.
 @Component({
   selector: 'app-login',
   imports: [
@@ -33,6 +40,7 @@ import { LONGUEUR_NOM_MAX } from '../../shared/date.util';
     A11yModule,
     MatFormFieldModule,
     MatInputModule,
+    MatSelectModule,
     MatButtonModule,
     MatIconModule,
     MatProgressSpinnerModule,
@@ -46,20 +54,53 @@ export class LoginComponent {
   private readonly cookie = inject(CookieService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
+  private readonly profService = inject(ProfService);
+  private readonly backend = inject(FIRESTORE_BACKEND);
 
   private readonly champ = viewChild<ElementRef<HTMLInputElement>>('champ');
+  private readonly liste = viewChild<MatSelect>('liste');
 
   readonly maxLength = LONGUEUR_NOM_MAX;
+  readonly choixAutre = CHOIX_AUTRE;
 
-  /** Formulaire à un seul champ — mode A, aucun appel réseau (F2). */
+  /**
+   * Formulaire du mode « nom seul » : `prof` porte le `login` de l'enseignant
+   * choisi dans la liste, `prenom` ne sert qu'au saisie libre (« Autre nom »).
+   *
+   * Aucun validateur `required` : la liste déroulante vide ne doit pas
+   * s'afficher en état d'erreur Material (rouge) — c'est le bouton
+   * « Continuer » qui est désactivé tant qu'aucun nom n'est choisi.
+   */
   readonly formulaire = this.fb.group({
-    prenom: ['', [Validators.required, Validators.maxLength(LONGUEUR_NOM_MAX)]],
+    prof: [''],
+    prenom: ['', Validators.maxLength(LONGUEUR_NOM_MAX)],
   });
 
+  /** Enseignants proposés, chargés depuis l'API Oasis. */
+  readonly profs = this.profService.profs;
+  readonly chargementProfs = this.profService.chargement;
+  readonly erreurProfs = this.profService.erreur;
+
+  /**
+   * Choix courant du sélecteur (`login` ou `CHOIX_AUTRE`).
+   *
+   * Signal **explicite** (et non dérivé de `valueChanges`) : le contrôle est
+   * désactivé pendant le chargement de la liste, or un contrôle désactivé
+   * n'émet plus `valueChanges` — la sélection mémorisée par le cookie
+   * risquerait alors de ne jamais être prise en compte.
+   */
+  readonly choix = signal<string>('');
+
+  /** Saisie libre courante. */
   readonly prenom = toSignal(this.formulaire.controls.prenom.valueChanges, { initialValue: '' });
 
-  /** « Continuer » reste désactivé tant que la valeur, après `trim`, est vide. */
-  readonly peutContinuer = computed(() => this.prenom().trim().length > 0);
+  /** Vrai lorsque la saisie libre est active (option « Autre nom »). */
+  readonly saisieLibre = computed(() => this.choix() === CHOIX_AUTRE);
+
+  /** « Continuer » reste désactivé tant qu'aucun enseignant n'est choisi. */
+  readonly peutContinuer = computed(() =>
+    this.saisieLibre() ? this.prenom().trim().length > 0 : this.choix().length > 0,
+  );
 
   /** Route initialement demandée (`?retour=/admin/import` ou `?retour=/dispos`). */
   private readonly retour = toSignal(
@@ -67,64 +108,196 @@ export class LoginComponent {
     { initialValue: null },
   );
 
-  /**
-   * L'accès admin reste **exclusivement** en mode B (F2 mode B) : sur
-   * `/admin/import`, la carte « Prénom » est remplacée par « Continuer avec
-   * Google », sans message d'erreur (refus silencieux demandé par le cahier).
-   */
-  readonly modeGoogleSeul = computed(() => this.retour() === ROUTES.admin);
+  /** Vrai quand l'utilisateur tente d'atteindre l'espace administrateur. */
+  readonly demandeAdmin = computed(() => this.retour() === ROUTES.admin);
 
-  readonly enCoursGoogle = signal<boolean>(false);
-  readonly erreur = this.auth.erreur;
-  readonly messageGoogle = computed(() =>
-    this.modeGoogleSeul()
-      ? 'Cet espace est réservé aux administrateurs. Connectez-vous avec Google.'
-      : 'Vous pouvez aussi utiliser votre compte Google.',
-  );
+  readonly enCoursAdmin = signal<boolean>(false);
+  readonly erreurAdmin = signal<string | null>(null);
+  readonly uidAdmin = signal<string | null>(null);
+
+  /** Message d'erreur de la session « nom seul » (nom invalide). */
+  readonly erreur = signal<string | null>(null);
 
   constructor() {
-    // Pré-remplissage : la valeur courante du cookie, à chaque visite en mode A.
-    const nomCookie = this.cookie.lireNom();
-    if (nomCookie) {
-      this.formulaire.controls.prenom.setValue(nomCookie);
-    }
-    // F2 mode A : le champ « Prénom » prend le focus à l'ouverture de /login,
-    // pour que le parcours complet tienne en moins de 3 interactions au pouce.
+    // Le sélecteur est désactivé tant que la liste des enseignants n'est pas
+    // arrivée (en cas d'échec, la saisie libre reste possible).
+    effect(() => {
+      const controle = this.formulaire.controls.prof;
+      if (this.chargementProfs()) {
+        controle.disable({ emitEvent: false });
+      } else {
+        controle.enable({ emitEvent: false });
+      }
+    });
+
+    // La liste déroulante prend le focus à l'ouverture de /login, pour que le
+    // parcours complet tienne en moins de 3 interactions au pouce.
     afterNextRender(() => {
-      this.champ()?.nativeElement.focus();
+      void this.profService.charger().then(() => {
+        this.reprendreNomDuCookie();
+        if (this.erreurProfs()) {
+          // Liste indisponible : on bascule d'emblée en saisie libre.
+          this.selectionner(CHOIX_AUTRE);
+        } else {
+          this.liste()?.focus();
+        }
+      });
+    });
+
+    // Le champ de saisie libre prend le focus dès qu'il apparaît (il n'existe
+    // qu'en mode « Autre nom »). `viewChild` étant un signal, l'effet est
+    // rejoué dès que l'élément est rendu.
+    //
+    // Le focus est posé avec un petit délai : à la fermeture du panneau
+    // `mat-select`, Material rend le focus à son déclencheur — il faut donc
+    // passer **après** cette restauration, sinon le champ libre ne le garde
+    // pas.
+    effect(() => {
+      const champ = this.champ();
+      if (this.saisieLibre() && champ) {
+        setTimeout(() => champ.nativeElement.focus(), 250);
+      }
+    });
+
+    // Retour d'une connexion Google par redirect (mobile) : la session admin
+    // est restaurée par `onAuthStateChanged` après le rechargement. On vérifie
+    // alors les droits et on ouvre l'import si l'utilisateur est autorisé.
+    effect(() => {
+      const admin = this.auth.sessionAdmin();
+      if (admin && this.demandeAdmin()) {
+        void this.verifierEtOuvrir(admin.uid);
+      }
     });
   }
 
-  /** Soumission du formulaire du mode A. */
+  /** Enseignant correspondant au `login` sélectionné. */
+  private profChoisi(): Prof | null {
+    const login = this.choix();
+    if (!login || login === CHOIX_AUTRE) {
+      return null;
+    }
+    return this.profs().find((prof) => prof.login === login) ?? null;
+  }
+
+  /**
+   * Pré-sélection : si le cookie contient le nom d'un enseignant connu, on
+   * le sélectionne dans la liste ; sinon on bascule en saisie libre afin que
+   * l'utilisateur retrouve exactement ce qu'il avait saisi.
+   */
+  private reprendreNomDuCookie(): void {
+    const nomCookie = this.cookie.lireNom();
+    if (!nomCookie) {
+      return;
+    }
+    const prof = this.profs().find((p) => p.nomComplet === nomCookie);
+    if (prof) {
+      this.selectionner(prof.login);
+    } else {
+      this.formulaire.controls.prenom.setValue(nomCookie);
+      this.selectionner(CHOIX_AUTRE);
+    }
+  }
+
+  /**
+   * Applique un choix : le signal `choix` (source de vérité de l'affichage) et
+   * le contrôle de formulaire sont mis à jour de concert.
+   */
+  private selectionner(valeur: string): void {
+    this.choix.set(valeur);
+    this.formulaire.controls.prof.setValue(valeur);
+  }
+
+  /** Changement de sélection dans la liste déroulante. */
+  choisir(valeur: string): void {
+    this.selectionner(valeur);
+    if (this.saisieLibre()) {
+      this.formulaire.controls.prenom.setValue('');
+    }
+  }
+
+  /** Relance le chargement de la liste des enseignants. */
+  reessayerProfs(): void {
+    this.profService.reessayer();
+  }
+
+  /** Soumission du formulaire « nom seul ». */
   async continuer(): Promise<void> {
     if (!this.peutContinuer()) {
       return;
     }
-    const cible = this.retour() ?? ROUTES.dispos;
-    const ok = await this.auth.connecterParNom(this.prenom());
+    const nom = this.saisieLibre() ? this.prenom() : (this.profChoisi()?.nomComplet ?? '');
+    if (!nom.trim()) {
+      return;
+    }
+    // Une session « nom seul » n'ouvre pas l'espace administrateur : on
+    // renvoie le professeur vers ses disponibilités.
+    const cible =
+      this.demandeAdmin() && !this.auth.sessionAdmin()
+        ? ROUTES.dispos
+        : (this.retour() ?? ROUTES.dispos);
+    this.erreur.set(null);
+    const ok = await this.auth.connecterParNom(nom);
     if (ok) {
       await this.router.navigateByUrl(cible);
+    } else {
+      this.erreur.set(this.auth.erreur() ?? 'Nom invalide.');
     }
   }
 
-  /** Mode B — connexion Google (popup desktop, redirect mobile). */
-  async connecterGoogle(): Promise<void> {
-    this.enCoursGoogle.set(true);
+  /**
+   * Connexion administrateur : **Google** (Firebase Auth). L'uid obtenu doit
+   * exister dans la collection `admins` pour ouvrir `/admin/import`.
+   */
+  async connecterAdmin(): Promise<void> {
+    this.erreurAdmin.set(null);
+    this.uidAdmin.set(null);
+    this.uidVerifie = null;
+    this.enCoursAdmin.set(true);
     try {
-      await this.auth.connecterGoogle();
-      const cible = this.retour() ?? ROUTES.dispos;
-      if (this.auth.user()) {
-        await this.router.navigateByUrl(cible);
+      const ok = await this.auth.connecterGoogle();
+      if (!ok) {
+        this.erreurAdmin.set(this.auth.erreur() ?? 'Connexion administrateur impossible.');
+        return;
+      }
+      const uid = this.auth.sessionAdmin()?.uid ?? null;
+      if (uid) {
+        await this.verifierEtOuvrir(uid);
       }
     } finally {
-      this.enCoursGoogle.set(false);
+      this.enCoursAdmin.set(false);
     }
   }
 
-  /** « Utiliser un autre nom » : efface le cookie et remet le focus (§F2). */
+  /** Dernier `uid` dont les droits ont été vérifiés (évite les appels en boucle). */
+  private uidVerifie: string | null = null;
+
+  /**
+   * Vérifie `admins/{uid}` puis ouvre l'import. Sinon, affiche l'erreur et
+   * l'identifiant à inscrire dans la console Firebase.
+   */
+  private async verifierEtOuvrir(uid: string): Promise<void> {
+    if (this.uidVerifie === uid) {
+      return;
+    }
+    this.uidVerifie = uid;
+    this.uidAdmin.set(uid);
+    if (await this.backend.estAdmin(uid)) {
+      await this.router.navigateByUrl(ROUTES.admin);
+      return;
+    }
+    this.erreurAdmin.set(
+      "Accès refusé : ce compte Google n'est pas administrateur. Ajoutez le document admins/" +
+        `${uid} depuis la console Firebase.`,
+    );
+  }
+
+  /**
+   * « Utiliser un autre nom » : efface le cookie, bascule en saisie libre et
+   * remet le focus dans le champ.
+   */
   utiliserUnAutreNom(): void {
     this.auth.oublierNom();
+    this.selectionner(CHOIX_AUTRE);
     this.formulaire.controls.prenom.setValue('');
-    this.champ()?.nativeElement.focus();
   }
 }

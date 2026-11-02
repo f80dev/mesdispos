@@ -5,11 +5,10 @@ import {
   ErreurImport,
   ExcelImportService,
   MESSAGE_FORMAT,
-  TAILLE_BATCH,
   indexerColonnes,
   normaliserEntete,
 } from './excel-import.service';
-import { FIRESTORE_BACKEND, type FirestoreBackend } from '../core/firestore.backend';
+import { FIRESTORE_BACKEND, TAILLE_BATCH, type FirestoreBackend } from '../core/firestore.backend';
 import { XLSX_BACKEND, type XLSXBackend } from '../core/xlsx.backend';
 
 /**
@@ -28,8 +27,8 @@ function creerFauxXLSX(etat: { rangees: unknown[][] }): XLSXBackend {
 function creerFauxBackend(etat: { identifiantsEnBase: string[] }): FirestoreBackend {
   return {
     configure: true,
-    ecouterCreneaux: vi.fn(async () => () => undefined),
-    ecouterDispos: vi.fn(async () => () => undefined),
+    ecouterCreneaux: vi.fn(() => () => undefined),
+    ecouterDispos: vi.fn(() => () => undefined),
     setDispo: vi.fn(async () => undefined),
     deleteDispo: vi.fn(async () => undefined),
     listerIdsCreneaux: vi.fn(async () => [...etat.identifiantsEnBase]),

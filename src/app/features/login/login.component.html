@@ -1,7 +1,7 @@
 <!--
-  Mobile: carte centrée pleine largeur, un seul champ, « Continuer » ≥ 48 px,
-            focus automatique, aucun scroll horizontal à 375 px.
-  Desktop: carte centrée (max 420 px), sous-titre explicatif, deux actions.
+  Mobile: carte centrée pleine largeur, liste déroulante ≥ 48 px,
+            « Continuer » ≥ 48 px, aucun scroll horizontal à 375 px.
+  Desktop: carte centrée (max 420 px), sous-titre explicatif.
 -->
 <section class="page-login">
   <header class="marque">
@@ -9,12 +9,45 @@
     <h1>MesDispos</h1>
   </header>
 
-  @if (!modeGoogleSeul()) {
-    <p class="sous-titre">
-      Pour déclarer vos disponibilités, saisissez votre prénom (ou un pseudonyme).
-    </p>
+  <p class="sous-titre">Pour déclarer vos disponibilités, choisissez votre nom dans la liste.</p>
 
-    <form class="carte" [formGroup]="formulaire" (ngSubmit)="continuer()" novalidate>
+  <form class="carte" [formGroup]="formulaire" (ngSubmit)="continuer()" novalidate>
+    @if (erreurProfs(); as message) {
+      <p class="erreur" role="alert">
+        {{ message }}
+        <button matButton type="button" class="bouton-reessayer" (click)="reessayerProfs()">
+          Réessayer
+        </button>
+      </p>
+    }
+
+    <mat-form-field appearance="outline" class="champ-nom">
+      <mat-label>Professeur</mat-label>
+      <mat-select #liste formControlName="prof" (selectionChange)="choisir($event.value)">
+        @for (prof of profs(); track prof.login) {
+          <mat-option [value]="prof.login">
+            <span class="option-prof">
+              <span class="option-nom">{{ prof.nomComplet }}</span>
+              @if (prof.service) {
+                <span class="option-service">{{ prof.service }}</span>
+              }
+            </span>
+          </mat-option>
+        }
+        <mat-option [value]="choixAutre">Autre nom (saisie libre)</mat-option>
+      </mat-select>
+      <mat-hint align="end">
+        @if (chargementProfs()) {
+          Chargement…
+        } @else if (erreurProfs()) {
+          Liste indisponible
+        } @else {
+          {{ profs().length }} enseignants
+        }
+      </mat-hint>
+    </mat-form-field>
+
+    @if (saisieLibre()) {
       <mat-form-field appearance="outline" class="champ-nom">
         <mat-label>Prénom</mat-label>
         <input
@@ -24,7 +57,6 @@
           formControlName="prenom"
           placeholder="Pauline"
           autocomplete="off"
-          cdkFocusInitial
           maxlength="50"
           enterkeyhint="go"
           name="prenom"
@@ -32,42 +64,53 @@
         />
         <mat-hint align="end">{{ prenom().length }} / {{ maxLength }}</mat-hint>
       </mat-form-field>
-
-      <button class="bouton-continuer" matButton type="submit" [disabled]="!peutContinuer()">
-        Continuer
-      </button>
-
-      <button class="lien-secondaire" type="button" (click)="utiliserUnAutreNom()">
-        Utiliser un autre nom
-      </button>
-    </form>
-
-    <div class="separateur"><span>ou</span></div>
-  } @else {
-    <p class="sous-titre">{{ messageGoogle() }}</p>
-  }
-
-  <div class="carte carte-google">
-    <button
-      matButton="outlined"
-      type="button"
-      class="bouton-google"
-      [disabled]="enCoursGoogle()"
-      (click)="connecterGoogle()"
-    >
-      @if (enCoursGoogle()) {
-        <mat-spinner diameter="18" />
-      } @else {
-        <mat-icon aria-hidden="true">account_circle</mat-icon>
-      }
-      Continuer avec Google
-    </button>
-    @if (!modeGoogleSeul()) {
-      <p class="aide">{{ messageGoogle() }}</p>
     }
-  </div>
 
-  @if (erreur(); as message) {
-    <p class="erreur" role="alert">{{ message }}</p>
+    @if (erreur(); as message) {
+      <p class="erreur" role="alert">{{ message }}</p>
+    }
+
+    <button class="bouton-continuer" matButton type="submit" [disabled]="!peutContinuer()">
+      Continuer
+    </button>
+
+    <button class="lien-secondaire" type="button" (click)="utiliserUnAutreNom()">
+      Utiliser un autre nom
+    </button>
+  </form>
+
+  @if (demandeAdmin()) {
+    <div class="carte carte-admin">
+      <h2 class="titre-admin">Espace administrateur</h2>
+      <p class="aide">
+        Réservé à l'import des créneaux. Connectez-vous avec votre compte Google administrateur.
+      </p>
+
+      <button
+        class="bouton-admin"
+        matButton="outlined"
+        type="button"
+        [disabled]="enCoursAdmin()"
+        (click)="connecterAdmin()"
+      >
+        @if (enCoursAdmin()) {
+          <mat-spinner diameter="18" />
+        } @else {
+          <mat-icon aria-hidden="true">account_circle</mat-icon>
+        }
+        Connexion avec Google
+      </button>
+
+      @if (erreurAdmin(); as message) {
+        <p class="erreur" role="alert">{{ message }}</p>
+      }
+
+      @if (uidAdmin(); as uid) {
+        <p class="aide">
+          Identifiant de session : <code>{{ uid }}</code
+          >. Ce document doit exister dans la collection <code>admins</code> pour autoriser l'accès.
+        </p>
+      }
+    </div>
   }
 </section>

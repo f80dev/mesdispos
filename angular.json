@@ -46,6 +46,9 @@
         "build": {
           "builder": "@angular/build:application",
           "options": {
+            "define": {
+              "proxy": "\"https://proxyensad.af10.fr\""
+            },
             "browser": "src/main.ts",
             "tsConfig": "tsconfig.app.json",
             "inlineStyleLanguage": "scss",

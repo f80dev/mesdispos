@@ -3,18 +3,14 @@ import { Injectable, inject } from '@angular/core';
 import { FIRESTORE_BACKEND } from '../core/firestore.backend';
 import { MESSAGE_CONFIG_MANQUANTE } from '../core/firebase';
 import { XLSX_BACKEND, type XLSXBackend } from '../core/xlsx.backend';
-import { idCreneau } from './models';
+import { idCreneau, type Creneau, type LigneImport, type ResultatImport } from './models';
 import { normalizeDate, normalizeHeure } from '../shared/date.util';
-import type { Creneau, LigneImport, ResultatImport } from './models';
 
 /** Extension acceptée : `.xlsx` uniquement (§13 : « PAS de `.xls` »). */
 export const EXTENSION_ACCEPTEE = '.xlsx';
 
 /** Message de refus poli de tout autre format (AC-12). */
 export const MESSAGE_FORMAT = 'Format non pris en charge : utilisez un fichier Excel .xlsx';
-
-/** Taille maximale d'un batch Firestore (F6 : 500 opérations, découpage auto). */
-export const TAILLE_BATCH = 500;
 
 /** Erreur métier de l'import (format de fichier, feuille illisible…). */
 export class ErreurImport extends Error {}
@@ -160,7 +156,7 @@ export class ExcelImportService {
   private analyserLigne(
     numeroLigne: number,
     row: readonly unknown[],
-    colonnes: { date: number; debut: number; fin: number; libelle: number },
+    colonnes: Colonnes,
   ): LigneImport {
     const date = normalizeDate(cellule(row, colonnes.date));
     const debut = normalizeHeure(cellule(row, colonnes.debut));
@@ -206,8 +202,8 @@ export class ExcelImportService {
   }
 
   /**
-   * Upsert batch dans `creneaux/{id}`, par lots de {@link TAILLE_BATCH}
-   * opérations (F6). Renvoie le nombre de créneaux écrits.
+   * Upsert batch dans `creneaux/{id}`, par lots de 500 opérations (F6, découpage
+   * automatique assuré par le backend). Renvoie le nombre de créneaux écrits.
    */
   async importer(lignes: readonly LigneImport[]): Promise<{ importes: number }> {
     if (!this.backend.configure) {

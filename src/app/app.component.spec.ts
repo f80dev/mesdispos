@@ -17,14 +17,16 @@ class DisposStub {}
 /** Faux AuthService : aucun utilisateur, donc aucun abonnement Firebase. */
 class FauxAuthService {
   readonly user = signal<Utilisateur | null>(null);
+  readonly sessionAdmin = signal<Utilisateur | null>(null);
   readonly attendreSession = async (): Promise<null> => null;
+  readonly uidEcriture = (): string | null => null;
   readonly signOut = async (): Promise<void> => undefined;
 }
 
 const FAUX_FIRESTORE: FirestoreBackend = {
   configure: false,
-  ecouterCreneaux: async () => () => undefined,
-  ecouterDispos: async () => () => undefined,
+  ecouterCreneaux: () => () => undefined,
+  ecouterDispos: () => () => undefined,
   setDispo: async () => undefined,
   deleteDispo: async () => undefined,
   listerIdsCreneaux: async () => [],
