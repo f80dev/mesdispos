@@ -13,12 +13,13 @@
 
 /** Identifiants du projet Firebase, tels qu'exposés par la console. */
 export const FIREBASE_CONFIG = {
-  apiKey: 'REPLACE_ME_API_KEY',
-  authDomain: 'REPLACE_ME_AUTH_DOMAIN.firebaseapp.com',
-  projectId: 'REPLACE_ME_PROJECT_ID',
-  storageBucket: 'REPLACE_ME_PROJECT_ID.appspot.com',
-  messagingSenderId: 'REPLACE_ME_MESSAGING_SENDER_ID',
-  appId: 'REPLACE_ME_APP_ID',
+  apiKey: 'AIzaSyDCvQj-U1afpsM3j-uemNJBBtWHO0Mb7cY',
+  authDomain: 'mesdispos-db623.firebaseapp.com',
+  projectId: 'mesdispos-db623',
+  storageBucket: 'mesdispos-db623.firebasestorage.app',
+  messagingSenderId: '558354493421',
+  appId: '1:558354493421:web:9276c2ae90631c5965c1e4',
+  measurementId: 'G-YLHW4EM0PD',
 };
 
 /**
@@ -26,7 +27,9 @@ export const FIREBASE_CONFIG = {
  * Tableau vide = tout compte Google accepté. Contrôle côté client ; un contrôle
  * équivalent côté rules est_documenté pour plus tard (ADR §11).
  */
-export const ALLOWED_EMAIL_DOMAINS: string[] = [];
+export const ALLOWED_EMAIL_DOMAINS: string[] = [
+  "ensad.fr","localhost"
+];
 
 /** `true` quand les identifiants ont été remplacés par l'humain. */
 export function firebaseConfigure(): boolean {
