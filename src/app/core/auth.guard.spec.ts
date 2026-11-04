@@ -49,8 +49,14 @@ function creerFauxBackend(admin: boolean): FirestoreBackend {
     ecouterDispos: vi.fn(() => () => undefined),
     setDispo: vi.fn(async () => undefined),
     deleteDispo: vi.fn(async () => undefined),
+    lireIdsDispos: vi.fn(async () => []),
+    upsertDispos: vi.fn(async () => 0),
+    setProfil: vi.fn(async () => undefined),
+    lireProfil: vi.fn(async () => null),
     listerIdsCreneaux: vi.fn(async () => []),
     upsertCreneaux: vi.fn(async () => 0),
+    supprimerTousCreneaux: vi.fn(async () => 0),
+    supprimerToutesDispos: vi.fn(async () => 0),
     estAdmin: vi.fn(async () => admin),
   };
 }
@@ -147,7 +153,7 @@ describe('adminGuard', () => {
     expect(resultat).toBe(true);
   });
 
-  it('renvoie vers /login si personne n\'est connecté', async () => {
+  it("renvoie vers /login si personne n'est connecté", async () => {
     preparer(false);
     auth.utilisateur = null;
     const router = TestBed.inject(Router);

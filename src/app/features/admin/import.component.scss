@@ -160,7 +160,6 @@
 .message-erreur {
   margin: 0;
   padding: var(--md-spacing-3);
-  border-radius: var(--app-corner-medium);
   background: color-mix(in srgb, var(--app-error) 12%, var(--app-surface-container));
   color: var(--app-on-surface);
   font: var(--app-type-body-medium);
@@ -170,6 +169,59 @@
   margin: 0;
   color: var(--app-on-surface-variant);
   font: var(--app-type-body-medium);
+}
+
+.zone-planning {
+  display: flex;
+  flex-direction: column;
+  gap: var(--md-spacing-3);
+  padding: var(--md-spacing-4);
+  border: 1px solid var(--app-outline-variant);
+  background: var(--app-surface-container-lowest);
+}
+
+.champ-filtres {
+  max-width: 420px;
+}
+
+.json-planning {
+  margin: var(--md-spacing-2) 0 0;
+  max-height: 320px;
+  overflow: auto;
+  padding: var(--md-spacing-3);
+  background: var(--app-surface-container);
+  border-radius: var(--app-corner-medium);
+  font-family: ui-monospace, 'SFMono-Regular', Menlo, monospace;
+  font-size: 12px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.zone-danger {
+  display: flex;
+  flex-direction: column;
+  gap: var(--md-spacing-3);
+  padding: var(--md-spacing-4);
+  border: 1px solid var(--app-error);
+  background: var(--app-error-container);
+}
+
+.actions-danger {
+  display: flex;
+  gap: var(--md-spacing-3);
+}
+
+.danger {
+  display: flex;
+  align-items: center;
+  gap: var(--md-spacing-2);
+  min-height: 48px;
+  color: var(--app-error);
+}
+
+.danger[matButton='filled'] {
+  color: var(--app-on-error);
+  background: var(--app-error);
 }
 
 // Mobile ≤ 600 px : le tableau devient une liste de cartes (F7).
@@ -205,8 +257,13 @@
     font: var(--app-type-label-large);
   }
 
-  .bouton-importer {
+  .bouton-importer,
+  .danger {
     align-self: stretch;
     justify-content: center;
+  }
+
+  .actions-danger {
+    flex-direction: column-reverse;
   }
 }

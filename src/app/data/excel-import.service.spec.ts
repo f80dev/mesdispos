@@ -31,8 +31,14 @@ function creerFauxBackend(etat: { identifiantsEnBase: string[] }): FirestoreBack
     ecouterDispos: vi.fn(() => () => undefined),
     setDispo: vi.fn(async () => undefined),
     deleteDispo: vi.fn(async () => undefined),
+    lireIdsDispos: vi.fn(async () => []),
+    upsertDispos: vi.fn(async () => 0),
+    setProfil: vi.fn(async () => undefined),
+    lireProfil: vi.fn(async () => null),
     listerIdsCreneaux: vi.fn(async () => [...etat.identifiantsEnBase]),
     upsertCreneaux: vi.fn(async (items) => items.length),
+    supprimerTousCreneaux: vi.fn(async () => 0),
+    supprimerToutesDispos: vi.fn(async () => 0),
     estAdmin: vi.fn(async () => false),
   };
 }
@@ -239,8 +245,9 @@ describe('ExcelImportService.importer', () => {
 
     expect(importes).toBe(1);
     // La 2ᵉ ligne (en erreur) ne doit pas être envoyée à `upsertCreneaux`.
-    const items = (backend.upsertCreneaux as ReturnType<typeof vi.fn>).mock
-      .calls[0]?.[0] as Array<{ id: string }>;
+    const items = (backend.upsertCreneaux as ReturnType<typeof vi.fn>).mock.calls[0]?.[0] as Array<{
+      id: string;
+    }>;
     expect(items).toHaveLength(1);
     expect(items[0]?.id).toBe('2026-01-12_0845_0930');
   });

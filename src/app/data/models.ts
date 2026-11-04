@@ -9,6 +9,24 @@ export interface Creneau {
   libelle?: string; // optionnel, ex. "Audition A1"
 }
 
+/**
+ * Identité du professeur — stockée dans le document `users/{uid}`.
+ *
+ * `login` est l'identifiant stable côté API Oasis (LDAP) ; il est vide
+ * lorsque le professeur a utilisé la saisie libre (« Autre nom »), où seul
+ * un prénom est connu. `nom` et `prenom` sont les fragments d'usage.
+ */
+export interface ProfilProf {
+  /** Identifiant LDAP Oasis, ex. `judith.abensour` — vide en saisie libre. */
+  login: string;
+  /** Nom d'usage, ex. `ABENSOUR` — vide en saisie libre. */
+  nom: string;
+  /** Prénom d'usage, ex. `Judith`. */
+  prenom: string;
+  /** Date.now() — horodatage de la dernière écriture du profil. */
+  updatedAt: number;
+}
+
 /** Le choix d'un professeur. Sous-collection users/{uid}/dispos/{creneauId}. */
 export interface Dispo {
   creneauId: string;
@@ -16,6 +34,10 @@ export interface Dispo {
   heureDebut: string;
   heureFin: string;
   libelle?: string;
+  /** Identité dénormalisée du professeur (lecture directe dans la console). */
+  login?: string;
+  nom?: string;
+  prenom?: string;
   updatedAt: number; // Date.now() — horodatage d'affichage uniquement
 }
 

@@ -1,10 +1,10 @@
-import { Component, computed, effect, inject, signal } from '@angular/core';
+import { Component, computed, inject } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { Router, RouterLink } from '@angular/router';
 
+import { AdminService } from '../core/admin.service';
 import { AuthService } from '../core/auth.service';
-import { FIRESTORE_BACKEND } from '../core/firestore.backend';
 import { ROUTES } from '../app.routes';
 
 // Mobile: header compact — logo court, avatar sans nom, bouton déconnexion
@@ -19,7 +19,7 @@ import { ROUTES } from '../app.routes';
 export class HeaderComponent {
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
-  private readonly backend = inject(FIRESTORE_BACKEND);
+  private readonly admin = inject(AdminService);
 
   /** Signal unifié : session « nom seul » ou session Firebase (admin). */
   readonly user = this.auth.user;
@@ -33,24 +33,11 @@ export class HeaderComponent {
   /** Exposé au template pour `routerLink` sans réécrire le chemin en dur. */
   protected readonly ROUTES = ROUTES;
 
-  /** Le lien d'import n'apparaît QUE pour un admin (session Firebase). */
-  readonly estAdminCourant = signal<boolean>(false);
-
-  constructor() {
-    // Le lien admin dépend de la session Firebase Google : on le recalcule
-    // dès que la session change.
-    effect(() => {
-      void this.verifierDroitsAdmin(this.auth.sessionAdmin()?.uid ?? null);
-    });
-  }
-
-  private async verifierDroitsAdmin(uid: string | null): Promise<void> {
-    if (!uid) {
-      this.estAdminCourant.set(false);
-      return;
-    }
-    this.estAdminCourant.set(await this.backend.estAdmin(uid));
-  }
+  /**
+   * Le lien d'import n'apparaît QUE pour un administrateur (session Firebase
+   * inscrite dans `admins`) — l'import des créneaux lui est réservé.
+   */
+  readonly estAdminCourant = this.admin.autorise;
 
   /** Déconnexion : efface le cookie (session « nom ») ou ferme la session Firebase. */
   async seDeconnecter(): Promise<void> {

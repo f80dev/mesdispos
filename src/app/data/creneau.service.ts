@@ -100,4 +100,18 @@ export class CreneauService {
   reecouter(): void {
     this.ecouter();
   }
+
+  /**
+   * Supprime **tous** les créneaux (action réservée à l'administrateur).
+   * Passe par un `writeBatch` (`firestore.rules` exige `admins/{uid}`).
+   * @returns le nombre de créneaux supprimés.
+   */
+  async supprimerTous(): Promise<number> {
+    if (!this.backend.configure) {
+      throw new Error(MESSAGE_CONFIG_MANQUANTE);
+    }
+    const supprimes = await this.backend.supprimerTousCreneaux();
+    this.creneaux.set([]);
+    return supprimes;
+  }
 }

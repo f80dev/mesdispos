@@ -21,6 +21,7 @@ journal des décisions techniques est dans [`docs/decisions.md`](./docs/decision
 - [Créer le premier administrateur](#créer-le-premier-administrateur)
 - [Liste des professeurs (API Oasis)](#liste-des-professeurs-api-oasis)
 - [Format du fichier Excel](#format-du-fichier-excel)
+- [Attribution automatique de créneaux (espace administrateur)](#attribution-automatique-de-créneaux-espace-administrateur)
 - [Commandes](#commandes)
 - [Déploiement](#déploiement)
 - [Émulateurs locaux](#émulateurs-locaux)
@@ -104,6 +105,17 @@ Les règles interdisent toute écriture sur `admins` depuis l'application
 admin. Le lien « Importer des créneaux » n'apparaît alors que pour cette
 session, et `/admin/import` refuse toute autre session.
 
+**L'import des créneaux est réservé à l'administrateur** — trois barrières :
+
+| Niveau | Contrôle |
+|---|---|
+| Route | `adminGuard` : sans session Firebase inscrite dans `admins`, redirection (message « Accès réservé à un administrateur ») |
+| Interface | `AdminService` : le lien du header et la zone de dépôt ne sont affichés que pour un administrateur ; les actions d'import sont refusées sinon |
+| Données | `firestore.rules` : l'écriture dans `creneaux` exige `request.auth != null` **et** `admins/{uid}` existant |
+
+La session « nom seul » (cookie `mesdispos_nom`) n'est **jamais** habilitée : un
+professeur, même sur un poste partagé, ne peut pas importer de créneaux.
+
 > ⚠️ L'`uid` affiché est celui du **compte Google** ; il reste stable quel que
 > soit le navigateur. Le compte doit être autorisé par un document `admins/{uid}`.
 
@@ -127,6 +139,43 @@ Le nom affiché (`« Prénom NOM »`) est conservé dans le cookie
 indisponible, un message « Liste des professeurs indisponible. Réessayer » est
 affiché et l'option **« Autre nom (saisie libre) »** permet de continuer sans
 passer par l'annuaire.
+
+### Identité du professeur dans la collection `users`
+
+À la connexion, l'identité du professeur est écrite dans le document
+`users/{uid}` :
+
+```jsonc
+// users/anon_1a2b3c4d5e6f
+{
+  "login": "judith.abensour", // identifiant LDAP Oasis
+  "nom": "ABENSOUR",
+  "prenom": "Judith",
+  "updatedAt": 1764790800000
+}
+```
+
+- `uid` = `anon_<sha256(nom)[:12]>` pour une session « nom seul », l'uid
+  Firebase pour l'administrateur ;
+- en saisie libre (« Autre nom »), le `login` et le `nom` restent vides : seul
+  le `prénom` saisi est connu ;
+- les mêmes champs (`login`, `nom`, `prenom`) sont **dénormalisés** dans
+  chaque document `users/{uid}/dispos/{creneauId}` : la lecture des
+  disponibilités dans la console Firebase identifie donc le professeur sans
+  jointure ;
+- à l'ouverture d'une session existante, le profil est relu depuis
+  `users/{uid}` (`ProfilService.charger()`) — le cookie ne porte que le nom ;
+- l'écriture du profil est *best effort* : un échec n'empêche jamais la
+  déclaration de disponibilités.
+
+Les règles Firestore (`firestore.rules`) accordent l'**écriture** de
+`users/{uid}` uniquement au titulaire de la partition (session Firebase
+correspondante ou `uid` anonyme bien formé). La **lecture** du profil
+(`login`, `nom`, `prenom`) est en revanche ouverte : l'outil de planification
+(`AutoPlanning`) a besoin de l'inventaire complet des professeurs pour
+construire le planning, et ces champs ne contiennent aucune donnée de
+disponibilité. Les disponibilités elles-mêmes (`users/{uid}/dispos`) restent
+inaccessibles aux tiers.
 
 > L'année interrogée est paramétrée dans `CoursServices.getProfs()` (`year=2026`).
 > Un enseignant recruté après cette année ne figure pas dans la liste : il
@@ -173,6 +222,39 @@ Après « Importer N créneaux », chaque créneau est écrit en `setDoc` sur
 `creneaux/{date}_{HHMM}_{HHMM}` par lots de 500 opérations. Les créneaux
 disparaissant de `creneaux` laissent leurs disponibilités orphelines, qui restent
 affichées dans « Mes disponibilités » (les champs y sont dénormalisés).
+
+## Attribution automatique de créneaux (espace administrateur)
+
+La page `/admin/import` comporte une zone **« Attribuer des créneaux à des
+professeurs »** : l'administrateur saisit une **liste de `login` Oasis** et un
+**nombre de créneaux**, et le système crée pour chaque professeur les
+disponibilités correspondantes — **exactement comme si le professeur les avait
+lui-même cochées** (mêmes documents `users/{uid}/dispos/{creneauId}`, mêmes
+champs dénormalisés `login` / `nom` / `prenom`).
+
+Déroulement :
+
+1. saisie des logins (un par ligne) et du nombre de créneaux par professeur ;
+2. **prévisualisation** : chaque login est résolu dans la liste Oasis, les
+   créneaux déjà retenus par le professeur sont exclus, et le tableau indique
+   les créneaux qui seront attribués ; les logins inconnus sont listés à part ;
+3. **confirmation** explicite, puis écriture (batch de 500 opérations) ;
+4. le document de profil `users/{uid}` est écrit pour chaque professeur
+   attribué.
+
+Les créneaux attribués sont pris **dans l'ordre chronologique**, parmi ceux
+qui ne sont pas déjà retenus par le professeur.
+
+> ⚠️ **Limite assumée.** L'identifiant Firestore d'un professeur est dérivé de
+> son **nom affiché** (`anon_<sha256(nom)[:12]>`). L'attribution recalcule le
+> même `uid` à partir de la fiche Oasis du `login` — donc elle vise le
+> professeur **tel qu'il s'identifie dans la liste Oasis**. Un professeur qui a
+> utilisé la saisie libre (« Autre nom ») a un `uid` dérivé du prénom saisi :
+> il ne peut pas être ciblé par `login`.
+
+Les règles Firestore (`firestore.rules`) accordent à l'administrateur
+inscrit dans `admins/{uid}` l'écriture dans **toute** partition
+`users/{uid}/dispos` — c'est la contrepartie nécessaire de cette fonction.
 
 ## Commandes
 
@@ -236,7 +318,8 @@ src/app/
 │                 cookie.service.ts, auth.guard.ts, admin.guard.ts, notif.service.ts,
 │                 firestore.backend.ts (contrat + implémentation Firestore),
 │                 xlsx.backend.ts (contrat + implémentation read-excel-file)
-├── data/         models.ts, creneau.service.ts, dispo.service.ts, excel-import.service.ts
+├── data/         models.ts, creneau.service.ts, dispo.service.ts, excel-import.service.ts,
+│                 prof.service.ts (annuaire Oasis), profil.service.ts (profil users/{uid})
 ├── features/     login/, dispos/, admin/
 ├── layout/       header.component.*, date-group.pipe.ts
 └── shared/       date.util.ts (purs, testés), sha256.util.ts
@@ -257,22 +340,28 @@ Points d'attention :
 
 ## Données personnelles (RGPD)
 
-Données collectées : **nom (ou pseudonyme)** et les créneaux choisis. Rien
-d'autre : ni e-mail, ni photo, ni analytics, ni tracking, ni cookie tiers, ni
-bandeau de consentement (le cookie `mesdispos_nom` est strictement nécessaire à
-la fourniture du service demandé, exempté). La session d'administration utilise
-Firebase Auth **Google** (e-mail et nom du compte admin, jamais ceux des
-professeurs, qui n'ont pas de session Firebase).
+Données collectées : **nom (ou pseudonyme)**, **login / nom / prénom de
+l'enseignant** (issus de l'annuaire Oasis, quand la liste est utilisée) et les
+créneaux choisis. Rien d'autre : ni e-mail, ni photo, ni analytics, ni
+tracking, ni cookie tiers, ni bandeau de consentement (le cookie
+`mesdispos_nom` est strictement nécessaire à la fourniture du service demandé,
+exempté). La session d'administration utilise Firebase Auth **Google** (e-mail
+et nom du compte admin, jamais ceux des professeurs, qui n'ont pas de session
+Firebase).
 
-Le cookie `mesdispos_nom` contient le prénom saisi, en clair, avec
+Le cookie `mesdispos_nom` contient le nom saisi, en clair, avec
 `SameSite=Lax`, `Secure` en HTTPS, `Path=/` et `Max-Age` 1 an. Il est effacé
 immédiatement par « Se déconnecter » (header) ou « Utiliser un autre nom »
-(login). Le prénom n'est **pas** recopié dans Firestore : seule son empreinte
-SHA-256 tronquée sert de partition (`users/anon_…/dispos`).
+(login). L'identité du professeur (`login`, `nom`, `prénom`) est **recopiée
+dans Firestore** : le document `users/{uid}` (profil) et les documents
+`users/{uid}/dispos/{creneauId}` (champs dénormalisés). Le cookie ne sert
+qu'à retrouver la partition et à réafficher le nom.
 
-**Données : nom et disponibilités, supprimables sur demande.**
+**Données : nom, login/prénom de l'enseignant et disponibilités, supprimables
+sur demande.**
 Suppression : effacer le cookie côté navigateur, et supprimer les documents
-`users/{uid}/dispos/{creneauId}` concernés dans la console Firebase.
+`users/{uid}` et `users/{uid}/dispos/{creneauId}` concernés dans la console
+Firebase.
 
 ## Preuves d'acceptation
 

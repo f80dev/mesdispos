@@ -125,6 +125,39 @@ function construireProf(element: ProfOasis): Prof | null {
 }
 
 /**
+ * Normalise une chaîne pour la recherche : minuscules, sans accents et sans
+ * ponctuation, pour que « abe » retrouve « ABENSOUR ».
+ */
+export function normaliserRecherche(texte: string | null | undefined): string {
+  return (texte ?? '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+}
+
+/**
+ * Filtre la liste des enseignants sur le **nom** et le **prénom** (et, par
+ * commodité, le `login`). La requête est découpée en mots : tous les mots
+ * doivent être présents, dans le nom ou le prénom.
+ *
+ * Fonction **pure** : testable sans Angular ni réseau.
+ */
+export function filtrerProfs(profs: readonly Prof[], requete: string | null | undefined): Prof[] {
+  const mots = normaliserRecherche(requete).split(' ').filter(Boolean);
+  if (mots.length === 0) {
+    return [...profs];
+  }
+  return profs.filter((prof) => {
+    const cible = normaliserRecherche(
+      `${prof.prenom} ${prof.nom} ${prof.login} ${prof.nomComplet}`,
+    );
+    return mots.every((mot) => cible.includes(mot));
+  });
+}
+
+/**
  * `ProfService` — charge la liste des professeurs depuis l'API Oasis
  * (`GET /api/v1/profs`) et l'expose sous forme de signals.
  *

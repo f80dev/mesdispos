@@ -322,3 +322,111 @@ Autres constats : bouton « Continuer » `h=48px w=327px` et **désactivé** tan
 - le bouton « Se déconnecter » efface le cookie et ferme la session Google si elle existe.
 
 **Conséquences :** les professeurs restent sans authentification tierce (parcours mobile inchangé, aucun popup). L'admin réutilise un compte Google existant : une seule étape humaine (inscrire son `uid` dans `admins`) au lieu de créer puis autoriser une session anonyme. Le fournisseur Google doit être activé dans la console Firebase. Les données personnelles de l'admin (e-mail/nom de compte) sont de nouveau visibles côté Firebase Auth, mais celles des professeurs ne le sont pas.
+
+## 2026-11-03 — Import des créneaux : réservation explicite à l'administrateur (`AdminService`)
+
+**Contexte :** l'import des créneaux (`/admin/import`) était déjà protégé par `adminGuard` (session Firebase inscrite dans `admins`) et par les `firestore.rules` (`creneaux` en écriture admin seule). La vérification du droit d'administration était toutefois **dupliquée** — dans `adminGuard` (via `FIRESTORE_BACKEND`) et dans `HeaderComponent` (effet local) — et l'interface d'import ne reposait que sur le guard : un accès direct au composant par un autre chemin (lien profond, onglet déjà monté) aurait affiché la zone de dépôt sans contrôle supplémentaire.
+
+**Décision :**
+
+- **`core/admin.service.ts` (`AdminService`)** devient la source de vérité unique : il expose `uid` (uid de la session Firebase), `autorise` (vrai si `admins/{uid}` existe) et `verifie` (la vérification a eu lieu), et centralise la lecture `FIRESTORE_BACKEND.estAdmin()` ;
+- **`adminGuard`** passe par `AdminService.verifier()` ; **`HeaderComponent`** consomme `AdminService.autorise` (plus d'effet local) : le lien « Importer des créneaux » n'apparaît que pour un administrateur ;
+- **`ImportComponent`** applique une seconde barrière, côté interface : la zone de dépôt n'est affichée qu'à un administrateur (sinon message « Accès réservé à un administrateur »), et `choisirFichier()` / `analyser()` / `importer()` refusent l'action si la session n'est pas administrative ;
+- la **session « nom seul »** (cookie `mesdispos_nom`) n'est **jamais** habilitée : `AdminService.uid` ne lit que `AuthService.sessionAdmin` (session Firebase). Un professeur reste donc administrateur sur un poste partagé ;
+- `firestore.rules` reste la garantie de fond : l'écriture dans `creneaux` exige `request.auth != null` **et** l'existence de `admins/{request.auth.uid}` — un import non autorisé est refusé par Firestore même si l'interface est contournée.
+
+**Conséquences :** trois barrières cohérentes et un seul point de lecture de `admins/{uid}` (au lieu de deux), donc une seule requête par session admin. Le message « Accès réservé à un administrateur » est désormais affiché aussi bien par le guard que par la page d'import. La session Firebase admin étant conservée par le navigateur (persistance locale), un professeur partageant le poste d'un administrateur reste bloqué côté interface par la présence de la session admin — c'est une limite inhérente à l'authentification par session, à lever par une déconnexion admin.
+
+## 2026-11-03 — Suppression de tous les créneaux depuis l'espace administrateur
+
+**Contexte :** l'espace administrateur ne permettait que l'import Excel (`/admin/import`). Réinitialiser la proposition de créneaux (nouvelle période, correction d'un import erroné) obligeait à supprimer les documents un par un depuis la console Firebase.
+
+**Décision :**
+
+- **nouvelle action `CreneauService.supprimerTous()`** adossée à un `writeBatch.delete` par lots de 500 (`TAILLE_BATCH`), exposée dans le contrat `FirestoreBackend.supprimerTousCreneaux()` ; le signal `creneaux` est vidé après succès ;
+- **zone de danger dans `ImportComponent`**, visible seulement pour un administrateur vérifié, avec **confirmation en deux temps** (bouton « Supprimer tous les créneaux » → encart d'avertissement + « Annuler » / « Supprimer définitivement ») : la suppression est irréversible, un simple clic serait trop risqué — cette confirmation ne contredit pas le « pas de bouton Enregistrer » de F4, qui porte sur la déclaration de disponibilités ;
+- **les disponibilités des professeurs sont conservées** : seuls les documents `creneaux` sont supprimés ; les dispos orphelines restent lisibles (tolérance déjà actée en §14 de l'AGENTS.md) ;
+- **la sécurité reste portée par Firestore** : `firestore.rules` n'autorise le `delete` sur `creneaux` qu'à `admins/{uid}` ; l'interface ne fait que refléter ce droit.
+
+**Conséquences :** l'administrateur peut réinitialiser les créneaux en une action confirmée, sans passer par la console Firebase. Les professeurs ayant déjà coché des créneaux voient ceux-ci disparaître de « Mes disponibilités » (jointure mémoire vide) ; une réimportation avec les mêmes identifiants rétablit la correspondance sans réécriture côté professeur.
+## 2026-11-03 — Suppression des disponibilités des professeurs depuis l'espace administrateur
+
+**Contexte :** pour réinitialiser une campagne de déclaration, l'administrateur devait supprimer chaque document `users/{uid}/dispos/{creneauId}` depuis la console Firebase, partition par partition. Les règles interdisaient par ailleurs tout accès d'un admin aux disponibilités des professeurs.
+
+**Décision :**
+
+- **`FirestoreBackend.supprimerToutesDispos()`** liste les disponibilités avec `collectionGroup('dispos')` (une seule requête couvrant toutes les partitions `users/*`), puis les supprime par `writeBatch.delete`, lots de 500 ;
+- **`AdminService.supprimerToutesLesDispos()`** porte l'action et vérifie `autorise()` avant l'écriture ; l'interface (`ImportComponent`, seconde « zone de danger ») applique la même règle et une **confirmation en deux temps** (action irréversible) ;
+- **`firestore.rules`** gagne une branche *collection group* `match /{chemin=**}/dispos/{creneauId} { allow read, delete: if admin(); }` : les règles de partition `match /users/{uid}/dispos/...` ne s'appliquent pas aux requêtes *collection group*, il fallait donc une règle explicite. Les professeurs conservent l'écriture unitaire via leur règle de partition ; Firestore accorde l'accès dès qu'une règle l'autorise ;
+- **les créneaux proposés sont conservés** : seule la déclaration des professeurs est effacée. Les `Dispo` de l'éventuel admin sont supprimées aussi (ce sont des déclarations comme les autres).
+
+**Conséquences :** une seule requête et un seul bouton suffisent à repartir de zéro côté déclarations. `collectionGroup('dispos')` est un balayage sans filtre ni tri : aucun index composite n'est requis (`firestore.indexes.json` inchangé). Coût : une lecture par document `dispo` avant suppression — acceptable pour quelques centaines de déclarations.
+## 2026-11-03 — Bouton d'appel à l'API planning locale (développement uniquement)
+
+**Contexte :** l'écran d'administration (/admin/import) devait pouvoir déclencher la méthode `get_filtered_json` de `AutoPlanning/api.py` (route `GET /calendar/json`) exposée par le serveur Flask local, sans que ce lien soit disponible en production.
+
+**Décision :**
+
+- **nouveau service `core/planning-api.service.ts`** encapsulant l'appel HTTP (`HttpClient` + `firstValueFrom`), l'état de chargement, les entrées reçues et le message d'erreur ; l'URL de base est la constante `API_PLANNING_URL = 'http://localhost:8000'` (port de `app.run(debug=True, port=8000)`), route `ROUTE_CALENDAR_JSON = '/calendar/json'` ;
+- **le service est neutralisé hors développement** : `actif` vaut `isDevMode()`, la section « API planning locale » du template n'est donc rendue qu'en développement ; aucune requête HTTP n'est émise en production ;
+- **filtres optionnels** : le champ « Filtres (tags) » alimente le paramètre `?tags=a,b` de la route ;
+- **résultat affiché** dans un `<details>` (nombre d'entrées + JSON brut), aucune écriture Firestore n'est faite par ce bouton ;
+- **CORS ajouté côté Flask** (`after_request` : `Access-Control-Allow-Origin: *`) car l'origine Angular (`localhost:4200`) diffère de celle du serveur Flask.
+
+**Conséquences :** le bouton est un outil de débogage local, hors périmètre produit (aucune donnée envoyée sur Firebase). Le port 8000 est centralisé dans une constante : à ajuster si le serveur Flask écoute sur 5000 (port cité dans les docstrings de `api.py`).
+
+## 2026-11-03 — Identité du professeur dans la collection `users` (login, nom, prénom)
+
+**Contexte :** la collection `users` ne contenait que la sous-collection `dispos` : la partition `users/{uid}` était anonyme et la console Firebase ne permitait pas de rattacher une déclaration à un professeur. L'API Oasis fournit pourtant une identité stable (`login` LDAP, `nom`, `prénom`).
+
+**Décision :**
+
+- **un document de profil `users/{uid}`** = `{ login, nom, prenom, updatedAt }`, écrit à la connexion (`AuthService.connecterParNom()` → `ProfilService.enregistrer()`) ; l'écriture est *best effort* : un échec n'empêche jamais la déclaration de disponibilités ;
+- **dénormalisation dans chaque `users/{uid}/dispos/{creneauId}`** : `login`, `nom` et `prenom` sont recopiés dans le document de disponibilité (`DispoService.documentDispo()` via `AuthService.identiteEcriture()`), pour que la lecture des dispos en console identifie le professeur sans jointure ;
+- **saisie libre (« Autre nom ») : `login` et `nom` vides**, seul le `prénom` saisi est connu — on n'invente pas d'identifiant LDAP ;
+- **restauration de session** : le cookie `mesdispos_nom` ne porte que le nom ; le profil complet est relu depuis `users/{uid}` (`ProfilService.charger()`) au démarrage, sans requête supplémentaire si la configuration Firebase est absente ;
+- **contrat `FirestoreBackend`** étendu de `setProfil(uid, data)` et `lireProfil(uid)` (le module Firestore n'est jamais importé directement par les services) ;
+- **`firestore.rules`** gagne `match /users/{uid} { allow read, write: if (connecte() && request.auth.uid == uid) || uidAnonymeValide(uid); }` : le profil n'est accessible qu'à son titulaire, comme les disponibilités.
+
+**Conséquences :** l'identité du professeur est enfin lisible dans Firestore (RGPD : le `login` et le `prénom` sont désormais conservés en base, ce qui contredit le §5 initial d'AGENTS.md « pas de miroir Firestore du prénom » — la décision du besoin utilisateur prime, elle est documentée ici et dans le README). Le document de profil n'est écrit qu'à la connexion : un professeur qui n'a jamais coché de créneau n'apparaît pas dans la collection `users`.
+
+## 2026-11-03 — `permission-denied` sur `users/{uid}` : règles déployées désynchronisées du dépôt
+
+**Contexte :** l'utilisateur signalait une `FirebaseError: Missing or insufficient permissions.` lors de l'écriture du profil du professeur (`users/{uid}`, nouveau chemin introduit le 2026-11-02 par `ProfilService.enregistrer()`). Le fichier `firestore.rules` du dépôt contenait bien la règle `match /users/{uid} { allow read, write: if (connecte() && request.auth.uid == uid) || uidAnonymeValide(uid); }`, mais **les règles déployées sur `mesdispos-db623` dataient du déploiement précédent** : la branche `users/{uid}` n'y figurait pas.
+
+**Diagnostic (par requêtes REST directes sur l'API Firestore, sans session) :**
+
+| Chemin testé | Avant déploiement | Après déploiement |
+|---|---|---|
+| `PATCH users/anon_0123456789ab` | **403 PERMISSION_DENIED** | 200 |
+| `PATCH users/anon_0123456789ab/dispos/test_creneau` | 200 | 200 |
+| `GET creneaux` | 200 | 200 |
+
+Le refus portait **uniquement** sur le document de profil : les disponibilités et la lecture des créneaux n'étaient pas concernées. Cela confirmait un désynchronisation « règles déployées ≠ règles du dépôt » et non un bug de code applicatif (ni `uid` mal formé, ni session Firebase absente, ni configuration erronée).
+
+**Décision :**
+
+- **déploiement effectif** de `firestore.rules` sur `mesdispos-db623` (`firebase deploy --only firestore:rules --project mesdispos-db623`) : compilation sans erreur, règles publiées ;
+- **vérification par sonde REST** après déploiement (écriture + lecture de `users/anon_…` et de `users/anon_…/dispos/…`, documents de test supprimés) ;
+- **règle de travail** : toute modification de `firestore.rules` dans le dépôt doit être suivie d'un redéploiement immédiat, sinon l'application écrit contre des règles périmées. Le dépôt ne peut pas être la référence de vérité du comportement runtime sans ce redéploiement ;
+- **aucune modification du code applicatif** : le client écrivait déjà au bon chemin avec le bon `uid`.
+
+**Conséquences :** le transfert du professeur vers Firestore fonctionne à nouveau (profil `users/{uid}` + disponibilités `users/{uid}/dispos/{creneauId}`). Les documents de sonde (`users/anon_0123456789ab` et ses `dispos`) ont été supprimés après vérification — la base ne contient aucun résidu de test. Le build de production a été rejoué (`ng build --configuration=production`, exit 0) sans modification de code.
+
+## 2026-11-03 — Attribution automatique de créneaux à des professeurs (espace administrateur)
+
+**Contexte :** l'utilisateur demande, dans le module administrateur, « une zone permettant de saisir une liste de login et un nombre de créneau, puis fabriquer automatiquement une liste de créneau pour chacun de ses professeurs **comme si eux même l'aient saisie** ». Autrement dit : l'administrateur veut pouvoir declarer à la place de plusieurs professeurs leurs disponibilités, et que le résultat en base soit indiscernable d'une déclaration faite par le professeur lui-même (clic par clic).
+
+**Décision :**
+
+- **nouveau service `data/attribution.service.ts`** : il calcule un *plan* (aucune écriture) puis l'applique. Deux fonctions pures sont extraites pour être testables : `parserLogins()` (découpe de la saisie) et `choisirCreneaux()` (sélection chronologique hors créneaux déjà retenus) ;
+- **résolution de l'`uid`** : la partition Firestore d'un professeur est `anon_<sha256(nom affiché)[:12]>`. L'attribution la **recalcule** depuis la fiche Oasis du `login` saisi, via `utilisateurAnonyme(prof.nomComplet)` — exactement le même calcul que la connexion « liste Oasis ». C'est le seul moyen d'atteindre la bonne partition sans connaître le nom que le professeur a réellement saisi ;
+- **documents écrits** : `users/{uid}/dispos/{creneauId}` avec la **même forme** que celle de `DispoService.documentDispo()` (`creneauId`, `date`, `heureDebut`, `heureFin`, `libelle?`, `login`, `nom`, `prenom`, `updatedAt`), plus le document de profil `users/{uid}`. Écriture par batch de 500 (`upsertDispos`) ;
+- **prévisualisation obligatoire** : le plan est affiché (professeurs résolus, créneaux déjà retenus, créneaux attribués, logins inconnus) et une confirmation explicite précède l'écriture ;
+- **extension du contrat `FirestoreBackend`** : `lireIdsDispos(uid)` (créneaux déjà retenus) et `upsertDispos(items)` (écriture groupée) ;
+- **`firestore.rules`** : l'administrateur inscrit dans `admins/{uid}` obtient désormais l'écriture dans **toute** partition `users/{uid}` et `users/{uid}/dispos/…` (`|| admin()`). C'est la contrepartie nécessaire de la fonction. Les règles ont été **redéployées** sur `mesdispos-db623` et vérifiées par sonde REST ;
+- **interface** : nouvelle zone `features/admin/attribution.component.*`, intégrée à la page `/admin/import` (et non une route séparée : la navigation administrateur reste simple), visible uniquement pour un administrateur authentifié.
+
+**Limite assumée :** un professeur qui a utilisé la **saisie libre** (« Autre nom ») a un `uid` dérivé du prénom saisi — il n'est donc pas atteignable par `login`. L'attribution vise le professeur tel qu'il s'identifie dans la liste Oasis. Ce point est signalé dans le README et dans l'interface.
+
+**Conséquences :** l'administrateur peut déclarer des disponibilités en une seule manipulation pour un groupe de professeurs. La logique reste testable (fonctions pures + faux backend), l'écriture est idempotente (`setDoc`) — relancer l'attribution réécrit les mêmes documents sans les dupliquer. La règle `|| admin()` élargit volontairement le pouvoir de l'administrateur : c'est le prix de la fonction, et il est explicite dans `firestore.rules`.

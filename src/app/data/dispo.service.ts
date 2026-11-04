@@ -23,12 +23,18 @@ export function versDispo(id: string, data: Record<string, unknown>): Dispo | nu
   const maj = data['updatedAt'];
   const brut = data['libelle'];
   const libelle = typeof brut === 'string' && brut.trim().length > 0 ? brut.trim() : undefined;
+  const login = typeof data['login'] === 'string' ? data['login'].trim() : '';
+  const nom = typeof data['nom'] === 'string' ? data['nom'].trim() : '';
+  const prenom = typeof data['prenom'] === 'string' ? data['prenom'].trim() : '';
   return {
     creneauId: id,
     date: date.valeur,
     heureDebut: debut.valeur,
     heureFin: fin.valeur,
     ...(libelle ? { libelle } : {}),
+    ...(login ? { login } : {}),
+    ...(nom ? { nom } : {}),
+    ...(prenom ? { prenom } : {}),
     updatedAt: typeof maj === 'number' && Number.isFinite(maj) ? maj : 0,
   };
 }
@@ -216,12 +222,14 @@ export class DispoService {
 
   /** Document `dispos/{creneauId}` dénormalisé (affichage sans jointure). */
   private documentDispo(creneau: Creneau): Dispo {
+    const identite = this.auth.identiteEcriture();
     return {
       creneauId: creneau.id,
       date: creneau.date,
       heureDebut: creneau.heureDebut,
       heureFin: creneau.heureFin,
       ...(creneau.libelle ? { libelle: creneau.libelle } : {}),
+      ...identite,
       updatedAt: Date.now(),
     };
   }

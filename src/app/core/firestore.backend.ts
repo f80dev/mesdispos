@@ -16,7 +16,7 @@
  *    fourre-tout.
  */
 import { Injectable, InjectionToken } from '@angular/core';
-import type { Firestore } from 'firebase/firestore';
+import type { DocumentReference, Firestore } from 'firebase/firestore';
 
 import { chargerFirestore, firebaseDb } from './firebase';
 import { firebaseConfigure } from '../../environments/firebase.config';
@@ -52,14 +52,30 @@ export interface FirestoreBackend {
   ecouterCreneaux(suivant: (s: Snapshot) => void, erreur: CallbackErreur): Abonnement;
 
   /** `onSnapshot(collection(db, 'users', uid, 'dispos'))`. */
-  ecouterDispos(
-    uid: string,
-    suivant: (s: Snapshot) => void,
-    erreur: CallbackErreur,
-  ): Abonnement;
+  ecouterDispos(uid: string, suivant: (s: Snapshot) => void, erreur: CallbackErreur): Abonnement;
 
   /** `setDoc(users/{uid}/dispos/{id}, …)`. */
   setDispo(uid: string, id: string, data: unknown): Promise<void>;
+
+  /**
+   * `getDocs(collection(db, 'users', uid, 'dispos'))` puis `id` — les
+   * créneaux déjà retenus par un professeur donné.
+   */
+  lireIdsDispos(uid: string): Promise<string[]>;
+
+  /**
+   * `writeBatch.set(users/{uid}/dispos/{id}, …)` par lots de 500.
+   *
+   * Utilisé par l'attribution administrateur : écrire les disponibilités de
+   * plusieurs professeurs en une poignée d'allers-retours.
+   */
+  upsertDispos(items: ReadonlyArray<{ uid: string; id: string; data: unknown }>): Promise<number>;
+
+  /** `setDoc(users/{uid}, …)` — profil du professeur (login, nom, prénom). */
+  setProfil(uid: string, data: unknown): Promise<void>;
+
+  /** `getDoc(users/{uid})` — profil du professeur, `null` si absent. */
+  lireProfil(uid: string): Promise<Record<string, unknown> | null>;
 
   /** `deleteDoc(users/{uid}/dispos/{id})`. */
   deleteDispo(uid: string, id: string): Promise<void>;
@@ -69,6 +85,15 @@ export interface FirestoreBackend {
 
   /** `writeBatch.set(creneaux/{id}, …)` par lots de 500 (F6). */
   upsertCreneaux(items: ReadonlyArray<{ id: string; data: unknown }>): Promise<number>;
+
+  /** `writeBatch.delete(creneaux/{id})` sur **toutes** les fiches, par lots de 500. */
+  supprimerTousCreneaux(): Promise<number>;
+
+  /**
+   * `writeBatch.delete(...)` sur **toutes** les disponibilités déclarées,
+   * via une requête `collectionGroup('dispos')` (toutes partitions `users/*`).
+   */
+  supprimerToutesDispos(): Promise<number>;
 
   /** `getDoc(admins/{uid}).exists` — pour `adminGuard`. */
   estAdmin(uid: string): Promise<boolean>;
@@ -91,7 +116,8 @@ export const TAILLE_BATCH = 500;
  * console Firebase ne correspondent pas à `firestore.rules`.
  */
 export function raisonErreurFirestore(err: unknown): string {
-  const code = typeof (err as { code?: unknown })?.code === 'string' ? (err as { code: string }).code : '';
+  const code =
+    typeof (err as { code?: unknown })?.code === 'string' ? (err as { code: string }).code : '';
   switch (code) {
     case 'permission-denied':
       return 'Accès refusé par les règles de sécurité Firestore (permission-denied) : le fichier firestore.rules n’est pas déployé sur le projet.';
@@ -135,11 +161,7 @@ export class FirestoreReelBackend implements FirestoreBackend {
     );
   }
 
-  ecouterDispos(
-    uid: string,
-    suivant: (s: Snapshot) => void,
-    erreur: CallbackErreur,
-  ): Abonnement {
+  ecouterDispos(uid: string, suivant: (s: Snapshot) => void, erreur: CallbackErreur): Abonnement {
     return this.suivre(
       (fs, db) =>
         fs.onSnapshot(
@@ -161,15 +183,50 @@ export class FirestoreReelBackend implements FirestoreBackend {
     await fs.deleteDoc(fs.doc(db, 'users', uid, 'dispos', id));
   }
 
+  async lireIdsDispos(uid: string): Promise<string[]> {
+    const [db, fs] = await this.pair();
+    const snap = await fs.getDocs(fs.collection(db, 'users', uid, 'dispos'));
+    return snap.docs.map((doc) => doc.id);
+  }
+
+  async upsertDispos(
+    items: ReadonlyArray<{ uid: string; id: string; data: unknown }>,
+  ): Promise<number> {
+    if (items.length === 0) {
+      return 0;
+    }
+    const [db, fs] = await this.pair();
+    let ecrits = 0;
+    for (let debut = 0; debut < items.length; debut += TAILLE_BATCH) {
+      const lot = items.slice(debut, debut + TAILLE_BATCH);
+      const batch = fs.writeBatch(db);
+      for (const { uid, id, data } of lot) {
+        batch.set(fs.doc(db, 'users', uid, 'dispos', id), data as Record<string, unknown>);
+      }
+      await batch.commit();
+      ecrits += lot.length;
+    }
+    return ecrits;
+  }
+
+  async setProfil(uid: string, data: unknown): Promise<void> {
+    const [db, fs] = await this.pair();
+    await fs.setDoc(fs.doc(db, 'users', uid), data as Record<string, unknown>);
+  }
+
+  async lireProfil(uid: string): Promise<Record<string, unknown> | null> {
+    const [db, fs] = await this.pair();
+    const snap = await fs.getDoc(fs.doc(db, 'users', uid));
+    return snap.exists() ? (snap.data() as Record<string, unknown>) : null;
+  }
+
   async listerIdsCreneaux(): Promise<string[]> {
     const [db, fs] = await this.pair();
     const snap = await fs.getDocs(fs.collection(db, 'creneaux'));
     return snap.docs.map((doc) => doc.id);
   }
 
-  async upsertCreneaux(
-    items: ReadonlyArray<{ id: string; data: unknown }>,
-  ): Promise<number> {
+  async upsertCreneaux(items: ReadonlyArray<{ id: string; data: unknown }>): Promise<number> {
     const [db, fs] = await this.pair();
     if (items.length === 0) {
       return 0;
@@ -185,6 +242,37 @@ export class FirestoreReelBackend implements FirestoreBackend {
       importes += lot.length;
     }
     return importes;
+  }
+
+  async supprimerTousCreneaux(): Promise<number> {
+    const [db, fs] = await this.pair();
+    const snap = await fs.getDocs(fs.collection(db, 'creneaux'));
+    return this.supprimerReferences(snap.docs.map((doc) => doc.ref));
+  }
+
+  async supprimerToutesDispos(): Promise<number> {
+    const [db, fs] = await this.pair();
+    const snap = await fs.getDocs(fs.collectionGroup(db, 'dispos'));
+    return this.supprimerReferences(snap.docs.map((doc) => doc.ref));
+  }
+
+  /** Supprime les documents référencés par lots de 500 (`TAILLE_BATCH`). */
+  private async supprimerReferences(refs: ReadonlyArray<DocumentReference>): Promise<number> {
+    if (refs.length === 0) {
+      return 0;
+    }
+    const [db, fs] = await this.pair();
+    let supprimes = 0;
+    for (let debut = 0; debut < refs.length; debut += TAILLE_BATCH) {
+      const lot = refs.slice(debut, debut + TAILLE_BATCH);
+      const batch = fs.writeBatch(db);
+      for (const ref of lot) {
+        batch.delete(ref);
+      }
+      await batch.commit();
+      supprimes += lot.length;
+    }
+    return supprimes;
   }
 
   async estAdmin(uid: string): Promise<boolean> {

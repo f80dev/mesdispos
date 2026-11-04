@@ -13,30 +13,85 @@
     </p>
   </header>
 
-  <div
-    class="zone-depot"
-    [class.survol]="survol()"
-    role="button"
-    tabindex="0"
-    aria-label="Déposer un fichier Excel ou cliquer pour parcourir"
-    (click)="choisirFichier()"
-    (keyup.enter)="choisirFichier()"
-    (keyup.space)="choisirFichier()"
-    (dragover)="$event.preventDefault(); survol.set(true)"
-    (dragleave)="survol.set(false)"
-    (drop)="surDepot($event)"
-  >
-    <mat-icon aria-hidden="true">upload_file</mat-icon>
-    <p class="zone-texte">Déposez votre fichier .xlsx ici</p>
-    <p class="zone-sous-texte">ou cliquez pour le choisir</p>
-    <input
-      #fichier
-      type="file"
-      accept=".xlsx"
-      class="input-fichier"
-      (change)="surFichier($event)"
-    />
-  </div>
+  @if (planningApiActif) {
+    <section class="zone-planning" aria-labelledby="titre-planning">
+      <h2 id="titre-planning" class="titre-section">API planning locale (développement)</h2>
+      <p class="aide">
+        Appelle la route <code>/calendar/json</code> (méthode <code>get_filtered_json</code>) du
+        serveur Flask <code>AutoPlanning</code> sur <code>localhost</code>. Disponible uniquement en
+        développement.
+      </p>
+
+      <mat-form-field appearance="outline" class="champ-filtres">
+        <mat-label>Filtres (tags, séparés par des virgules)</mat-label>
+        <input
+          matInput
+          type="text"
+          autocomplete="off"
+          [value]="filtresTags()"
+          (input)="surFiltres($event)"
+        />
+      </mat-form-field>
+
+      <button
+        matButton="outlined"
+        type="button"
+        class="bouton-importer"
+        [disabled]="planningChargement()"
+        (click)="chargerPlanning()"
+      >
+        @if (planningChargement()) {
+          <mat-spinner diameter="18" />
+        } @else {
+          <mat-icon aria-hidden="true">cloud_download</mat-icon>
+        }
+        Charger le planning
+      </button>
+
+      @if (planningErreur(); as texte) {
+        <p class="message-erreur" role="alert">{{ texte }}</p>
+      }
+
+      @if (planningEntrees().length > 0) {
+        <p class="nom-fichier">{{ planningEntrees().length }} entrée(s) reçue(s).</p>
+        <details class="invalides">
+          <summary>Voir le JSON reçu</summary>
+          <pre class="json-planning">{{ planningEntrees() | json }}</pre>
+        </details>
+      }
+    </section>
+  }
+
+  @if (!verifie()) {
+    <mat-progress-bar mode="indeterminate" aria-label="Vérification des droits" />
+  } @else if (!autorise()) {
+    <p class="message-erreur" role="alert">{{ messageAdminRequis }}</p>
+  } @else {
+    <div
+      class="zone-depot"
+      [class.survol]="survol()"
+      role="button"
+      tabindex="0"
+      aria-label="Déposer un fichier Excel ou cliquer pour parcourir"
+      (click)="choisirFichier()"
+      (keyup.enter)="choisirFichier()"
+      (keyup.space)="choisirFichier()"
+      (dragover)="$event.preventDefault(); survol.set(true)"
+      (dragleave)="survol.set(false)"
+      (drop)="surDepot($event)"
+    >
+      <mat-icon aria-hidden="true">upload_file</mat-icon>
+      <p class="zone-texte">Déposez votre fichier .xlsx ici</p>
+      <p class="zone-sous-texte">ou cliquez pour le choisir</p>
+      <input
+        #fichier
+        type="file"
+        accept=".xlsx"
+        class="input-fichier"
+        (change)="surFichier($event)"
+      />
+    </div>
+  }
 
   @if (nomFichier(); as nom) {
     <p class="nom-fichier">
@@ -90,7 +145,7 @@
         matButton
         type="button"
         class="bouton-importer"
-        [disabled]="importEnCours()"
+        [disabled]="importEnCours() || !autorise()"
         (click)="importer()"
       >
         @if (importEnCours()) {
@@ -124,5 +179,116 @@
         </ul>
       </details>
     }
+  }
+
+  @if (verifie() && autorise()) {
+    <app-attribution />
+  }
+
+  @if (verifie() && autorise()) {
+    <section class="zone-danger" aria-labelledby="titre-suppression">
+      <h2 id="titre-suppression" class="titre-section">Supprimer tous les créneaux</h2>
+      <p class="aide">
+        Cette action supprime <strong>définitivement</strong> tous les créneaux proposés. Les
+        disponibilités déjà déclarées par les professeurs ne sont pas modifiées.
+      </p>
+
+      @if (confirmationSuppression()) {
+        <p class="message-erreur" role="alert">
+          Confirmez-vous la suppression de tous les créneaux ? Cette action est irréversible.
+        </p>
+        <div class="actions-danger">
+          <button
+            matButton="outlined"
+            type="button"
+            class="bouton-importer"
+            [disabled]="suppressionEnCours()"
+            (click)="annulerSuppression()"
+          >
+            Annuler
+          </button>
+          <button
+            matButton="filled"
+            type="button"
+            class="danger"
+            [disabled]="suppressionEnCours()"
+            (click)="supprimerTous()"
+          >
+            @if (suppressionEnCours()) {
+              <mat-spinner diameter="18" />
+            } @else {
+              <mat-icon aria-hidden="true">delete_forever</mat-icon>
+            }
+            Supprimer définitivement
+          </button>
+        </div>
+      } @else {
+        <button
+          matButton="outlined"
+          type="button"
+          class="danger bouton-supprimer-tout"
+          [disabled]="suppressionEnCours()"
+          (click)="demanderSuppression()"
+        >
+          <mat-icon aria-hidden="true">delete_forever</mat-icon>
+          Supprimer tous les créneaux
+        </button>
+      }
+    </section>
+  }
+
+  @if (verifie() && autorise()) {
+    <section class="zone-danger" aria-labelledby="titre-suppression-dispos">
+      <h2 id="titre-suppression-dispos" class="titre-section">
+        Supprimer les disponibilités des professeurs
+      </h2>
+      <p class="aide">
+        Cette action supprime <strong>définitivement</strong> tous les créneaux retenus par les
+        professeurs. Les créneaux proposés ne sont pas modifiés.
+      </p>
+
+      @if (confirmationSuppressionDispos()) {
+        <p class="message-erreur" role="alert">
+          Confirmez-vous la suppression de toutes les disponibilités déclarées ? Cette action est
+          irréversible.
+        </p>
+        <div class="actions-danger">
+          <button
+            matButton="outlined"
+            type="button"
+            class="bouton-importer"
+            [disabled]="suppressionDisposEnCours()"
+            (click)="annulerSuppressionDispos()"
+          >
+            Annuler
+          </button>
+          <button
+            matButton="filled"
+            type="button"
+            class="danger"
+            [disabled]="suppressionDisposEnCours()"
+            (click)="supprimerDispos()"
+          >
+            @if (suppressionDisposEnCours()) {
+              <mat-spinner diameter="18" />
+            } @else {
+              <mat-icon aria-hidden="true">person_remove</mat-icon>
+            }
+            Supprimer définitivement
+          </button>
+        </div>
+      } @else {
+        <button
+          matButton="outlined"
+          type="button"
+          class="danger bouton-supprimer-tout"
+          [disabled]="suppressionDisposEnCours()"
+          (click)="demanderSuppressionDispos()"
+        >
+          <mat-icon aria-hidden="true">person_remove</mat-icon>
+          Supprimer les disponibilités des professeurs
+        </button>
+      }
+    </section>
   }
 </section>

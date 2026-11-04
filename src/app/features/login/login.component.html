@@ -21,10 +21,35 @@
       </p>
     }
 
+    <mat-form-field appearance="outline" class="champ-filtre">
+      <mat-label>Filtrer par nom ou prénom</mat-label>
+      <input
+        matInput
+        type="search"
+        name="filtre"
+        autocomplete="off"
+        placeholder="Abensour, Judith…"
+        enterkeyhint="search"
+        [value]="filtre()"
+        (input)="filtrer($any($event.target).value)"
+      />
+      @if (filtre()) {
+        <button
+          matIconButton
+          matSuffix
+          type="button"
+          aria-label="Effacer le filtre"
+          (click)="filtrer('')"
+        >
+          <mat-icon aria-hidden="true">close</mat-icon>
+        </button>
+      }
+    </mat-form-field>
+
     <mat-form-field appearance="outline" class="champ-nom">
       <mat-label>Professeur</mat-label>
       <mat-select #liste formControlName="prof" (selectionChange)="choisir($event.value)">
-        @for (prof of profs(); track prof.login) {
+        @for (prof of profsFiltres(); track prof.login) {
           <mat-option [value]="prof.login">
             <span class="option-prof">
               <span class="option-nom">{{ prof.nomComplet }}</span>
@@ -41,6 +66,10 @@
           Chargement…
         } @else if (erreurProfs()) {
           Liste indisponible
+        } @else if (filtreSansResultat()) {
+          Aucun enseignant trouvé
+        } @else if (filtre().trim()) {
+          {{ profsFiltres().length }} / {{ profs().length }} enseignants
         } @else {
           {{ profs().length }} enseignants
         }

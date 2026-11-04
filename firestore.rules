@@ -37,11 +37,42 @@ service cloud.firestore {
       allow create, update, delete: if admin();
     }
 
+    // Inventaire des professeurs : la planification (AutoPlanning) a besoin de
+    // **lister** l'ensemble des partitions `users/*` pour récupéter tous les
+    // professeurs et leurs disponibilités. La lecture de la collection `users`
+    // est donc ouverte ; les documents restent modifiables par leur seul
+    // titulaire (règle ci-dessous). La collection ne contient que l'identité
+    // minimale (`login`, `nom`, `prenom`).
+    match /users {
+      allow read: if true;
+    }
+
+    // Profil du professeur (`users/{uid}`) : `login`, `nom`, `prénom`.
+    // Lecture ouverte : l'inventaire des professeurs est nécessaire à la
+    // planification (AutoPlanning) et le profil ne contient que l'identité
+    // minimale. L'écriture est réservée à son titulaire **et** à
+    // l'administrateur (attribution automatique de créneaux).
+    match /users/{uid} {
+      allow read: if true;
+      allow write: if (connecte() && request.auth.uid == uid) || uidAnonymeValide(uid) || admin();
+    }
+
     // Disponibilités : chaque partition n'est accessible qu'à son titulaire.
     //  - partition Firebase (administrateur) : `request.auth.uid == uid` ;
     //  - partition « nom seul » : `uid` de la forme `anon_<sha256[:12]>`.
+    // L'administrateur peut écrire dans **toute** partition : c'est ce qui
+    // permet l'attribution automatique de créneaux à des professeurs.
     match /users/{uid}/dispos/{creneauId} {
-      allow read, write: if (connecte() && request.auth.uid == uid) || uidAnonymeValide(uid);
+      allow read, write: if (connecte() && request.auth.uid == uid) || uidAnonymeValide(uid) || admin();
+    }
+
+    // Suppression groupée par l'administrateur : `collectionGroup('dispos')`
+    // traverse **toutes** les partitions `users/*/dispos` en une requête. Seul
+    // un administrateur peut les lister (`read`) et les supprimer (`delete`) ;
+    // l'écriture unitaire des professeurs reste régie par la règle de
+    // partition ci-dessus (Firestore accorde l'accès dès qu'une règle l'autorise).
+    match /{chemin=**}/dispos/{creneauId} {
+      allow read, delete: if admin();
     }
 
     // Liste des administrateurs : lecture par le concerné, écriture interdite

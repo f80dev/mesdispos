@@ -163,9 +163,9 @@ describe('DisposPageComponent (F3 / F4)', () => {
 
   it("n'expose aucun bouton d'enregistrement ni de confirmation", () => {
     fixture.detectChanges();
-    const libelles: string[] = [
-      ...fixture.nativeElement.querySelectorAll('button'),
-    ].map((b) => ((b as HTMLElement).textContent ?? '').trim());
+    const libelles: string[] = [...fixture.nativeElement.querySelectorAll('button')].map((b) =>
+      ((b as HTMLElement).textContent ?? '').trim(),
+    );
     const toutTexte = libelles.join(' ').toLowerCase();
     expect(toutTexte).not.toMatch(/enregistr/);
     expect(fixture.nativeElement.querySelector('mat-dialog-container')).toBeNull();

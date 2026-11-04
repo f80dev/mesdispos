@@ -29,8 +29,14 @@ const FAUX_FIRESTORE: FirestoreBackend = {
   ecouterDispos: () => () => undefined,
   setDispo: async () => undefined,
   deleteDispo: async () => undefined,
+  lireIdsDispos: async () => [],
+  upsertDispos: async () => 0,
+  setProfil: async () => undefined,
+  lireProfil: async () => null,
   listerIdsCreneaux: async () => [],
   upsertCreneaux: async () => 0,
+  supprimerTousCreneaux: async () => 0,
+  supprimerToutesDispos: async () => 0,
   estAdmin: async () => false,
 };
 

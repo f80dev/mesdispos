@@ -34,6 +34,12 @@ class FauxAuthService {
   readonly sessionAdmin = signal<Utilisateur | null>(null);
   readonly attendreSession = vi.fn(async () => this.user());
   readonly uidEcriture = vi.fn(() => this.user()?.uid ?? null);
+  /** Identité du professeur, dénormalisée dans chaque document `dispos`. */
+  readonly identiteEcriture = vi.fn(() => ({
+    login: 'pauline.dupont',
+    nom: 'DUPONT',
+    prenom: 'Pauline',
+  }));
 }
 
 /** Faux NotifService : on capture l'action « Réessayer ». */
@@ -62,6 +68,8 @@ function creerFauxBackend(): FirestoreBackend & {
     configure: true,
     setDispo: setDispoMock as unknown as FirestoreBackend['setDispo'],
     deleteDispo: deleteDispoMock as unknown as FirestoreBackend['deleteDispo'],
+    lireIdsDispos: vi.fn(async () => []),
+    upsertDispos: vi.fn(async () => 0),
     ecouterCreneaux: vi.fn(() => () => undefined),
     ecouterDispos: vi.fn(
       (
@@ -74,7 +82,11 @@ function creerFauxBackend(): FirestoreBackend & {
       },
     ) as unknown as FirestoreBackend['ecouterDispos'],
     listerIdsCreneaux: vi.fn(async () => []),
+    setProfil: vi.fn(async () => undefined),
+    lireProfil: vi.fn(async () => null),
     upsertCreneaux: vi.fn(async () => 0),
+    supprimerTousCreneaux: vi.fn(async () => 0),
+    supprimerToutesDispos: vi.fn(async () => 0),
     estAdmin: vi.fn(async () => false),
     setDispoMock,
     deleteDispoMock,
@@ -126,6 +138,9 @@ describe('DispoService (F4 — sélection immédiate)', () => {
       heureDebut: '08:45',
       heureFin: '09:30',
       libelle: 'Audition A1',
+      login: 'pauline.dupont',
+      nom: 'DUPONT',
+      prenom: 'Pauline',
     });
     expect(typeof document['updatedAt']).toBe('number');
   });

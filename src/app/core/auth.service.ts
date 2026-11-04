@@ -6,6 +6,7 @@ import { CookieService } from './cookie.service';
 import { normaliserNom } from '../shared/date.util';
 import { sha256Hex } from '../shared/sha256.util';
 import { firebaseConfigure } from '../../environments/firebase.config';
+import { ProfilService, type IdentiteProf } from '../data/profil.service';
 
 /**
  * Forme **unifiée** de l'identité. Deux sessions coexistent :
@@ -23,6 +24,14 @@ export interface Utilisateur {
   readonly displayName: string;
   /** Nature de la session : cookie seul (« nom ») ou session Firebase. */
   readonly session: 'nom' | 'firebase';
+  /**
+   * Identité du professeur, quand elle est connue : `login` (identifiant
+   * LDAP Oasis), `nom` et `prénom` d'usage. Ces champs sont persistés dans
+   * le document Firestore `users/{uid}`.
+   */
+  readonly login?: string;
+  readonly nom?: string;
+  readonly prenom?: string;
 }
 
 /** Délai maximal d'attente de la restauration de session avant de laisser passer. */
@@ -44,13 +53,19 @@ export function estMobile(): boolean {
  * Identité « nom seul » (§5) : `uid = 'anon_' + sha256(nom normalisé).slice(0, 12)`.
  * L'`uid` n'est jamais rendu à l'utilisateur ; le prénom normalisé reste la
  * valeur d'affichage.
+ *
+ * `identite` (login / nom / prénom) est optionnelle : la saisie libre ne
+ * fournit qu'un prénom.
  */
-export function utilisateurAnonyme(nom: string): Utilisateur {
+export function utilisateurAnonyme(nom: string, identite?: Partial<IdentiteProf>): Utilisateur {
   const affichable = normaliserNom(nom);
   return {
     uid: `anon_${sha256Hex(affichable).slice(0, 12)}`,
     displayName: affichable,
     session: 'nom',
+    ...(identite?.login ? { login: identite.login } : {}),
+    ...(identite?.nom ? { nom: identite.nom } : {}),
+    ...(identite?.prenom ? { prenom: identite.prenom } : {}),
   };
 }
 
@@ -90,6 +105,7 @@ export class AuthService {
   private premiereReponseFirebase = false;
   private resolveurSession: ((u: Utilisateur | null) => void) | null = null;
   private readonly cookie = inject(CookieService);
+  private readonly profils = inject(ProfilService);
 
   /**
    * Restauration de session au démarrage : le cookie « nom seul » d'abord,
@@ -98,25 +114,64 @@ export class AuthService {
   constructor() {
     const nom = this.cookie.lireNom();
     if (nom) {
-      this.user.set(utilisateurAnonyme(nom));
+      const utilisateur = utilisateurAnonyme(nom);
+      this.user.set(utilisateur);
       this.chargement.set(false);
+      // Le cookie ne porte que le nom : le `login`, le `nom` et le `prénom`
+      // sont relus depuis `users/{uid}` (document de profil).
+      void this.restaurerProfil(utilisateur.uid);
     }
     void this.demarrer();
+  }
+
+  /**
+   * Restaure l'identité complète du professeur depuis `users/{uid}` et
+   * complète l'utilisateur courant. Silencieux en cas d'échec : le parcours
+   * reste utilisable avec le seul nom du cookie.
+   */
+  private async restaurerProfil(uid: string): Promise<void> {
+    const profil = await this.profils.charger(uid);
+    if (!profil) {
+      return;
+    }
+    const courant = this.user();
+    if (!courant || courant.uid !== uid) {
+      return;
+    }
+    this.user.set({
+      ...courant,
+      ...(profil.login ? { login: profil.login } : {}),
+      ...(profil.nom ? { nom: profil.nom } : {}),
+      ...(profil.prenom ? { prenom: profil.prenom } : {}),
+    });
   }
 
   /**
    * Session « nom seul » : délègue la validation et la pose du cookie à
    * `CookieService`, puis publie l'identité anonyme.
    * Aucun appel Firebase Auth, aucune requête réseau.
+   *
+   * `identite` (login / nom / prénom) est optionnelle ; lorsqu'elle est
+   * fournie, elle est **persistée** dans le document Firestore `users/{uid}`.
    */
-  async connecterParNom(nom: string): Promise<boolean> {
+  async connecterParNom(nom: string, identite?: Partial<IdentiteProf>): Promise<boolean> {
     this.erreur.set(null);
     const resultat = this.cookie.setNom(nom);
     if (!resultat.ok) {
       this.erreur.set(resultat.erreur);
       return false;
     }
-    this.user.set(utilisateurAnonyme(resultat.valeur));
+    const utilisateur = utilisateurAnonyme(resultat.valeur, identite);
+    this.user.set(utilisateur);
+    if (identite) {
+      // Best effort : l'échec d'écriture du profil ne bloque pas la session.
+      void this.profils.enregistrer(utilisateur.uid, {
+        login: identite.login ?? '',
+        nom: identite.nom ?? '',
+        prenom: identite.prenom ?? '',
+        updatedAt: Date.now(),
+      });
+    }
     return true;
   }
 
@@ -255,6 +310,35 @@ export class AuthService {
       return courant.uid;
     }
     return this.sessionAdmin()?.uid ?? courant?.uid ?? null;
+  }
+
+  /**
+   * Identité du professeur correspondant à la partition d'écriture
+   * (`uidEcriture`) : sert à dénormaliser `login`, `nom` et `prénom` dans
+   * chaque document `users/{uid}/dispos/{creneauId}`.
+   */
+  identiteEcriture(): { login?: string; nom?: string; prenom?: string } {
+    const uid = this.uidEcriture();
+    if (!uid) {
+      return {};
+    }
+    const courant = this.user();
+    if (courant?.uid === uid) {
+      return {
+        ...(courant.login ? { login: courant.login } : {}),
+        ...(courant.nom ? { nom: courant.nom } : {}),
+        ...(courant.prenom ? { prenom: courant.prenom } : {}),
+      };
+    }
+    const admin = this.sessionAdmin();
+    if (admin?.uid === uid) {
+      return {
+        ...(admin.login ? { login: admin.login } : {}),
+        ...(admin.nom ? { nom: admin.nom } : {}),
+        ...(admin.prenom ? { prenom: admin.prenom } : {}),
+      };
+    }
+    return {};
   }
 
   /**

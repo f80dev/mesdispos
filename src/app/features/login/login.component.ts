@@ -7,6 +7,7 @@ import {
   effect,
   inject,
   signal,
+  untracked,
   viewChild,
 } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
@@ -22,9 +23,10 @@ import { map } from 'rxjs';
 
 import { AuthService } from '../../core/auth.service';
 import { CookieService } from '../../core/cookie.service';
-import { FIRESTORE_BACKEND } from '../../core/firestore.backend';
+import { AdminService } from '../../core/admin.service';
 import { ROUTES } from '../../app.routes';
-import { ProfService, type Prof } from '../../data/prof.service';
+import { ProfService, filtrerProfs, type Prof } from '../../data/prof.service';
+import { profilDepuisProf, profilDepuisSaisieLibre } from '../../data/profil.service';
 import { LONGUEUR_NOM_MAX } from '../../shared/date.util';
 
 /** Valeur synthétique du sélecteur : « je ne suis pas dans la liste ». */
@@ -55,7 +57,7 @@ export class LoginComponent {
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
   private readonly profService = inject(ProfService);
-  private readonly backend = inject(FIRESTORE_BACKEND);
+  private readonly adminService = inject(AdminService);
 
   private readonly champ = viewChild<ElementRef<HTMLInputElement>>('champ');
   private readonly liste = viewChild<MatSelect>('liste');
@@ -80,6 +82,22 @@ export class LoginComponent {
   readonly profs = this.profService.profs;
   readonly chargementProfs = this.profService.chargement;
   readonly erreurProfs = this.profService.erreur;
+
+  /** Requête de filtrage saisie par l'utilisateur (nom / prénom). */
+  readonly filtre = signal<string>('');
+
+  /** Enseignants correspondant au filtre (nom ou prénom). */
+  readonly profsFiltres = computed(() => filtrerProfs(this.profs(), this.filtre()));
+
+  /** Vrai quand un filtre est actif mais ne retourne aucun résultat. */
+  readonly filtreSansResultat = computed(
+    () => this.filtre().trim().length > 0 && this.profsFiltres().length === 0,
+  );
+
+  /** Met à jour le filtre de recherche. */
+  filtrer(valeur: string): void {
+    this.filtre.set(valeur);
+  }
 
   /**
    * Choix courant du sélecteur (`login` ou `CHOIX_AUTRE`).
@@ -168,6 +186,20 @@ export class LoginComponent {
         void this.verifierEtOuvrir(admin.uid);
       }
     });
+
+    // Filtre réduit à un seul enseignant : on le sélectionne puis on enchaîne
+    // directement sur la connexion (parcours réduit à une seule saisie).
+    effect(() => {
+      const filtre = this.filtre().trim();
+      const liste = this.profsFiltres();
+      if (filtre.length === 0 || liste.length !== 1) {
+        return;
+      }
+      untracked(() => {
+        this.selectionner(liste[0].login);
+        void this.continuer();
+      });
+    });
   }
 
   /** Enseignant correspondant au `login` sélectionné. */
@@ -225,7 +257,8 @@ export class LoginComponent {
     if (!this.peutContinuer()) {
       return;
     }
-    const nom = this.saisieLibre() ? this.prenom() : (this.profChoisi()?.nomComplet ?? '');
+    const prof = this.profChoisi();
+    const nom = this.saisieLibre() ? this.prenom() : (prof?.nomComplet ?? '');
     if (!nom.trim()) {
       return;
     }
@@ -236,7 +269,13 @@ export class LoginComponent {
         ? ROUTES.dispos
         : (this.retour() ?? ROUTES.dispos);
     this.erreur.set(null);
-    const ok = await this.auth.connecterParNom(nom);
+    // Identité persistée dans `users/{uid}` : `login`, `nom` et `prénom`.
+    const identite = this.saisieLibre()
+      ? profilDepuisSaisieLibre(this.prenom())
+      : prof
+        ? profilDepuisProf(prof)
+        : undefined;
+    const ok = await this.auth.connecterParNom(nom, identite);
     if (ok) {
       await this.router.navigateByUrl(cible);
     } else {
@@ -281,7 +320,7 @@ export class LoginComponent {
     }
     this.uidVerifie = uid;
     this.uidAdmin.set(uid);
-    if (await this.backend.estAdmin(uid)) {
+    if (await this.adminService.verifier(uid)) {
       await this.router.navigateByUrl(ROUTES.admin);
       return;
     }
