@@ -44,6 +44,24 @@ export interface Snapshot {
  */
 export type CallbackErreur = (raison?: string) => void;
 
+/** Un professeur identifié par sa partition Firestore (`users/{uid}`). */
+export interface ProfilAdmin {
+  /** `uid` de la partition (`anon_<sha256[:12]>` ou `uid` Firebase). */
+  readonly uid: string;
+  /** Champs bruts du profil (`login`, `nom`, `prenom`). */
+  readonly data: Record<string, unknown>;
+}
+
+/** Une disponibilité déclarée, avec la partition à laquelle elle appartient. */
+export interface DispoAdmin {
+  /** `uid` de la partition propriétaire (`users/{uid}/dispos/{id}`). */
+  readonly uid: string;
+  /** Identifiant du créneau (`creneaux/{id}`). */
+  readonly id: string;
+  /** Champs bruts de la disponibilité (`date`, `heureDebut`, `heureFin`, …). */
+  readonly data: Record<string, unknown>;
+}
+
 export interface FirestoreBackend {
   /** `true` quand la configuration Firebase a été remplacée par l'humain. */
   readonly configure: boolean;
@@ -97,6 +115,20 @@ export interface FirestoreBackend {
 
   /** `getDoc(admins/{uid}).exists` — pour `adminGuard`. */
   estAdmin(uid: string): Promise<boolean>;
+
+  /**
+   * `getDocs(collection(db, 'users'))` — l'inventaire des professeurs
+   * (login, nom, prénom) et de leur partition `uid`.
+   */
+  listerProfils(): Promise<readonly ProfilAdmin[]>;
+
+  /**
+   * `getDocs(collectionGroup(db, 'dispos'))` — **toutes** les disponibilités
+   * déclarées, tous professeurs confondus (réservé à l'administrateur :
+   * `firestore.rules` n'autorise cette lecture en *collection group* qu'à
+   * `admins/{uid}`).
+   */
+  lireToutesDispos(): Promise<readonly DispoAdmin[]>;
 }
 
 export const FIRESTORE_BACKEND = new InjectionToken<FirestoreBackend>('FirestoreBackend');
@@ -283,6 +315,26 @@ export class FirestoreReelBackend implements FirestoreBackend {
     } catch {
       return false;
     }
+  }
+
+  async listerProfils(): Promise<readonly ProfilAdmin[]> {
+    const [db, fs] = await this.pair();
+    const snap = await fs.getDocs(fs.collection(db, 'users'));
+    return snap.docs.map((doc) => ({
+      uid: doc.id,
+      data: doc.data() as Record<string, unknown>,
+    }));
+  }
+
+  async lireToutesDispos(): Promise<readonly DispoAdmin[]> {
+    const [db, fs] = await this.pair();
+    const snap = await fs.getDocs(fs.collectionGroup(db, 'dispos'));
+    return snap.docs.map((doc) => ({
+      // `users/{uid}/dispos/{creneauId}` → l'uid est le grand-parent.
+      uid: doc.ref.parent?.parent?.id ?? '',
+      id: doc.id,
+      data: doc.data() as Record<string, unknown>,
+    }));
   }
 
   /**

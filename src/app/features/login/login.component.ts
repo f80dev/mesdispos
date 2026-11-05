@@ -7,7 +7,6 @@ import {
   effect,
   inject,
   signal,
-  untracked,
   viewChild,
 } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
@@ -187,18 +186,19 @@ export class LoginComponent {
       }
     });
 
-    // Filtre réduit à un seul enseignant : on le sélectionne puis on enchaîne
-    // directement sur la connexion (parcours réduit à une seule saisie).
+    // Filtre réduit à un seul enseignant : cet enseignant est
+    // automatiquement sélectionné (le choix reste explicite côté bouton
+    // « Continuer », on ne connecte jamais tout seul).
     effect(() => {
-      const filtre = this.filtre().trim();
-      const liste = this.profsFiltres();
-      if (filtre.length === 0 || liste.length !== 1) {
+      const resultats = this.profsFiltres();
+      if (resultats.length !== 1) {
         return;
       }
-      untracked(() => {
-        this.selectionner(liste[0].login);
-        void this.continuer();
-      });
+      const seul = resultats[0];
+      if (!seul || this.saisieLibre() || this.choix() === seul.login) {
+        return;
+      }
+      this.selectionner(seul.login);
     });
   }
 
@@ -328,15 +328,5 @@ export class LoginComponent {
       "Accès refusé : ce compte Google n'est pas administrateur. Ajoutez le document admins/" +
         `${uid} depuis la console Firebase.`,
     );
-  }
-
-  /**
-   * « Utiliser un autre nom » : efface le cookie, bascule en saisie libre et
-   * remet le focus dans le champ.
-   */
-  utiliserUnAutreNom(): void {
-    this.auth.oublierNom();
-    this.selectionner(CHOIX_AUTRE);
-    this.formulaire.controls.prenom.setValue('');
   }
 }

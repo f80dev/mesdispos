@@ -4,20 +4,23 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 
 import { CreneauCardComponent } from './creneau-card.component';
+import { CreneauCalendarComponent } from './creneau-calendar.component';
 import { CreneauService } from '../../data/creneau.service';
 import { DispoService } from '../../data/dispo.service';
 import { DateGroupPipe } from '../../layout/date-group.pipe';
 import { grouperParJour } from '../../shared/date.util';
 import type { Creneau } from '../../data/models';
 
-// Mobile: deux sections EMPILÉES dans cet ordre — « Créneaux disponibles »
-//           puis « Mes disponibilités (N) » — une colonne, boutons pleine largeur.
-// Desktop: grille 2 colonnes (Disponibles | Mes disponibilités), largeur max
-//           1100 px centrée, cartes sur 2 colonnes si le texte le permet.
+// Mobile: liste des « Créneaux disponibles » en tête, puis le calendrier des
+//           « Mes disponibilités (N) » (vue « jour ») — une colonne, lignes
+//           ≥ 48 px.
+// Desktop: liste des créneaux disponibles au-dessus du calendrier de vos
+//           disponibilités, largeur max 1100 px.
 @Component({
   selector: 'app-dispos-page',
   imports: [
     CreneauCardComponent,
+    CreneauCalendarComponent,
     DateGroupPipe,
     MatButtonModule,
     MatIconModule,
@@ -30,14 +33,20 @@ export class DisposPageComponent implements OnDestroy {
   private readonly creneauxService = inject(CreneauService);
   private readonly dispoService = inject(DispoService);
 
+  /** Identifiants des créneaux retenus (coloration du calendrier). */
+  readonly idsSelectionnes = this.dispoService.idsSelectionnes;
+
+  /** Créneaux retenus par l'utilisateur — source du calendrier. */
+  readonly creneauxRetenus = this.dispoService.retenus;
+
   /** Groupes de jours pour la section « Créneaux disponibles ». */
   readonly groupesDisponibles = computed(() => grouperParJour(this.dispoService.disponibles()));
 
-  /** Groupes de jours pour la section « Mes disponibilités ». */
-  readonly groupesRetenus = computed(() => grouperParJour(this.dispoService.retenus()));
-
   /** Compteur temps réel « Mes disponibilités (N) » (F3). */
   readonly nombreRetenus = this.dispoService.nombreRetenus;
+
+  /** Compteur temps réel « Créneaux disponibles (N) ». */
+  readonly nombreDisponibles = computed(() => this.dispoService.disponibles().length);
 
   /** Chargement tant qu'un `onSnapshot` n'a pas répondu. */
   readonly chargement = computed(

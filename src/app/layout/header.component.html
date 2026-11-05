@@ -9,7 +9,27 @@
   </a>
 
   @if (estAdminCourant()) {
-    <a class="lien-admin" [routerLink]="ROUTES.admin">Importer des créneaux</a>
+    <button
+      matButton
+      type="button"
+      class="lien-admin"
+      [matMenuTriggerFor]="menuAdmin"
+      aria-label="Menu administrateur"
+    >
+      <mat-icon aria-hidden="true">admin_panel_settings</mat-icon>
+      <span class="libelle-admin">Admin</span>
+    </button>
+
+    <mat-menu #menuAdmin="matMenu">
+      <a mat-menu-item [routerLink]="ROUTES.admin">
+        <mat-icon aria-hidden="true">upload_file</mat-icon>
+        Importer des créneaux
+      </a>
+      <a mat-menu-item [routerLink]="ROUTES.adminPrompt">
+        <mat-icon aria-hidden="true">content_copy</mat-icon>
+        Prompt IA
+      </a>
+    </mat-menu>
   }
 
   @if (user(); as utilisateur) {

@@ -58,14 +58,14 @@
                 "input": "public"
               }
             ],
-            "styles": ["src/styles.scss"]
+            "styles": ["node_modules/angular-calendar/css/angular-calendar.css", "src/styles.scss"]
           },
           "configurations": {
             "production": {
               "budgets": [
                 {
                   "type": "initial",
-                  "maximumWarning": "500kB",
+                  "maximumWarning": "600kB",
                   "maximumError": "1MB"
                 },
                 {

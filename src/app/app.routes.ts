@@ -8,6 +8,7 @@ export const ROUTES = {
   login: '/login',
   dispos: '/dispos',
   admin: '/admin/import',
+  adminPrompt: '/admin/prompt',
 } as const;
 
 /**
@@ -31,6 +32,13 @@ export const routes: Routes = [
     path: 'admin/import',
     canActivate: [adminGuard],
     loadComponent: () => import('./features/admin/import.component').then((m) => m.ImportComponent),
+  },
+  {
+    // Prompt IA (gabarit `template.md` + CSV) : réservé à l'administrateur.
+    path: 'admin/prompt',
+    canActivate: [adminGuard],
+    loadComponent: () =>
+      import('./features/admin/prompt.component').then((m) => m.PromptIaComponent),
   },
   { path: '', pathMatch: 'full', redirectTo: 'dispos' },
   { path: '**', redirectTo: '' },

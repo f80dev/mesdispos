@@ -1,10 +1,17 @@
 import { ApplicationConfig, provideBrowserGlobalErrorListeners } from '@angular/core';
+import { registerLocaleData } from '@angular/common';
+import localeFr from '@angular/common/locales/fr';
 import { provideRouter } from '@angular/router';
 import { provideHttpClient, withFetch } from '@angular/common/http';
 
 import { FIRESTORE_BACKEND, FirestoreReelBackend } from './core/firestore.backend';
 import { XLSX_BACKEND, XLSXReelBackend } from './core/xlsx.backend';
 import { routes } from './app.routes';
+
+// Angular n'embarque que `en-US` : les données de la locale française doivent
+// être enregistrées pour que `formatDate` (utilisé par `angular-calendar` et
+// par les pipes de date) fonctionne avec `locale="fr"` (sinon NG0701).
+registerLocaleData(localeFr, 'fr');
 
 /**
  * `appConfig` — DI au niveau de l'application.

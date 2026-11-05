@@ -349,6 +349,7 @@ Autres constats : bouton « Continuer » `h=48px w=327px` et **désactivé** tan
 - **la sécurité reste portée par Firestore** : `firestore.rules` n'autorise le `delete` sur `creneaux` qu'à `admins/{uid}` ; l'interface ne fait que refléter ce droit.
 
 **Conséquences :** l'administrateur peut réinitialiser les créneaux en une action confirmée, sans passer par la console Firebase. Les professeurs ayant déjà coché des créneaux voient ceux-ci disparaître de « Mes disponibilités » (jointure mémoire vide) ; une réimportation avec les mêmes identifiants rétablit la correspondance sans réécriture côté professeur.
+
 ## 2026-11-03 — Suppression des disponibilités des professeurs depuis l'espace administrateur
 
 **Contexte :** pour réinitialiser une campagne de déclaration, l'administrateur devait supprimer chaque document `users/{uid}/dispos/{creneauId}` depuis la console Firebase, partition par partition. Les règles interdisaient par ailleurs tout accès d'un admin aux disponibilités des professeurs.
@@ -357,10 +358,11 @@ Autres constats : bouton « Continuer » `h=48px w=327px` et **désactivé** tan
 
 - **`FirestoreBackend.supprimerToutesDispos()`** liste les disponibilités avec `collectionGroup('dispos')` (une seule requête couvrant toutes les partitions `users/*`), puis les supprime par `writeBatch.delete`, lots de 500 ;
 - **`AdminService.supprimerToutesLesDispos()`** porte l'action et vérifie `autorise()` avant l'écriture ; l'interface (`ImportComponent`, seconde « zone de danger ») applique la même règle et une **confirmation en deux temps** (action irréversible) ;
-- **`firestore.rules`** gagne une branche *collection group* `match /{chemin=**}/dispos/{creneauId} { allow read, delete: if admin(); }` : les règles de partition `match /users/{uid}/dispos/...` ne s'appliquent pas aux requêtes *collection group*, il fallait donc une règle explicite. Les professeurs conservent l'écriture unitaire via leur règle de partition ; Firestore accorde l'accès dès qu'une règle l'autorise ;
+- **`firestore.rules`** gagne une branche _collection group_ `match /{chemin=**}/dispos/{creneauId} { allow read, delete: if admin(); }` : les règles de partition `match /users/{uid}/dispos/...` ne s'appliquent pas aux requêtes _collection group_, il fallait donc une règle explicite. Les professeurs conservent l'écriture unitaire via leur règle de partition ; Firestore accorde l'accès dès qu'une règle l'autorise ;
 - **les créneaux proposés sont conservés** : seule la déclaration des professeurs est effacée. Les `Dispo` de l'éventuel admin sont supprimées aussi (ce sont des déclarations comme les autres).
 
 **Conséquences :** une seule requête et un seul bouton suffisent à repartir de zéro côté déclarations. `collectionGroup('dispos')` est un balayage sans filtre ni tri : aucun index composite n'est requis (`firestore.indexes.json` inchangé). Coût : une lecture par document `dispo` avant suppression — acceptable pour quelques centaines de déclarations.
+
 ## 2026-11-03 — Bouton d'appel à l'API planning locale (développement uniquement)
 
 **Contexte :** l'écran d'administration (/admin/import) devait pouvoir déclencher la méthode `get_filtered_json` de `AutoPlanning/api.py` (route `GET /calendar/json`) exposée par le serveur Flask local, sans que ce lien soit disponible en production.
@@ -381,7 +383,7 @@ Autres constats : bouton « Continuer » `h=48px w=327px` et **désactivé** tan
 
 **Décision :**
 
-- **un document de profil `users/{uid}`** = `{ login, nom, prenom, updatedAt }`, écrit à la connexion (`AuthService.connecterParNom()` → `ProfilService.enregistrer()`) ; l'écriture est *best effort* : un échec n'empêche jamais la déclaration de disponibilités ;
+- **un document de profil `users/{uid}`** = `{ login, nom, prenom, updatedAt }`, écrit à la connexion (`AuthService.connecterParNom()` → `ProfilService.enregistrer()`) ; l'écriture est _best effort_ : un échec n'empêche jamais la déclaration de disponibilités ;
 - **dénormalisation dans chaque `users/{uid}/dispos/{creneauId}`** : `login`, `nom` et `prenom` sont recopiés dans le document de disponibilité (`DispoService.documentDispo()` via `AuthService.identiteEcriture()`), pour que la lecture des dispos en console identifie le professeur sans jointure ;
 - **saisie libre (« Autre nom ») : `login` et `nom` vides**, seul le `prénom` saisi est connu — on n'invente pas d'identifiant LDAP ;
 - **restauration de session** : le cookie `mesdispos_nom` ne porte que le nom ; le profil complet est relu depuis `users/{uid}` (`ProfilService.charger()`) au démarrage, sans requête supplémentaire si la configuration Firebase est absente ;
@@ -396,11 +398,11 @@ Autres constats : bouton « Continuer » `h=48px w=327px` et **désactivé** tan
 
 **Diagnostic (par requêtes REST directes sur l'API Firestore, sans session) :**
 
-| Chemin testé | Avant déploiement | Après déploiement |
-|---|---|---|
-| `PATCH users/anon_0123456789ab` | **403 PERMISSION_DENIED** | 200 |
-| `PATCH users/anon_0123456789ab/dispos/test_creneau` | 200 | 200 |
-| `GET creneaux` | 200 | 200 |
+| Chemin testé                                        | Avant déploiement         | Après déploiement |
+| --------------------------------------------------- | ------------------------- | ----------------- |
+| `PATCH users/anon_0123456789ab`                     | **403 PERMISSION_DENIED** | 200               |
+| `PATCH users/anon_0123456789ab/dispos/test_creneau` | 200                       | 200               |
+| `GET creneaux`                                      | 200                       | 200               |
 
 Le refus portait **uniquement** sur le document de profil : les disponibilités et la lecture des créneaux n'étaient pas concernées. Cela confirmait un désynchronisation « règles déployées ≠ règles du dépôt » et non un bug de code applicatif (ni `uid` mal formé, ni session Firebase absente, ni configuration erronée).
 
@@ -419,7 +421,7 @@ Le refus portait **uniquement** sur le document de profil : les disponibilités 
 
 **Décision :**
 
-- **nouveau service `data/attribution.service.ts`** : il calcule un *plan* (aucune écriture) puis l'applique. Deux fonctions pures sont extraites pour être testables : `parserLogins()` (découpe de la saisie) et `choisirCreneaux()` (sélection chronologique hors créneaux déjà retenus) ;
+- **nouveau service `data/attribution.service.ts`** : il calcule un _plan_ (aucune écriture) puis l'applique. Deux fonctions pures sont extraites pour être testables : `parserLogins()` (découpe de la saisie) et `choisirCreneaux()` (sélection chronologique hors créneaux déjà retenus) ;
 - **résolution de l'`uid`** : la partition Firestore d'un professeur est `anon_<sha256(nom affiché)[:12]>`. L'attribution la **recalcule** depuis la fiche Oasis du `login` saisi, via `utilisateurAnonyme(prof.nomComplet)` — exactement le même calcul que la connexion « liste Oasis ». C'est le seul moyen d'atteindre la bonne partition sans connaître le nom que le professeur a réellement saisi ;
 - **documents écrits** : `users/{uid}/dispos/{creneauId}` avec la **même forme** que celle de `DispoService.documentDispo()` (`creneauId`, `date`, `heureDebut`, `heureFin`, `libelle?`, `login`, `nom`, `prenom`, `updatedAt`), plus le document de profil `users/{uid}`. Écriture par batch de 500 (`upsertDispos`) ;
 - **prévisualisation obligatoire** : le plan est affiché (professeurs résolus, créneaux déjà retenus, créneaux attribués, logins inconnus) et une confirmation explicite précède l'écriture ;
@@ -430,3 +432,61 @@ Le refus portait **uniquement** sur le document de profil : les disponibilités 
 **Limite assumée :** un professeur qui a utilisé la **saisie libre** (« Autre nom ») a un `uid` dérivé du prénom saisi — il n'est donc pas atteignable par `login`. L'attribution vise le professeur tel qu'il s'identifie dans la liste Oasis. Ce point est signalé dans le README et dans l'interface.
 
 **Conséquences :** l'administrateur peut déclarer des disponibilités en une seule manipulation pour un groupe de professeurs. La logique reste testable (fonctions pures + faux backend), l'écriture est idempotente (`setDoc`) — relancer l'attribution réécrit les mêmes documents sans les dupliquer. La règle `|| admin()` élargit volontairement le pouvoir de l'administrateur : c'est le prix de la fonction, et il est explicite dans `firestore.rules`.
+
+## 2026-11-04 — Calendrier des créneaux (plug-in `angular-calendar`)
+
+**Contexte :** la page `/dispos` présentait les créneaux uniquement sous forme de deux listes (disponibles / retenus), groupées par jour. Le besoin utilisateur est de **voir les créneaux dans un calendrier**, au fil des créneaux ajoutés, pour lire la chronologie (et les chevauchements) d'un coup d'œil.
+
+**Décision :**
+
+- le plug-in [`angular-calendar`](https://www.npmjs.com/package/angular-calendar) `0.32.2` est ajouté en dépendance, avec l'adaptateur `date-fns` (`angular-calendar/date-adapters/date-fns`) et ses peers `angular-draggable-droppable` / `angular-resizable-element` ;
+- la feuille de style du plug-in est déclarée dans `angular.json` (`styles`), **avant** `src/styles.scss` : les couleurs par défaut (bleu 2003) sont ensuite remplacées par les rôles M3 de l'application (`--mat-sys-*`) via `::ng-deep` dans `creneau-calendar.component.scss` ;
+- le calendrier est une **troisième représentation** des mêmes données que les deux listes : il ne stocke rien et n'écrit jamais directement. Un clic sur un événement émet `basculer(creneau)` vers `DispoService` — donc **le clic reste l'enregistrement** (F4), avec rollback + snackbar en cas d'échec ;
+- deux vues sont proposées : « semaine » (7 colonnes) et « jour ». Sur smartphone (< 900 px), la vue **jour** est retenue par défaut : 7 colonnes sont illisibles ;
+- la conversion `Creneau` → événement passe par une fonction **pure** `creneauVersIntervalle()` (`shared/date.util.ts`) : elle reconstruit un `Date` **local** à partir des chaînes `'YYYY-MM-DD'` et `'HH:mm'`. Aucun `Date` n'est persisté (AGENTS.md §13) : le `Date` n'existe que pour le rendu ;
+- la navigation (semaine précédente / aujourd'hui / semaine suivante) utilise les directives `mwlCalendarPreviousView` / `mwlCalendarToday` / `mwlCalendarNextView` ; le titre est produit par le pipe `calendarDate` en locale `fr`, semaine démarrant le lundi (`weekStartsOn = 1`) ;
+- la plage horaire affichée est bornée par les créneaux eux-mêmes (`heureDebut()` / `heureFin()`), pour éviter une grille de 24 heures en grande partie vide ;
+- le budget `initial` du build passe de 500 kB à 600 kB (le plug-in ajoute ~19 kB au bundle initial, sous le seuil d'erreur de 1 MB).
+
+**Conséquences :** la page `/dispos` gagne une section « Calendrier des créneaux » au-dessus des deux listes (pleine largeur sur desktop). Le bundle initial grossit d'environ 19 kB ; les chunks `dispos-page-component` et `index-esm` embarquent le plug-in. Les tests unitaires du calendrier (`creneau-calendar.component.spec.ts`) et de `creneauVersIntervalle()` sont **écrits mais non exécutés**, conformément au contrat de vérification (§3).
+
+## 2026-11-04 — Liste des disponibles au-dessus du calendrier, calendrier = mes disponibilités
+**Contexte :** la page `/dispos` affichait le calendrier (tous les créneaux) **au-dessus** des listes, puis les listes `Créneaux disponibles` et `Mes disponibilités`. Les disponibilités de l'utilisateur étaient donc montrées deux fois (liste + calendrier) et la liste des disponibles était reléguée sous le calendrier.
+**Décision :**
+- l'ordre de la page est inversé : `Créneaux disponibles` (liste groupée par jour) **puis** `Mes disponibilités` ;
+- le calendrier n'affiche **plus que les créneaux retenus** par l'utilisateur (source : `DispoService.retenus()`) : la sélection d'un créneau dans la liste fait apparaître l'événement dans le calendrier, et l'ensemble des disponibilités de l'utilisateur y est visible ;
+- la liste `Mes disponibilités` (doublon) est supprimée : le compteur `(N)` est conservé dans le titre de la section `Mes disponibilités` qui encadre le calendrier ;
+- dans le calendrier, un clic sur un événement **retire** la disponibilité (et non l'ajoute) ;
+- le calendrier se repositionne sur le jour d'un créneau nouvellement retenu (`effect` sur les identifiants connus), sans bouger lors d'une désélection.
+**Conséquences :** la lecture est plus directe (la liste propose, le calendrier récapitule). Le plug-in `angular-calendar` n'affiche plus les créneaux non retenus : la légende est simplifiée. Tests unitaires écrits mais non exécutés (contrat §3).
+
+
+## 2026-11-04 — Correction de l'affichage des créneaux dans le calendrier
+**Contexte :** le calendrier n'affichait aucun créneau : seule une barre verte (le liseré des en-têtes de jours) était visible.
+**Diagnostic :** deux défauts cumulés.
+1. `creneauVersIntervalle()` (`shared/date.util.ts`) utilisait une regex **sans groupe capturant** (`/^\d{1,2}:\d{2}$/`) : `exec()[1]` valait `undefined`, `parseInt` renvoyait `NaN` et les `Date` d'événement étaient **invalides** (`Invalid Date`). Le plug-in `angular-calendar` ignorait alors tous les événements.
+2. Le plug-in applique `event.cssClass` sur le **conteneur** `.cal-event-container`, et non sur le `.cal-event` intérieur. Les sélecteurs CSS de l'application (`.cal-event.creneau-evenement`) ne correspondaient donc jamais : les créneaux seraient restés sans fond ni liseré.
+**Décision :** regex corrigée en `/^(\d{1,2}):(\d{2})$/` ; les styles d'événement (fond, liseré gauche, texte) sont désormais portés par `.cal-event-container.creneau-evenement` ; le fond transparent du plug-in est neutralisé sur `.cal-event`.
+**Conséquences :** les créneaux retenus s'affichent en bloc vert dans la colonne du jour. Un test de non-régression (`creneau-calendar.component.spec.ts`) vérifie qu'un `.cal-event-container` est bien rendu et que la `Date` d'événement est valide.
+
+
+## 2026-11-04 — Prompt IA (gabarit `template.md` + CSV) dans le menu administrateur
+**Contexte :** la constitution des jurys de soutenance demandait de fournir à une IA la liste des mémoires, la liste des professeurs avec leurs disponibilités et la liste des salles. Le gabarit `public/template.md` existe déjà, avec trois champs entre accolades (`{{csv_liste_memoire}}`, `{{csv_liste_dispo}}`, `{{csv_liste_salle}}`) ; les données (`public/memoires.xlsx`, `public/salles.xlsx`) et les disponibilités (Firestore) étaient dispersées.
+**Décision :**
+- une page **réservée à l'administrateur** (`/admin/prompt`, `adminGuard`) est ajoutée ; le header expose désormais un **menu « Admin »** (`mat-menu`) contenant « Importer des créneaux » et « Prompt IA » (le lien unique précédent devient un menu, pour rester lisible sur mobile) ;
+- le prompt est assemblé **dans le navigateur** : `public/template.md` est lu par `HttpClient`, `memoires.xlsx` et `salles.xlsx` par `read-excel-file` (via le contrat injectable `XLSX_BACKEND`), les disponibilités par Firestore — aucune donnée n'est envoyée à un serveur ;
+- `FirestoreBackend` gagne deux méthodes : `listerProfils()` (`users`) et `lireToutesDispos()` (`collectionGroup('dispos')`, déjà autorisé en lecture aux administrateurs par `firestore.rules`) ;
+- le CSV des disponibilités comporte **une ligne par professeur** (`login`, `nom`, `prenom`, `nb_creneaux`, `disponibilites`) : les créneaux sont regroupés dans une seule cellule, séparés par `; `, ce qui est plus lisible pour l'IA qu'une ligne par créneau ;
+- les classeurs exports portent **deux lignes d'en-tête** (noms techniques `[[ CODE ]]`, puis libellés humains) : l'indexation des colonnes détecte l'un ou l'autre format et se replie sur l'ordre positionnel ;
+- la copie utilise `navigator.clipboard.writeText`, avec repli sur `document.execCommand('copy')` (contexte non sécurisé) ;
+- le gabarit est injectable depuis l'URL publique : la mécanique est donc utilisable pour d'autres travaux de l'administration (toutefois §13 reste inchangé : pas d'export d'attribution, pas de Cloud Functions).
+**Conséquences :** l'administrateur obtient en un clic un prompt collable dans n'importe quelle IA. La lecture des disponibilités de tous les professeurs est réservée à l'administrateur (elle l'est déjà dans les règles). Les tests unitaires des fonctions pures (`prompt-ia.service.spec.ts`) sont **écrits mais non exécutés**, conformément au contrat de vérification (§3).
+
+## 2026-11-05 — Attribution des créneaux à l'ensemble des professeurs
+**Contexte :** l'espace administrateur (`/admin/import`) permettait d'attribuer des créneaux à une liste de `login` Oasis saisie au clavier. Le besoin récurrent est inverse : attribuer un ou plusieurs créneaux **à tous les professeurs** de l'établissement, sans saisie.
+**Décision :**
+- `AttributionService.preparer(saisie, nombre, tousLesProfs = false)` accepte un troisième argument : quand il vaut `true`, la cible est l'**ensemble** des professeurs de la liste Oasis (`ProfService`) et la saisie des logins est ignorée (aucun login n'est signalé « inconnu ») ;
+- l'interface (`AttributionComponent`) expose une case à cocher « Attribuer à tous les professeurs de la liste Oasis » ; le champ des logins est alors désactivé, et la prévisualisation + la confirmation restent obligatoires avant toute écriture ;
+- les lectures des créneaux déjà retenus sont désormais **parallélisées par lots de 20** (`TAILLE_LECTURE_PARALLELE`) : une attribution à toute la liste implique ~400 partitions, qu'une lecture séquentielle rendrait trop lente ;
+- les créneaux attribués sont les mêmes qu'un clic du professeur : `users/{uid}/dispos/{creneauId}`, donc visibles dans « Mes disponibilités » à la prochaine connexion.
+**Conséquences :** l'attribution de masse reste **idempotente** (`setDoc`) et exclut les créneaux déjà retenus par chaque professeur. La liste Oasis fait foi pour « l'ensemble des professeurs » : un professeur qui s'est identifié en saisie libre (nom arbitraire) ne peut pas être ciblé (cf. l'ADR sur l'attribution). Tests unitaires **écrits mais non exécutés** (contrat §3).

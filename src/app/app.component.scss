@@ -10,7 +10,7 @@
   box-sizing: border-box;
   width: 100%;
   // Desktop ≥ 1280 px et tablette : largeur max 1100 px centrée (F7).
-  max-width: 1100px;
+
   margin: 0 auto;
   // Padding échelonné piloté par le token global : 48 / 24 / 16 px.
   padding: var(--md-content-padding);

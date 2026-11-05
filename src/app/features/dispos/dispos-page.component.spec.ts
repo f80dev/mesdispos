@@ -48,6 +48,8 @@ class FauxDispoService {
   });
 
   readonly nombreRetenus = computed(() => this.retenus().length);
+
+  readonly idsSelectionnes = computed<ReadonlySet<string>>(() => new Set(this.retenusIds()));
 }
 
 describe('DisposPageComponent (F3 / F4)', () => {
@@ -55,9 +57,9 @@ describe('DisposPageComponent (F3 / F4)', () => {
   let creneaux: FauxCreneauService;
   let dispo: FauxDispoService;
 
-  function texteSection(index: number): string {
-    const titres = fixture.nativeElement.querySelectorAll('h2') as NodeListOf<HTMLElement>;
-    return titres[index]?.textContent?.trim() ?? '';
+  function titreSection(id: string): string {
+    const titre = fixture.nativeElement.querySelector(`#${id}`) as HTMLElement | null;
+    return titre?.textContent?.trim() ?? '';
   }
 
   function textesH(): string[] {
@@ -94,17 +96,33 @@ describe('DisposPageComponent (F3 / F4)', () => {
   it("rend les deux sections dans l'ordre du cahier", () => {
     fixture.detectChanges();
 
-    expect(texteSection(0)).toContain('Créneaux disponibles');
-    expect(texteSection(1)).toContain('Mes disponibilités');
+    expect(titreSection('titre-disponibles')).toContain('Créneaux disponibles');
+    expect(titreSection('titre-retenus')).toContain('Mes disponibilités');
+  });
+
+  it('affiche la liste des créneaux disponibles au-dessus du calendrier', () => {
+    fixture.detectChanges();
+
+    const sections = [...fixture.nativeElement.querySelectorAll('section.section')];
+    const indexDisponibles = sections.findIndex((s) =>
+      s.querySelector('#titre-disponibles'),
+    );
+    const indexCalendrier = sections.findIndex((s) =>
+      s.querySelector('#titre-retenus'),
+    );
+
+    expect(indexDisponibles).toBeGreaterThanOrEqual(0);
+    expect(indexCalendrier).toBeGreaterThan(indexDisponibles);
+    expect(fixture.nativeElement.querySelector('app-creneau-calendar')).toBeTruthy();
   });
 
   it('affiche le compteur N des disponibilités', () => {
     fixture.detectChanges();
-    expect(texteSection(1)).toContain('(0)');
+    expect(titreSection('titre-retenus')).toContain('(0)');
 
     dispo.retenusIds.set([CRENEAUX[0]?.id ?? '']);
     fixture.detectChanges();
-    expect(texteSection(1)).toContain('(1)');
+    expect(titreSection('titre-retenus')).toContain('(1)');
   });
 
   it('regroupe les créneaux par jour avec le libellé français', () => {

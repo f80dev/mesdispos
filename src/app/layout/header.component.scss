@@ -40,13 +40,17 @@
 .lien-admin {
   display: flex;
   align-items: center;
+  gap: var(--md-spacing-1);
   min-height: 48px;
   padding-inline: var(--md-spacing-3);
+  border: none;
+  background: transparent;
   border-radius: var(--app-corner-full);
   color: var(--app-primary);
   text-decoration: none;
   font: var(--app-type-label-large);
   white-space: nowrap;
+  cursor: pointer;
 
   &:hover {
     background: color-mix(in srgb, var(--app-primary) 8%, transparent);
@@ -102,9 +106,11 @@
   .lien-admin {
     padding-inline: var(--md-spacing-2);
     font: var(--app-type-label-medium);
-    max-width: 12ch;
-    overflow: hidden;
-    text-overflow: ellipsis;
+  }
+
+  // Le libellé « Admin » cède la place à l'icône : le header reste compact.
+  .libelle-admin {
+    display: none;
   }
 }
 

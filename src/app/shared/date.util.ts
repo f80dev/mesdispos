@@ -234,6 +234,15 @@ export function dateLocale(valeur: string): Date | null {
   return date;
 }
 
+/**
+ * Convertit une `Date` **locale** en jour `'YYYY-MM-DD'` (getters locaux).
+ * Utilisé par le calendrier pour comparer la vue courante aux jours de
+ * créneaux disponibles.
+ */
+export function jourIso(date: Date): string {
+  return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
+}
+
 const FORMATTEUR_JOUR = new Intl.DateTimeFormat('fr-FR', {
   weekday: 'long',
   day: 'numeric',
@@ -266,6 +275,38 @@ export function libelleCreneauAccessible(creneau: CreneauAffichable, selectionne
   const date = dateLocale(creneau.date);
   const jourFr = date ? FORMATTEUR_JOUR.format(date) : creneau.date;
   return `${selectionne ? 'Retenu' : 'Disponible'} ${jourFr} de ${libelleHeure(creneau.heureDebut)} à ${libelleHeure(creneau.heureFin)}`;
+}
+
+/**
+ * Convertit un créneau en intervalle `Date` **local** pour l'affichage
+ * calendaire (plug-in `angular-calendar`).
+ *
+ * Le `Date` n'est **jamais** persisté (cf. §13) : il sert uniquement au rendu
+ * du calendrier. La date est reconstruite à partir de `'YYYY-MM-DD'` (minuit
+ * local) puis les heures `'HH:mm'` sont appliquées en local, de sorte que
+ * l'événement tombe exactement dans la colonne du jour et de la plage horaire
+ * attendus, quel que soit le fuseau du navigateur.
+ */
+export function creneauVersIntervalle(
+  creneau: CreneauAffichable,
+): { debut: Date; fin: Date } | null {
+  const jour = dateLocale(creneau.date);
+  if (!jour) {
+    return null;
+  }
+  const debut = /^(\d{1,2}):(\d{2})$/.exec(creneau.heureDebut.trim());
+  const fin = /^(\d{1,2}):(\d{2})$/.exec(creneau.heureFin.trim());
+  if (!debut || !fin) {
+    return null;
+  }
+  const heureDebut = Number.parseInt(debut[1] as string, 10);
+  const minuteDebut = Number.parseInt(debut[2] as string, 10);
+  const heureFin = Number.parseInt(fin[1] as string, 10);
+  const minuteFin = Number.parseInt(fin[2] as string, 10);
+  return {
+    debut: new Date(jour.getFullYear(), jour.getMonth(), jour.getDate(), heureDebut, minuteDebut),
+    fin: new Date(jour.getFullYear(), jour.getMonth(), jour.getDate(), heureFin, minuteFin),
+  };
 }
 
 /** Regroupe des créneaux par jour en conservant le tri (F3). */

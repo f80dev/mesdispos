@@ -256,6 +256,34 @@ Les règles Firestore (`firestore.rules`) accordent à l'administrateur
 inscrit dans `admins/{uid}` l'écriture dans **toute** partition
 `users/{uid}/dispos` — c'est la contrepartie nécessaire de cette fonction.
 
+## Prompt IA (espace administrateur)
+
+Le menu **« Admin »** du header (visible uniquement pour un administrateur
+inscrit dans `admins/{uid}`) ouvre la page `/admin/prompt`.
+
+Cette page assemble un **prompt prêt à coller dans une IA** :
+
+1. le gabarit `public/template.md` est lu (et ses champs entre accolades
+   remplacés) ;
+2. `{{csv_liste_memoire}}` ← la liste des mémoires de `public/memoires.xlsx` ;
+3. `{{csv_liste_dispo}}` ← la liste des professeurs **avec leurs
+   disponibilités** (documents `users/{uid}/dispos` lus en *collection group*) ;
+4. `{{csv_liste_salle}}` ← la liste des salles de `public/salles.xlsx`.
+
+Le bouton **« Copier dans le presse-papiers »** place le prompt assemblé dans
+le presse-papiers ; un aperçu du texte est affiché sous les compteurs.
+
+Tout se passe **dans le navigateur** : aucun fichier ni aucune donnée n'est
+envoyé à un serveur. La lecture des disponibilités de tous les professeurs est
+réservée à l'administrateur (`firestore.rules`).
+
+Format du CSV des disponibilités (une ligne par professeur) :
+
+```csv
+login,nom,prenom,nb_creneaux,disponibilites
+judith.abensour,ABENSOUR,Judith,2,2026-01-12 08:45-09:30; 2026-01-13 10:00-11:00
+```
+
 ## Commandes
 
 ```bash

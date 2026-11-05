@@ -103,13 +103,9 @@
       Continuer
     </button>
 
-    <button class="lien-secondaire" type="button" (click)="utiliserUnAutreNom()">
-      Utiliser un autre nom
-    </button>
   </form>
 
-  @if (demandeAdmin()) {
-    <div class="carte carte-admin">
+  <div class="carte carte-admin">
       <h2 class="titre-admin">Espace administrateur</h2>
       <p class="aide">
         Réservé à l'import des créneaux. Connectez-vous avec votre compte Google administrateur.
@@ -140,6 +136,5 @@
           >. Ce document doit exister dans la collection <code>admins</code> pour autoriser l'accès.
         </p>
       }
-    </div>
-  }
+  </div>
 </section>

@@ -1,6 +1,7 @@
 import { Component, computed, inject } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
+import { MatMenuModule } from '@angular/material/menu';
 import { Router, RouterLink } from '@angular/router';
 
 import { AdminService } from '../core/admin.service';
@@ -12,7 +13,7 @@ import { ROUTES } from '../app.routes';
 // Desktop: logo « MesDispos », nom + avatar à droite, lien admin si concerné.
 @Component({
   selector: 'app-header',
-  imports: [RouterLink, MatIconModule, MatButtonModule],
+  imports: [RouterLink, MatIconModule, MatButtonModule, MatMenuModule],
   templateUrl: './header.component.html',
   styleUrl: './header.component.scss',
 })

@@ -9,6 +9,13 @@
   width: 100%;
 }
 
+.colonnes {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--md-spacing-5);
+  min-width: 0;
+}
+
 .section {
   display: flex;
   flex-direction: column;
@@ -32,17 +39,49 @@
   }
 }
 
+// Pastille de compteur alignée à droite du titre de section.
+.compteur {
+  margin-left: auto;
+  min-width: 28px;
+  padding: 0 var(--md-spacing-2);
+  border-radius: var(--app-corner-full);
+  background: var(--app-surface-container-high);
+  color: var(--app-on-surface-variant);
+  font: var(--app-type-label-medium);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+// Planning : un jour = une colonne, l'en-tête de colonne porte le jour.
+.planning {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--md-spacing-4);
+  min-width: 0;
+}
+
 .jour {
   display: flex;
   flex-direction: column;
   gap: var(--md-spacing-2);
+  min-width: 0;
 }
 
+// En-tête de colonne : jour + nombre de créneaux.
 .jour-titre {
+  display: flex;
+  align-items: baseline;
+  gap: var(--md-spacing-2);
   margin: 0;
+  padding-bottom: var(--md-spacing-1);
+  border-bottom: 1px solid var(--app-outline-variant);
   font: var(--app-type-label-large);
   color: var(--app-on-surface-variant);
   text-transform: capitalize;
+  position: sticky;
+  top: 0;
+  background: var(--app-surface);
+  z-index: 1;
 }
 
 .liste {
@@ -86,26 +125,35 @@
 // Desktop ≥ 900 px : grille 2 colonnes (F3, F7).
 @media (min-width: 900px) {
   .page {
-    grid-template-columns: 1fr 1fr;
+    gap: var(--md-spacing-6);
+  }
+
+  // Les deux sections s'empilent en pleine largeur : le découpage en colonnes
+  // est porté par les jours (en-têtes de colonne), pas par les sections.
+  .colonnes {
+    grid-template-columns: 1fr;
     gap: var(--md-spacing-6);
     align-items: start;
   }
 
-  .liste {
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  // Chaque jour = une colonne de planning.
+  .planning {
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: var(--md-spacing-4);
   }
 }
 
-// Tablette ≤ 900 px : cartes sur 2 colonnes de largeur égale quand le texte le permet.
+// Tablette ≤ 900 px : 2 colonnes de jours quand la largeur le permet.
 @media (min-width: 601px) and (max-width: 899px) {
-  .liste {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .planning {
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   }
 }
 
 // Mobile ≤ 600 px : une seule colonne, sections empilées (F7).
 @media (max-width: 600px) {
-  .page {
+  .page,
+  .colonnes {
     gap: var(--md-spacing-4);
   }
 }

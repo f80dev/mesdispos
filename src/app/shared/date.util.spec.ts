@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 
 import {
   LONGUEUR_NOM_MAX,
+  creneauVersIntervalle,
   grouperParJour,
   libelleCreneauAccessible,
   libelleHeure,
@@ -205,5 +206,31 @@ describe("libellés d'accessibilité", () => {
     expect(
       libelleCreneauAccessible({ date: 'nawak', heureDebut: '08:45', heureFin: '09:30' }, false),
     ).toContain('nawak');
+  });
+
+  it('convertit un créneau en intervalle local pour le calendrier', () => {
+    const intervalle = creneauVersIntervalle({
+      date: '2026-01-12',
+      heureDebut: '08:45',
+      heureFin: '09:30',
+    });
+
+    expect(intervalle).not.toBeNull();
+    expect(intervalle?.debut.getFullYear()).toBe(2026);
+    expect(intervalle?.debut.getMonth()).toBe(0);
+    expect(intervalle?.debut.getDate()).toBe(12);
+    expect(intervalle?.debut.getHours()).toBe(8);
+    expect(intervalle?.debut.getMinutes()).toBe(45);
+    expect(intervalle?.fin.getHours()).toBe(9);
+    expect(intervalle?.fin.getMinutes()).toBe(30);
+  });
+
+  it('refuse un créneau dont la date ou les heures sont illisibles', () => {
+    expect(
+      creneauVersIntervalle({ date: 'nawak', heureDebut: '08:45', heureFin: '09:30' }),
+    ).toBeNull();
+    expect(
+      creneauVersIntervalle({ date: '2026-01-12', heureDebut: '8h45', heureFin: '09:30' }),
+    ).toBeNull();
   });
 });
