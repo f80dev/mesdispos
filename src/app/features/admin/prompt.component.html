@@ -1,0 +1,76 @@
+<!--
+  Mobile  : boutons pleine largeur (≥ 48 px), compteurs sur une seule ligne,
+            aperçu du prompt replié (défilement interne autorisé).
+  Desktop : boutons alignés à gauche, aperçu sur toute la largeur.
+-->
+<section class="page-prompt">
+  <header class="entete">
+    <h1>Prompt IA</h1>
+    <p class="aide">
+      Construit un prompt prêt à être collé dans une IA : le gabarit
+      <code>{{ urlGabarit }}</code> dont les champs entre accolades sont remplacés par la liste des
+      mémoires (<code>{{ urlMemoires }}</code
+      >), les disponibilités des professeurs et la liste des salles (<code>{{ urlSalles }}</code
+      >).
+    </p>
+  </header>
+
+  @if (!verifie()) {
+    <mat-progress-bar mode="indeterminate" aria-label="Vérification des droits" />
+  } @else if (!autorise()) {
+    <p class="message-erreur" role="alert">{{ messageAdminRequis }}</p>
+  } @else {
+    <div class="actions">
+      <button
+        matButton
+        type="button"
+        class="bouton"
+        [disabled]="enCours() || copieEnCours()"
+        (click)="generer()"
+      >
+        @if (enCours()) {
+          <mat-spinner diameter="18" />
+        } @else {
+          <mat-icon aria-hidden="true">settings_suggest</mat-icon>
+        }
+        Générer le prompt
+      </button>
+
+      <button
+        matButton="filled"
+        type="button"
+        class="bouton"
+        [disabled]="enCours() || copieEnCours()"
+        (click)="copier()"
+      >
+        @if (copieEnCours()) {
+          <mat-spinner diameter="18" />
+        } @else {
+          <mat-icon aria-hidden="true">content_copy</mat-icon>
+        }
+        Copier dans le presse-papiers
+      </button>
+    </div>
+
+    @if (enCours()) {
+      <mat-progress-bar mode="indeterminate" aria-label="Préparation du prompt" />
+    }
+
+    @if (erreur(); as texte) {
+      <p class="message-erreur" role="alert">{{ texte }}</p>
+    }
+
+    @if (prompt(); as texte) {
+      <p class="compteurs">
+        {{ statistiques().memoires }} mémoire(s) · {{ statistiques().salles }} salle(s) ·
+        {{ statistiques().professeurs }} professeur(s) · {{ statistiques().creneaux }}
+        disponibilité(s)
+      </p>
+
+      <details class="apercu">
+        <summary>Voir le prompt assemblé</summary>
+        <pre class="texte">{{ texte }}</pre>
+      </details>
+    }
+  }
+</section>

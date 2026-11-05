@@ -1,0 +1,97 @@
+:host {
+  display: block;
+}
+
+.page-prompt {
+  display: flex;
+  flex-direction: column;
+  gap: var(--md-spacing-4);
+  width: 100%;
+}
+
+.entete h1 {
+  margin: 0 0 var(--md-spacing-2);
+  font: var(--app-type-headline-medium);
+}
+
+.aide {
+  margin: 0;
+  color: var(--app-on-surface-variant);
+  font: var(--app-type-body-medium);
+
+  code {
+    font-family: ui-monospace, 'SFMono-Regular', Menlo, monospace;
+    background: var(--app-surface-container);
+    border-radius: var(--app-corner-small);
+    padding: 0 4px;
+  }
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--md-spacing-3);
+}
+
+.bouton {
+  display: flex;
+  align-items: center;
+  gap: var(--md-spacing-2);
+  min-height: 48px;
+  padding-inline: var(--md-spacing-5);
+}
+
+.compteurs {
+  margin: 0;
+  color: var(--app-on-surface-variant);
+  font: var(--app-type-body-medium);
+}
+
+.message-erreur {
+  margin: 0;
+  padding: var(--md-spacing-3);
+  background: color-mix(in srgb, var(--app-error) 12%, var(--app-surface-container));
+  color: var(--app-on-surface);
+  font: var(--app-type-body-medium);
+}
+
+.apercu {
+  border: 1px solid var(--app-outline-variant);
+  border-radius: var(--app-corner-medium);
+  padding: var(--md-spacing-3);
+  background: var(--app-surface-container-lowest);
+
+  summary {
+    cursor: pointer;
+    min-height: 48px;
+    display: flex;
+    align-items: center;
+    font: var(--app-type-label-large);
+    color: var(--app-on-surface);
+  }
+}
+
+.texte {
+  margin: var(--md-spacing-2) 0 0;
+  max-height: 420px;
+  overflow: auto;
+  padding: var(--md-spacing-3);
+  background: var(--app-surface-container);
+  border-radius: var(--app-corner-medium);
+  font-family: ui-monospace, 'SFMono-Regular', Menlo, monospace;
+  font-size: 12px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+// Mobile ≤ 600 px : boutons pleine largeur, aperçu sur toute la largeur.
+@media (max-width: 600px) {
+  .actions {
+    flex-direction: column;
+  }
+
+  .bouton {
+    align-self: stretch;
+    justify-content: center;
+  }
+}

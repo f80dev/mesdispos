@@ -1,0 +1,161 @@
+:host {
+  display: block;
+}
+
+.calendrier {
+  display: flex;
+  flex-direction: column;
+  gap: var(--md-spacing-3);
+  min-width: 0;
+}
+
+.barre {
+  display: flex;
+  align-items: center;
+  gap: var(--md-spacing-2);
+  flex-wrap: wrap;
+}
+
+.navigation {
+  display: flex;
+  align-items: center;
+  gap: var(--md-spacing-1);
+}
+
+.titre {
+  margin: 0;
+  flex: 1 1 180px;
+  min-width: 140px;
+  font: var(--app-type-title-medium);
+  color: var(--app-on-surface);
+  text-transform: capitalize;
+  text-align: center;
+}
+
+.vues {
+  display: flex;
+  gap: var(--md-spacing-2);
+  margin-left: auto;
+}
+
+.vue-bouton {
+  min-height: 48px;
+}
+
+.vue-bouton.actif {
+  border-color: var(--app-primary);
+  color: var(--app-primary);
+  background-color: var(--app-primary-container);
+}
+
+// Contenu d'une case d'événement (template `titreEvenement`).
+.case-heure {
+  font: var(--app-type-label-medium);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.case-libelle {
+  font: var(--app-type-label-small);
+  opacity: 0.85;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+// En-tête d'un jour comportant des créneaux disponibles : liseré vert.
+:host ::ng-deep {
+  .cal-header.cal-avec-disponibles {
+    box-shadow: inset 0 -3px 0 0 var(--app-success);
+  }
+}
+
+// Légende : rappel de la signification des couleurs.
+.legende {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--md-spacing-4);
+  margin: 0;
+  color: var(--app-on-surface-variant);
+  font: var(--app-type-body-small);
+}
+
+.legende-item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--md-spacing-2);
+}
+
+.puce {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  border: 1px solid var(--app-outline);
+  background-color: transparent;
+}
+
+.puce.retenu {
+  border-color: var(--app-success);
+  background-color: var(--app-success-container);
+}
+
+.legende-aide {
+  margin-left: auto;
+}
+
+// Le plug-in `angular-calendar` impose ses couleurs par défaut (bleu 2003) :
+// elles sont remplacées par les rôles M3 dans `src/styles.scss` (feuille
+// globale, chargée après celle du plug-in). On ne fait ici que l'adaptatif.
+:host ::ng-deep {
+  .cal-week-view .cal-header {
+    text-transform: capitalize;
+  }
+
+  .cal-week-view .cal-header span {
+    text-transform: none;
+  }
+
+  .cal-event-title {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    overflow: hidden;
+  }
+}
+
+// La grille (vue semaine / jour) peut être plus large que l'écran : c'est
+// elle qui défile horizontalement, pas la barre de navigation ni la page.
+.grille {
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+}
+
+:host ::ng-deep {
+  .cal-week-view {
+    min-width: 620px;
+  }
+
+  .cal-day-view {
+    min-width: 320px;
+  }
+}
+
+// Mobile : la grille défile seule ; la page, elle, ne défile jamais
+// horizontalement (AC-19).
+@media (max-width: 900px) {
+  .titre {
+    order: -1;
+    flex-basis: 100%;
+    text-align: left;
+  }
+
+  .vues {
+    margin-left: auto;
+  }
+
+  .legende-aide {
+    margin-left: 0;
+    flex-basis: 100%;
+  }
+}

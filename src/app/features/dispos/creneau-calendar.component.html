@@ -1,0 +1,147 @@
+<!--
+  Mobile: calendrier sur une seule colonne (vue « jour » par défaut en dessous de
+            900 px), navigation compacte, cibles tactiles ≥ 48 px.
+  Desktop: vue « semaine » par défaut (7 colonnes), navigation complète.
+-->
+<div class="calendrier">
+  <div class="barre">
+    <div class="navigation">
+      <button
+        matIconButton
+        type="button"
+        mwlCalendarPreviousView
+        [view]="vue()"
+        [viewDate]="viewDate()"
+        (viewDateChange)="viewDate.set($event)"
+        aria-label="Période précédente"
+      >
+        <mat-icon>chevron_left</mat-icon>
+      </button>
+
+      <button
+        matIconButton
+        type="button"
+        mwlCalendarToday
+        [viewDate]="viewDate()"
+        (viewDateChange)="viewDate.set($event)"
+        aria-label="Aujourd'hui"
+      >
+        <mat-icon>today</mat-icon>
+      </button>
+
+      <button
+        matIconButton
+        type="button"
+        mwlCalendarNextView
+        [view]="vue()"
+        [viewDate]="viewDate()"
+        (viewDateChange)="viewDate.set($event)"
+        aria-label="Période suivante"
+      >
+        <mat-icon>chevron_right</mat-icon>
+      </button>
+    </div>
+
+    <h3 class="titre">
+      {{ viewDate() | calendarDate: vue() + 'ViewTitle' : locale : weekStartsOn }}
+    </h3>
+
+    <div class="vues" role="group" aria-label="Vue du calendrier">
+      <button
+        matButton="outlined"
+        type="button"
+        class="vue-bouton"
+        [class.actif]="vue() === CalendarView.Week"
+        [attr.aria-pressed]="vue() === CalendarView.Week"
+        (click)="changerVue(CalendarView.Week)"
+      >
+        Semaine
+      </button>
+      <button
+        matButton="outlined"
+        type="button"
+        class="vue-bouton"
+        [class.actif]="vue() === CalendarView.Day"
+        [attr.aria-pressed]="vue() === CalendarView.Day"
+        (click)="changerVue(CalendarView.Day)"
+      >
+        Jour
+      </button>
+    </div>
+  </div>
+
+  <div class="grille">
+    @if (vue() === CalendarView.Week) {
+      <mwl-calendar-week-view
+        [viewDate]="viewDate()"
+        [events]="evenements()"
+        [locale]="locale"
+        [weekStartsOn]="weekStartsOn"
+        [dayStartHour]="heureDebut()"
+        [dayEndHour]="heureFin()"
+        [hourSegments]="2"
+        [hourSegmentHeight]="32"
+        [minimumEventHeight]="28"
+        [eventTitleTemplate]="titreEvenement"
+        [headerTemplate]="enteteSemaine"
+        [tooltipAppendToBody]="true"
+        (eventClicked)="surClicEvenement($event.event)"
+      />
+    } @else {
+      <mwl-calendar-day-view
+        [viewDate]="viewDate()"
+        [events]="evenements()"
+        [locale]="locale"
+        [dayStartHour]="heureDebut()"
+        [dayEndHour]="heureFin()"
+        [hourSegments]="2"
+        [hourSegmentHeight]="32"
+        [minimumEventHeight]="28"
+        [eventTitleTemplate]="titreEvenement"
+        [tooltipAppendToBody]="true"
+        (eventClicked)="surClicEvenement($event.event)"
+      />
+    }
+  </div>
+
+  <!--
+    Contenu d'une case d'événement : l'horaire en ligne 1, le libellé du
+    créneau en ligne 2 (tronqué). Le clic reste géré par le plug-in.
+  -->
+  <ng-template #titreEvenement let-event="event">
+    <span class="case-heure">{{ event.title }}</span>
+    @if (libelleEvenement(event); as libelle) {
+      <span class="case-libelle">{{ libelle }}</span>
+    }
+  </ng-template>
+
+  <!-- En-têtes de colonnes : jour de la semaine + numéro du jour. -->
+  <ng-template #enteteSemaine let-days="days">
+    <div class="cal-day-headers" role="row">
+      @for (day of days; track day.date.toISOString()) {
+        <div
+          class="cal-header"
+          [class.cal-past]="day.isPast"
+          [class.cal-today]="day.isToday"
+          [class.cal-future]="day.isFuture"
+          [class.cal-weekend]="day.isWeekend"
+          [class.cal-avec-disponibles]="aDesAffiches(day.date)"
+          role="columnheader"
+        >
+          <b>{{ day.date | calendarDate: 'weekViewColumnHeader' : locale }}</b>
+          <span>{{ day.date | calendarDate: 'weekViewColumnSubHeader' : locale }}</span>
+        </div>
+      }
+    </div>
+  </ng-template>
+
+  <p class="legende">
+    <span class="legende-item">
+      <span class="puce retenu" aria-hidden="true"></span>
+      Vous êtes disponible (vert)
+    </span>
+    <span class="legende-aide">
+      Cliquez sur un créneau du calendrier pour retirer votre disponibilité.
+    </span>
+  </p>
+</div>

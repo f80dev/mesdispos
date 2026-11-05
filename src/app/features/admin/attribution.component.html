@@ -1,0 +1,189 @@
+<!--
+  Mobile  : champs pleine largeur, boutons 48 px empilés, tableau des
+            professeurs en cartes (libellés via data-intitule).
+  Desktop : tableau à 4 colonnes, boutons alignés à gauche.
+-->
+<section class="zone-attribution" aria-labelledby="titre-attribution">
+  <h2 id="titre-attribution" class="titre-section">Attribuer des créneaux à des professeurs</h2>
+  <p class="aide">
+    Saisissez les <code>login</code> Oasis des professeurs (un par ligne) et le nombre de créneaux à
+    leur attribuer. Les créneaux sont <strong>tirés au hasard</strong> parmi ceux que le professeur
+    n'a pas encore retenus, et enregistrés
+    <strong>comme si chaque professeur les avait lui-même cochés</strong> : ils apparaissent dans «
+    Mes disponibilités » à sa prochaine connexion.
+  </p>
+
+  @if (!autorise()) {
+    <p class="message-erreur" role="alert">{{ messageAdminRequis }}</p>
+  } @else {
+    <mat-checkbox class="case-tous" [checked]="tousLesProfs()" (change)="surTousLesProfs($event)">
+      Attribuer à <strong>tous les professeurs</strong> de la liste Oasis
+    </mat-checkbox>
+
+    @if (tousLesProfs()) {
+      <p class="aide">
+        La liste des logins est ignorée : les créneaux seront attribués à chaque professeur de
+        l'établissement, tirés au hasard pour chacun. Prévisualisez avant d'écrire.
+      </p>
+    }
+
+    <mat-form-field appearance="outline" class="champ-logins">
+      <mat-label>Logins des professeurs</mat-label>
+      <textarea
+        matInput
+        rows="6"
+        autocomplete="off"
+        placeholder="judith.abensour&#10;paul.dupont"
+        [disabled]="tousLesProfs()"
+        [value]="logins()"
+        (input)="surLogins($event)"
+      ></textarea>
+      <mat-hint>Un login par ligne (ou séparés par des espaces, virgules).</mat-hint>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" class="champ-nombre">
+      <mat-label>Créneaux par professeur</mat-label>
+      <input
+        matInput
+        type="number"
+        min="1"
+        [max]="maxCreneaux"
+        step="1"
+        [value]="nombre()"
+        (input)="surNombre($event)"
+      />
+      <mat-hint>Entre 1 et {{ maxCreneaux }}.</mat-hint>
+    </mat-form-field>
+
+    @if (enCours()) {
+      <mat-progress-bar mode="indeterminate" aria-label="Traitement en cours" />
+    }
+
+    @if (erreur(); as texte) {
+      <p class="message-erreur" role="alert">{{ texte }}</p>
+    }
+
+    <button
+      matButton="outlined"
+      type="button"
+      class="bouton-attribution"
+      [disabled]="enCours() || !peutPreparer()"
+      (click)="preparer()"
+    >
+      <mat-icon aria-hidden="true">list_alt</mat-icon>
+      Prévisualiser l'attribution
+    </button>
+
+    @if (plan(); as apercu) {
+      <h3 class="titre-sous-section">
+        {{ apercu.cibles.length }} professeur(s) — {{ totalCreneaux() }} créneau(x) à attribuer
+      </h3>
+
+      <div class="table-wrapper">
+        <table class="tableau">
+          <thead>
+            <tr>
+              <th scope="col">Login</th>
+              <th scope="col">Professeur</th>
+              <th scope="col">Déjà retenus</th>
+              <th scope="col">Créneaux attribués</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (cible of ciblesAffichees(); track cible.login) {
+              <tr>
+                <td data-intitule="Login">{{ cible.login }}</td>
+                <td data-intitule="Professeur">{{ cible.nomComplet }}</td>
+                <td data-intitule="Déjà retenus">{{ cible.dejaRetenus }}</td>
+                <td data-intitule="Créneaux attribués">
+                  @if (cible.creneaux.length === 0) {
+                    <span class="vide">—</span>
+                  } @else {
+                    <ul class="liste-creneaux">
+                      @for (creneau of cible.creneaux; track creneau.id) {
+                        <li>
+                          {{ creneau.date | dateGroup }} — {{ creneau.heureDebut }}–{{
+                            creneau.heureFin
+                          }}
+                        </li>
+                      }
+                    </ul>
+                  }
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      @if (ciblesRestantes().length > 0) {
+        <details class="inconnus">
+          <summary>
+            {{ ciblesRestantes().length }} autre(s) professeur(s) dans l'attribution (détail)
+          </summary>
+          <ul class="liste-inconnus">
+            @for (cible of ciblesRestantes(); track cible.login) {
+              <li>{{ cible.login }} — {{ cible.nomComplet }}</li>
+            }
+          </ul>
+        </details>
+      }
+
+      @if (apercu.inconnus.length > 0) {
+        <details class="inconnus">
+          <summary>
+            {{ apercu.inconnus.length }} login(s) inconnu(s) de la liste Oasis (détail)
+          </summary>
+          <ul class="liste-inconnus">
+            @for (login of apercu.inconnus; track login) {
+              <li>{{ login }}</li>
+            }
+          </ul>
+        </details>
+      }
+
+      @if (confirmation()) {
+        <p class="message-confirmation" role="alert">
+          Confirmez-vous l'attribution de {{ totalCreneaux() }} disponibilité(s) à
+          {{ apercu.cibles.length }} professeur(s) ?
+        </p>
+        <div class="actions">
+          <button
+            matButton="outlined"
+            type="button"
+            class="bouton-attribution"
+            [disabled]="enCours()"
+            (click)="annulerConfirmation()"
+          >
+            Annuler
+          </button>
+          <button
+            matButton="filled"
+            type="button"
+            class="bouton-attribution"
+            [disabled]="enCours() || totalCreneaux() === 0"
+            (click)="attribuer()"
+          >
+            @if (enCours()) {
+              <mat-spinner diameter="18" />
+            } @else {
+              <mat-icon aria-hidden="true">check</mat-icon>
+            }
+            Attribuer
+          </button>
+        </div>
+      } @else {
+        <button
+          matButton="filled"
+          type="button"
+          class="bouton-attribution"
+          [disabled]="enCours() || totalCreneaux() === 0"
+          (click)="demanderConfirmation()"
+        >
+          <mat-icon aria-hidden="true">person_add</mat-icon>
+          Attribuer {{ totalCreneaux() }} créneau(x)
+        </button>
+      }
+    }
+  }
+</section>
