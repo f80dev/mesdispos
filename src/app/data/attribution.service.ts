@@ -31,11 +31,12 @@
  */
 import { Injectable, inject, signal } from '@angular/core';
 
-import { FIRESTORE_BACKEND } from '../core/firestore.backend';
+import { FIRESTORE_BACKEND, parLots } from '../core/firestore.backend';
 import { MESSAGE_CONFIG_MANQUANTE } from '../core/firebase';
 import { utilisateurAnonyme } from '../core/auth.service';
 import { CreneauService } from './creneau.service';
 import { ProfService, type Prof } from './prof.service';
+import { champsCreneauDenormalises } from '../shared/date.util';
 import type { Creneau } from './models';
 
 /**
@@ -236,8 +237,7 @@ export class AttributionService {
       // Lectures des créneaux déjà retenus : par lots de 20 en parallèle
       // (l'attribution à tous les professeurs implique ~400 partitions).
       const retenus = new Map<string, string[]>();
-      for (let debut = 0; debut < connus.length; debut += TAILLE_LECTURE_PARALLELE) {
-        const lot = connus.slice(debut, debut + TAILLE_LECTURE_PARALLELE);
+      for (const lot of parLots(connus, TAILLE_LECTURE_PARALLELE)) {
         const resultats = await Promise.all(
           lot.map(async ({ prof }) => {
             // Même calcul d'`uid` que la connexion « liste Oasis » : le nom
@@ -325,11 +325,7 @@ export class AttributionService {
   /** Document `dispos` — même forme que celui écrit par `DispoService`. */
   private documentDispo(cible: CibleAttribution, creneau: Creneau): Record<string, unknown> {
     return {
-      creneauId: creneau.id,
-      date: creneau.date,
-      heureDebut: creneau.heureDebut,
-      heureFin: creneau.heureFin,
-      ...(creneau.libelle ? { libelle: creneau.libelle } : {}),
+      ...champsCreneauDenormalises(creneau),
       login: cible.login,
       nom: cible.nom,
       prenom: cible.prenom,

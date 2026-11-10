@@ -1,6 +1,6 @@
 {
   "name": "mesdispos",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "scripts": {
     "ng": "ng",
     "start": "ng serve",
@@ -10,6 +10,7 @@
     "test:watch": "ng test --watch",
     "test:e2e": "playwright test",
     "test:e2e:install": "playwright install",
+    "deploy": "node increment-version.js && ng build && npx wrangler pages deploy dist/mesdispos/browser --project-name=mesdispo",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },

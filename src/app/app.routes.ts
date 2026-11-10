@@ -9,6 +9,7 @@ export const ROUTES = {
   dispos: '/dispos',
   admin: '/admin/import',
   adminPrompt: '/admin/prompt',
+  adminDispos: '/admin/dispos',
 } as const;
 
 /**
@@ -37,8 +38,14 @@ export const routes: Routes = [
     // Prompt IA (gabarit `template.md` + CSV) : réservé à l'administrateur.
     path: 'admin/prompt',
     canActivate: [adminGuard],
+    loadComponent: () => import('./features/admin/prompt.component').then((m) => m.PromptIaComponent),
+  },
+  {
+    // Disponibilités des professeurs : liste cochable + calendrier agrégé.
+    path: 'admin/dispos',
+    canActivate: [adminGuard],
     loadComponent: () =>
-      import('./features/admin/prompt.component').then((m) => m.PromptIaComponent),
+      import('./features/admin/dispo-prof.component').then((m) => m.DispoProfComponent),
   },
   { path: '', pathMatch: 'full', redirectTo: 'dispos' },
   { path: '**', redirectTo: '' },

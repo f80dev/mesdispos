@@ -1,0 +1,15 @@
+// =============================================================================
+// MesDispos — Webfont de marque
+// =============================================================================
+//
+// « Outfit » est la webfont de repli de la « Bascule » (propriétaire) utilisée
+// par l'ENSAD sur ensad.fr ; c'est celle que le site officiel charge
+// également depuis Google Fonts. Elle est déclarée ici afin que la feuille
+// de style reste autonome (et que le chargement de la fonte ne dépende pas
+// du gabarit HTML).
+//
+// @import est placé en tête de feuille : la règle CSS doit précéder toute
+// autre règle pour être valide.
+// =============================================================================
+
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap');

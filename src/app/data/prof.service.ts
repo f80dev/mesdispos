@@ -1,7 +1,15 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 
 import { CoursServices, type ProfOasis, type SujetOasis } from '../core/cours.services';
+import { XLSX_BACKEND } from '../core/xlsx.backend';
+
+/** Fichier de repli servi par l'hébergement (`public/profs.xlsx`). */
+export const URL_PROFS = '/profs.xlsx';
+
+/** Feuille du classeur `profs.xlsx` qui contient la liste des enseignants. */
+export const FEUILLE_ENSEIGNANTS = 'Enseignants';
 
 /**
  * Un professeur de l'ENSAD, vu par l'application (mode A de la connexion).
@@ -138,6 +146,27 @@ export function normaliserRecherche(texte: string | null | undefined): string {
 }
 
 /**
+ * Filtre une liste sur un texte libre : chaque mot de la requête (normalisé)
+ * doit apparaître dans le texte de l'élément produit par `texteDe`.
+ *
+ * Fonction **pure** : testable sans Angular ni réseau.
+ */
+export function filtrerParRecherche<T>(
+  elements: readonly T[],
+  requete: string | null | undefined,
+  texteDe: (element: T) => string,
+): T[] {
+  const mots = normaliserRecherche(requete).split(' ').filter(Boolean);
+  if (mots.length === 0) {
+    return [...elements];
+  }
+  return elements.filter((element) => {
+    const cible = normaliserRecherche(texteDe(element));
+    return mots.every((mot) => cible.includes(mot));
+  });
+}
+
+/**
  * Filtre la liste des enseignants sur le **nom** et le **prénom** (et, par
  * commodité, le `login`). La requête est découpée en mots : tous les mots
  * doivent être présents, dans le nom ou le prénom.
@@ -145,16 +174,99 @@ export function normaliserRecherche(texte: string | null | undefined): string {
  * Fonction **pure** : testable sans Angular ni réseau.
  */
 export function filtrerProfs(profs: readonly Prof[], requete: string | null | undefined): Prof[] {
-  const mots = normaliserRecherche(requete).split(' ').filter(Boolean);
-  if (mots.length === 0) {
-    return [...profs];
+  return filtrerParRecherche(
+    profs,
+    requete,
+    (prof) => `${prof.prenom} ${prof.nom} ${prof.login} ${prof.nomComplet}`,
+  );
+}
+
+/**
+ * Normalise un en-tête de colonne : minuscules, sans accents ni ponctuation.
+ */
+function normaliserEntete(texte: unknown): string {
+  return String(texte ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+}
+
+/** Index de la première colonne dont l'en-tête contient `motif` (hors colonnes exclues). */
+function indexDeColonne(
+  entetes: readonly string[],
+  motif: string,
+  exclus: readonly number[] = [],
+): number {
+  return entetes.findIndex((entete, index) => !exclus.includes(index) && entete.includes(motif));
+}
+
+/** Valeur d'une cellule ramenée à une chaîne nettoyée. */
+function texteCellule(cellule: unknown): string {
+  return typeof cellule === 'string' ? cellule.trim() : cellule == null ? '' : String(cellule).trim();
+}
+
+/**
+ * Normalise la feuille `Enseignants` du classeur `profs.xlsx`.
+ *
+ * Le classeur est le **repli** de l'API Oasis : mêmes notions, colonnes
+ * libellées « Identité / Identifiant Oasis », « Identité / Nom usuel »,
+ * « Identité / Prénom usuel » et « Secteur ». Les colonnes sont reconnues par
+ * leur en-tête ; en cas d'en-tête inconnu, l'ordre des colonnes du fichier
+ * (`login`, `nom`, `prénom`, `secteur`) est utilisé.
+ *
+ * Fonction **pure** : testable sans Angular ni réseau.
+ */
+export function normaliserProfsExcel(rangees: readonly unknown[][]): Prof[] {
+  if (!rangees || rangees.length === 0) {
+    return [];
   }
-  return profs.filter((prof) => {
-    const cible = normaliserRecherche(
-      `${prof.prenom} ${prof.nom} ${prof.login} ${prof.nomComplet}`,
-    );
-    return mots.every((mot) => cible.includes(mot));
-  });
+  const entetes = (rangees[0] ?? []).map(normaliserEntete);
+
+  // Le prénom est cherché avant le nom : « prenom usuel » contient « nom usuel ».
+  let indexPrenom = indexDeColonne(entetes, 'prenom usuel');
+  if (indexPrenom < 0) {
+    indexPrenom = indexDeColonne(entetes, 'prenom');
+  }
+  let indexNom = indexDeColonne(entetes, 'nom usuel', indexPrenom >= 0 ? [indexPrenom] : []);
+  if (indexNom < 0) {
+    indexNom = indexDeColonne(entetes, 'nom', indexPrenom >= 0 ? [indexPrenom] : []);
+  }
+  let indexLogin = indexDeColonne(entetes, 'identifiant oasis');
+  if (indexLogin < 0) {
+    indexLogin = indexDeColonne(entetes, 'login');
+  }
+  let indexSecteur = entetes.findIndex((entete) => entete === 'secteur');
+  if (indexSecteur < 0) {
+    indexSecteur = indexDeColonne(entetes, 'secteur');
+  }
+
+  // Repli sur l'ordre des colonnes du fichier.
+  const colonnes = {
+    login: indexLogin >= 0 ? indexLogin : 0,
+    nom: indexNom >= 0 ? indexNom : 1,
+    prenom: indexPrenom >= 0 ? indexPrenom : 2,
+    secteur: indexSecteur >= 0 ? indexSecteur : 3,
+  };
+
+  const elements: ProfOasis[] = [];
+  for (const ligne of rangees.slice(1)) {
+    const login = texteCellule(ligne?.[colonnes.login]);
+    const nom = texteCellule(ligne?.[colonnes.nom]);
+    const prenom = texteCellule(ligne?.[colonnes.prenom]);
+    if (!login && !nom && !prenom) {
+      continue;
+    }
+    elements.push({
+      login,
+      nom_usuel: nom,
+      prenom_usuel: prenom,
+      secteur: texteCellule(ligne?.[colonnes.secteur]) || undefined,
+      present: 'ACT',
+    });
+  }
+  return normaliserProfs(elements);
 }
 
 /**
@@ -168,6 +280,8 @@ export function filtrerProfs(profs: readonly Prof[], requete: string | null | un
 @Injectable({ providedIn: 'root' })
 export class ProfService {
   private readonly cours = inject(CoursServices);
+  private readonly http = inject(HttpClient);
+  private readonly xlsx = inject(XLSX_BACKEND);
 
   /** Enseignants normalisés, triés par nom. */
   readonly profs = signal<Prof[]>([]);
@@ -178,12 +292,22 @@ export class ProfService {
   /** Message d'erreur de chargement, `null` si aucun. */
   readonly erreur = signal<string | null>(null);
 
+  /** Origine de la liste courante : API Oasis ou fichier `profs.xlsx`. */
+  readonly source = signal<'api' | 'fichier' | null>(null);
+
   /** Nombre d'enseignants disponibles. */
   readonly nombre = computed(() => this.profs().length);
 
   private dejaCharge = false;
 
-  /** Charge la liste (une seule fois par session de l'onglet). */
+  /**
+   * Charge la liste (une seule fois par session de l'onglet).
+   *
+   * Source primaire : l'API Oasis. Si l'appel échoue, on se replie sur le
+   * classeur `profs.xlsx` servi par l'hébergement (feuille « Enseignants »).
+   * Le repli n'échoue silencieusement : si les deux sources sont injoignables,
+   * un message d'erreur est affiché.
+   */
   async charger(): Promise<void> {
     if (this.dejaCharge || this.chargement()) {
       return;
@@ -193,12 +317,47 @@ export class ProfService {
     try {
       const reponse = await firstValueFrom(this.cours.getProfs());
       this.profs.set(normaliserProfs(reponse?.elements));
+      this.source.set('api');
       this.dejaCharge = true;
     } catch {
-      this.erreur.set('Liste des professeurs indisponible. Réessayez.');
+      const charge = await this.chargerDepuisFichier();
+      if (!charge) {
+        this.erreur.set('Liste des professeurs indisponible. Réessayez.');
+      }
     } finally {
       this.chargement.set(false);
     }
+  }
+
+  /**
+   * Repli : charge la liste des enseignants depuis `public/profs.xlsx`.
+   *
+   * @returns `true` si la liste a été chargée depuis le fichier.
+   */
+  private async chargerDepuisFichier(): Promise<boolean> {
+    let rangees: unknown[][];
+    try {
+      const buffer = await firstValueFrom(this.http.get(URL_PROFS, { responseType: 'arraybuffer' }));
+      const fichier = new File([buffer], 'profs.xlsx', {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      });
+      try {
+        rangees = await this.xlsx.lire(fichier, FEUILLE_ENSEIGNANTS);
+      } catch {
+        // Classeur sans feuille « Enseignants » : on tente la première feuille.
+        rangees = await this.xlsx.lire(fichier);
+      }
+    } catch {
+      return false;
+    }
+    const profs = normaliserProfsExcel(rangees);
+    if (profs.length === 0) {
+      return false;
+    }
+    this.profs.set(profs);
+    this.source.set('fichier');
+    this.dejaCharge = true;
+    return true;
   }
 
   /** Force un nouveau chargement (bouton « Réessayer »). */

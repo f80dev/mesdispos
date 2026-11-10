@@ -1,0 +1,87 @@
+<!--
+  Mobile  : liste des professeurs (cases à cocher) au-dessus du calendrier,
+            colonne unique, cibles tactiles ≥ 48 px.
+  Desktop : liste sur 2 colonnes au-dessus du calendrier, largeur max 1100 px.
+-->
+<section class="page">
+  <header class="entete">
+    <h1>Disponibilités des professeurs</h1>
+    <p class="aide">
+      Cochez des professeurs dans la liste : le calendrier affiche toutes leurs disponibilités,
+      superposées sur la même plage horaire.
+    </p>
+  </header>
+
+  @if (!verifie()) {
+    <mat-progress-bar mode="indeterminate" aria-label="Vérification des droits" />
+  } @else if (!autorise()) {
+    <p class="message-erreur" role="alert">{{ messageAdminRequis }}</p>
+  } @else {
+    @if (chargement()) {
+      <mat-progress-bar mode="indeterminate" aria-label="Lecture des disponibilités" />
+    }
+
+    @if (erreur(); as texte) {
+      <div class="zone-erreur" role="alert">
+        <p>{{ texte }}</p>
+        <button matButton="outlined" type="button" (click)="recharger()">Réessayer</button>
+      </div>
+    }
+
+    <div class="liste-profs">
+      <mat-form-field appearance="outline" class="champ-recherche">
+        <mat-label>Rechercher un professeur</mat-label>
+        <input
+          matInput
+          type="search"
+          autocomplete="off"
+          placeholder="Judith ABENSOUR"
+          [value]="recherche()"
+          (input)="surRecherche($event)"
+        />
+        <mat-hint>Nom, prénom ou login Oasis.</mat-hint>
+      </mat-form-field>
+
+      <div class="actions-liste">
+        <button matButton="outlined" type="button" (click)="toutCocher()">
+          <mat-icon aria-hidden="true">done_all</mat-icon>
+          Cocher tout
+        </button>
+        <button matButton="outlined" type="button" (click)="toutDecocher()">
+          <mat-icon aria-hidden="true">clear_all</mat-icon>
+          Tout décocher
+        </button>
+        <span class="compteur">
+          {{ nombreCoches() }} professeur(s) coché(s) — {{ nombreEvenements() }} disponibilité(s)
+        </span>
+      </div>
+
+      @if (profsAffiches().length === 0 && !chargement()) {
+        <p class="vide">Aucun professeur n'a déclaré de disponibilité pour l'instant.</p>
+      } @else {
+        <ul class="profs">
+          @for (prof of profsAffiches(); track prof.uid) {
+            <li>
+              <mat-checkbox
+                [checked]="estCoche(prof.uid)"
+                (change)="basculer(prof.uid, $event.checked)"
+              >
+                <span class="nom-prof">{{ prof.nomComplet }}</span>
+                @if (prof.login) {
+                  <span class="login">{{ prof.login }}</span>
+                }
+              </mat-checkbox>
+              <span class="nombre">{{ nombreDispos(prof) }}</span>
+            </li>
+          }
+        </ul>
+      }
+    </div>
+
+    @if (nombreEvenements() === 0) {
+      <p class="vide">Cochez au moins un professeur pour afficher le calendrier.</p>
+    } @else {
+      <app-profs-calendar [evenements]="evenements()" />
+    }
+  }
+</section>

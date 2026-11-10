@@ -2,9 +2,11 @@ import { describe, expect, it } from 'vitest';
 
 import {
   compterLignes,
+  compterMemoires,
   construireCsvMemoires,
   construireCsvSalles,
   csvDisponibilites,
+  formatMemoiresReconnu,
   indexerColonnesSource,
 } from './prompt-ia.service';
 import { echapperCsv, remplacerGabarit, versCsv } from '../shared/csv.util';
@@ -108,6 +110,45 @@ describe('construireCsvMemoires', () => {
         'Directeur confirmé,WHILHEM Marie,Jeudi 29 octobre 2026 à 15:32',
     );
     expect(compterLignes(csv)).toBe(1);
+  });
+});
+
+describe('formatMemoiresReconnu', () => {
+  it('reconnaît les en-têtes techniques', () => {
+    expect(formatMemoiresReconnu(EN_TETES_MEMOIRES)).toBe(true);
+  });
+
+  it('reconnaît les en-têtes humains', () => {
+    expect(
+      formatMemoiresReconnu([
+        [
+          'Identifiant unique',
+          'Étudiant',
+          'Type de mémoire',
+          'Titre',
+          'Statut du mémoire',
+          'Statut de la direction de mémoire',
+          'Directeurs / Directeur de mémoire',
+          'Date de dépôt du sujet',
+        ],
+      ]),
+    ).toBe(true);
+  });
+
+  it('refuse un classeur sans les colonnes attendues', () => {
+    expect(formatMemoiresReconnu([['a', 'b'], ['1', '2']])).toBe(false);
+  });
+});
+
+describe('compterMemoires', () => {
+  it('compte les lignes de données hors en-têtes', () => {
+    expect(
+      compterMemoires([
+        ...EN_TETES_MEMOIRES,
+        ['34', 'BENDELAC Noé', 'Mémoire M1', 'titre', 'statut', 'direct', 'WHILHEM', 'date'],
+        ['35', 'AUTRE Etudiant', 'Mémoire M1', 'titre 2', 'statut', 'direct', 'WHILHEM', 'date'],
+      ]),
+    ).toBe(2);
   });
 });
 

@@ -1,0 +1,84 @@
+// =============================================================================
+// MesDispos — Base globale (reset + typographie)
+// =============================================================================
+//
+// Règles transverses à toute l'application : fond, fonte, cibles tactiles,
+// anti-zoom iOS, débordement horizontal. Tout le reste est factorisé dans les
+// mixins (`_mixins.scss`), consommés par les SCSS de composants.
+// =============================================================================
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+  font-family: var(--md-font-family);
+  background: var(--mat-sys-surface);
+  color: var(--mat-sys-on-surface);
+  // Pas de débordement horizontal à 375 px (AC-19) : on coupe les largeurs
+  // minimales imposées par les navigateurs plutôt que de décaler la mise en page.
+  overflow-x: hidden;
+}
+
+body {
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+// Empêche le zoom forcé iOS sur les inputs en mobile (< 16 px déclenche le zoom)
+input,
+select,
+textarea,
+button {
+  font-size: 16px;
+}
+
+// Cibles tactiles ≥ 48 px (règle AC-19 — rendu smartphone)
+.touch-target {
+  min-height: 48px;
+  min-width: 48px;
+}
+
+button {
+  touch-action: manipulation;
+}
+
+// Barres de défilement assorties au thème sombre ENSAD.
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--mat-sys-surface-container-low);
+}
+
+::-webkit-scrollbar-thumb {
+  border: 2px solid var(--mat-sys-surface-container-low);
+  border-radius: 8px;
+  background: var(--mat-sys-outline-variant);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--mat-sys-outline);
+}
+
+// -----------------------------------------------------------------------------
+// Responsive global (F7) — 1280 / 900 / 700 / 420
+// -----------------------------------------------------------------------------
+@media (max-width: 900px) {
+  :root {
+    --md-content-padding: 24px;
+  }
+}
+
+@media (max-width: 700px) {
+  :root {
+    --md-content-padding: 16px;
+  }
+}
+
+@media (max-width: 420px) {
+  :root {
+    --md-content-padding: 16px;
+  }
+}

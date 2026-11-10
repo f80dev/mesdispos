@@ -11,6 +11,11 @@
  * | `{{csv_liste_dispo}}`   | les disponibilités déclarées (Firestore) |
  * | `{{csv_liste_salle}}`   | `public/salles.xlsx` (1ʳᵉ feuille)       |
  *
+ * Le classeur des mémoires peut être **remplacé à la volée** par
+ * l'administrateur : un `.xlsx` déposé dans l'écran « Prompt IA », au même
+ * format que `memoires.xlsx`, est lu en mémoire et remplace le fichier par
+ * défaut pour les générations suivantes.
+ *
  * Tout se passe **dans le navigateur** : les fichiers sont lus par `fetch`
  * (donc servis par l'hébergement) et analysés par `read-excel-file` ; aucune
  * donnée n'est envoyée à un serveur.
@@ -54,6 +59,15 @@ export const MESSAGE_COPIE_ECHEC =
 /** Message affiché quand un fichier nécessaire est introuvable. */
 export const MESSAGE_FICHIER_MANQUANT = 'Fichier introuvable : vérifiez son déploiement.';
 
+/** Message affiché quand le fichier déposé n'est pas un classeur `.xlsx`. */
+export const MESSAGE_FORMAT_NON_PRIS_EN_CHARGE =
+  'Format non pris en charge : utilisez un fichier Excel .xlsx';
+
+/** Message affiché quand le classeur déposé n'a pas la structure de `memoires.xlsx`. */
+export const MESSAGE_FORMAT_MEMOIRES_INCONNU =
+  'Format non reconnu : le fichier doit avoir les mêmes colonnes que memoires.xlsx ' +
+  '(identifiant, étudiant, type, titre, statut, statut de la direction, directeur, date de dépôt).';
+
 /** Message affiché quand la base des disponibilités est injoignable. */
 export const MESSAGE_BASE_INJOIGNABLE = 'Impossible de lire les disponibilités des professeurs.';
 
@@ -70,28 +84,26 @@ interface ColonneSource {
 }
 
 const COLONNES_MEMOIRES: readonly ColonneSource[] = [
-  { cle: 'identifiant', technique: 'CODE', humain: 'identifiant unique', position: 0 },
-  { cle: 'etudiant', technique: 'CODE_STUDENT', humain: 'etudiant', position: 1 },
-  { cle: 'type', technique: 'CODE_THESIS_TYPE', humain: 'type de memoire', position: 2 },
-  { cle: 'titre', technique: 'TITLE', humain: 'titre', position: 3 },
-  { cle: 'statut', technique: 'STATUS', humain: 'statut du memoire', position: 4 },
+  { cle: 'etudiant', technique: 'CODE_STUDENT', humain: 'etudiant', position: 0 },
+  { cle: 'titre', technique: 'TITLE', humain: 'titre', position: 1 },
+  { cle: 'statut', technique: 'STATUS', humain: 'statut du memoire', position: 2 },
   {
     cle: 'statut_direction',
     technique: 'DIRECTION_STATUS',
     humain: 'statut de la direction de memoire',
-    position: 5,
+    position: 3,
   },
   {
     cle: 'directeur',
     technique: 'DIRECTOR',
     humain: 'directeurs directeur de memoire',
-    position: 6,
+    position: 4,
   },
   {
     cle: 'date_depot_sujet',
     technique: 'SUBJECT_SUBMISSION_DATE',
     humain: 'date de depot du sujet',
-    position: 7,
+    position: 5,
   },
 ];
 
@@ -177,6 +189,32 @@ export function construireCsvMemoires(rangees: readonly unknown[][]): string {
 export function construireCsvSalles(rangees: readonly unknown[][]): string {
   const { entetes, lignes } = lignesVersCsv(rangees, COLONNES_SALLES);
   return versCsv(entetes, lignes);
+}
+
+/**
+ * Vrai si les lignes brutes portent les en-têtes du fichier des mémoires
+ * (noms techniques `[[ CODE ]]`… ou libellés humains).
+ *
+ * Fonction **pure** : testable sans Angular ni réseau.
+ */
+export function formatMemoiresReconnu(rangees: readonly unknown[][]): boolean {
+  const premiere = rangees[0] ?? [];
+  const entetes = premiere.map(normaliserEnteteCsv);
+  const technique = COLONNES_MEMOIRES.every((colonne) =>
+    entetes.includes(normaliserEnteteCsv(colonne.technique)),
+  );
+  if (technique) {
+    return true;
+  }
+  return COLONNES_MEMOIRES.every((colonne) =>
+    entetes.includes(normaliserEnteteCsv(colonne.humain)),
+  );
+}
+
+/** Nombre de mémoires (lignes de données) contenues dans des lignes brutes. */
+export function compterMemoires(rangees: readonly unknown[][]): number {
+  const { lignes } = lignesVersCsv(rangees, COLONNES_MEMOIRES);
+  return lignes.length;
 }
 
 /** Identité d'un professeur, dénormalisée dans la disponibilité ou le profil. */
@@ -323,16 +361,62 @@ export class PromptIaService {
     creneaux: 0,
   });
 
+  /** Nom du classeur des mémoires importé (`null` si le fichier par défaut est utilisé). */
+  readonly fichierMemoires = signal<string | null>(null);
+
+  /** Nombre de mémoires détectées dans le classeur importé. */
+  readonly nbMemoiresImportees = signal<number>(0);
+
+  /** Lignes brutes du classeur importé (mémoire vive, jamais écrit sur disque). */
+  private rangeesMemoires: unknown[][] | null = null;
+
+  /**
+   * Importe un classeur des mémoires **au format `memoires.xlsx`**.
+   *
+   * Le classeur remplace alors le fichier `public/memoires.xlsx` pour les
+   * prochaines générations de prompt. Il reste en mémoire : rien n'est
+   * envoyé à un serveur ni conservé sur le disque.
+   *
+   * @param fichier le classeur `.xlsx` déposé par l'administrateur
+   * @returns le nombre de mémoires détectées
+   */
+  async importerMemoires(fichier: File): Promise<number> {
+    if (!/\.xlsx$/i.test(fichier.name)) {
+      throw new Error(MESSAGE_FORMAT_NON_PRIS_EN_CHARGE);
+    }
+    let rangees: unknown[][];
+    try {
+      rangees = await this.xlsx.lire(fichier);
+    } catch {
+      throw new Error('Fichier illisible ou corrompu.');
+    }
+    if (!formatMemoiresReconnu(rangees)) {
+      throw new Error(MESSAGE_FORMAT_MEMOIRES_INCONNU);
+    }
+    const nombre = compterMemoires(rangees);
+    this.rangeesMemoires = rangees;
+    this.fichierMemoires.set(fichier.name);
+    this.nbMemoiresImportees.set(nombre);
+    return nombre;
+  }
+
+  /** Retire le classeur importé : le fichier `public/memoires.xlsx` est réutilisé. */
+  retirerMemoires(): void {
+    this.rangeesMemoires = null;
+    this.fichierMemoires.set(null);
+    this.nbMemoiresImportees.set(0);
+  }
+
   /** Assemble le prompt complet (gabarit + trois blocs CSV). */
   async generer(): Promise<string> {
     this.enCours.set(true);
     this.erreur.set(null);
     try {
-      const [gabarit, memoires, salles] = await Promise.all([
+      const [gabarit, salles] = await Promise.all([
         this.chargerTexte(URL_GABARIT),
-        this.chargerClasseur(URL_MEMOIRES),
         this.chargerClasseur(URL_SALLES),
       ]);
+      const memoires = this.rangeesMemoires ?? (await this.chargerClasseur(URL_MEMOIRES));
 
       const [profils, dispos] = await this.chargerDisponibilites();
 

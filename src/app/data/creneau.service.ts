@@ -2,7 +2,7 @@ import { Injectable, inject, signal } from '@angular/core';
 
 import { AUCUN_ABONNEMENT, FIRESTORE_BACKEND, type Abonnement } from '../core/firestore.backend';
 import { MESSAGE_CONFIG_MANQUANTE } from '../core/firebase';
-import { normalizeDate, normalizeHeure, trierCreneaux } from '../shared/date.util';
+import { normaliserChampsCreneau, trierCreneaux } from '../shared/date.util';
 import type { Creneau } from './models';
 
 /** Message d'erreur de lecture affiché à l'utilisateur (F3). */
@@ -15,21 +15,11 @@ export const MESSAGE_LECTURE_CREENEAUX =
  * plutôt que d'afficher une ligne cassée.
  */
 export function versCreneau(id: string, data: Record<string, unknown>): Creneau | null {
-  const date = normalizeDate(data['date']);
-  const debut = normalizeHeure(data['heureDebut']);
-  const fin = normalizeHeure(data['heureFin']);
-  if (!date.ok || !debut.ok || !fin.ok || fin.valeur <= debut.valeur) {
+  const champs = normaliserChampsCreneau(data);
+  if (!champs || champs.heureFin <= champs.heureDebut) {
     return null;
   }
-  const brut = data['libelle'];
-  const libelle = typeof brut === 'string' && brut.trim().length > 0 ? brut.trim() : undefined;
-  return {
-    id,
-    date: date.valeur,
-    heureDebut: debut.valeur,
-    heureFin: fin.valeur,
-    ...(libelle ? { libelle } : {}),
-  };
+  return { id, ...champs };
 }
 
 /**

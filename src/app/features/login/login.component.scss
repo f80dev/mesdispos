@@ -1,3 +1,9 @@
+// -----------------------------------------------------------------------------
+// MesDispos — Page de connexion (mode « Nom seul » + espace administrateur)
+// -----------------------------------------------------------------------------
+
+@use '../../../styles/mixins' as mx;
+
 :host {
   display: block;
 }
@@ -48,15 +54,13 @@
   gap: var(--md-spacing-3);
   width: 100%;
   max-width: 420px;
-  padding: var(--md-spacing-4);
-  border-radius: var(--app-corner-large);
-  background: var(--app-surface-container-lowest);
+  @include mx.carte;
   box-shadow: var(--app-elevation-1);
 }
 
 .champ-nom,
 .champ-filtre {
-  width: 100%;
+  @include mx.champ-plein;
 }
 
 // Option de la liste : nom en emphasis, service en second niveau (M3).
@@ -75,17 +79,16 @@
   color: var(--app-on-surface-variant);
 }
 
-.bouton-continuer,
-.bouton-admin {
-  min-height: 48px;
+.bouton-continuer {
+  @include mx.bouton-appel;
   width: 100%;
   font: var(--app-type-label-large);
 }
 
 .bouton-admin {
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  @include mx.bouton-materiel;
+  width: 100%;
+  font: var(--app-type-label-large);
   gap: var(--md-spacing-2);
 }
 
@@ -118,13 +121,12 @@
 }
 
 .aide {
-  margin: 0;
+  @include mx.aide;
   text-align: center;
-  color: var(--app-on-surface-variant);
   font: var(--app-type-body-small);
 
   code {
-    font-family: monospace;
+    font-family: var(--md-font-family-mono);
     font-size: 0.9em;
   }
 }
@@ -155,3 +157,4 @@
     gap: var(--md-spacing-3);
   }
 }
+

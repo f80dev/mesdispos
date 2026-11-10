@@ -1,0 +1,242 @@
+// =============================================================================
+// MesDispos — Apparence du plug-in `angular-calendar`
+// =============================================================================
+//
+// La feuille de style du plug-in (`angular-calendar/css/angular-calendar.css`)
+// est chargée AVANT le présent fichier (cf. `angular.json`) : les règles
+// ci-dessous, de spécificité équivalente, l'emportent donc. On remplace la
+// palette « legacy » (fond blanc, événements bleus, week-end rouge, tooltip
+// noire) par les rôles M3 de l'application, ce qui rend le calendrier
+// lisible en thème sombre.
+//
+// Ce bloc est factorisé : il sert aux deux calendriers de l'application
+// (`creneau-calendar` et `profs-calendar`).
+// =============================================================================
+
+.cal-week-view,
+.cal-day-view {
+  background-color: var(--mat-sys-surface);
+  border-radius: var(--mat-sys-corner-medium);
+  overflow: hidden;
+  border: 1px solid var(--mat-sys-outline-variant);
+}
+
+.cal-week-view .cal-day-headers {
+  border-color: var(--mat-sys-outline-variant);
+  background-color: var(--mat-sys-surface-container-low);
+}
+
+.cal-week-view .cal-day-headers .cal-header {
+  padding: var(--md-spacing-2) var(--md-spacing-1);
+  color: var(--mat-sys-on-surface-variant);
+  font: var(--mat-sys-label-medium);
+  text-transform: capitalize;
+}
+
+.cal-week-view .cal-day-headers .cal-header:not(:last-child) {
+  border-right-color: var(--mat-sys-outline-variant);
+}
+
+.cal-week-view .cal-day-headers .cal-header:first-child {
+  border-left-color: var(--mat-sys-outline-variant);
+}
+
+.cal-week-view .cal-day-headers .cal-header:hover,
+.cal-week-view .cal-day-headers .cal-drag-over {
+  background-color: var(--mat-sys-surface-container-high);
+}
+
+.cal-week-view .cal-header span {
+  opacity: 1;
+  font-weight: 500;
+}
+
+.cal-week-view .cal-header.cal-weekend span {
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.cal-week-view .cal-header.cal-today {
+  background-color: var(--mat-sys-primary-container);
+  color: var(--mat-sys-on-primary-container);
+}
+
+.cal-week-view .cal-header.cal-today span {
+  color: var(--mat-sys-on-primary-container);
+  font-weight: 700;
+}
+
+.cal-week-view .cal-time-events {
+  border-color: var(--mat-sys-outline-variant);
+}
+
+.cal-week-view .cal-day-column {
+  border-left-color: var(--mat-sys-outline-variant);
+}
+
+.cal-week-view .cal-hour-odd {
+  background-color: var(--mat-sys-surface-container-low);
+}
+
+.cal-week-view .cal-hour-segment {
+  border-bottom-color: var(--mat-sys-outline-variant);
+}
+
+.cal-week-view .cal-time-events .cal-day-columns:not(.cal-resize-active) .cal-hour-segment:hover {
+  background-color: var(--mat-sys-surface-container-high);
+}
+
+.cal-week-view .cal-time {
+  color: var(--mat-sys-on-surface-variant);
+  font: var(--mat-sys-label-small);
+  font-variant-numeric: tabular-nums;
+}
+
+.cal-week-view .cal-current-time-marker {
+  background-color: var(--mat-sys-primary);
+  height: 2px;
+}
+
+.cal-week-view .cal-all-day-events {
+  border-color: var(--mat-sys-outline-variant);
+}
+
+// Événements : la couleur de fond est pilotée par l'application
+// (`.creneau-evenement` / `.creneau-retenu`), on neutralise celle du plug-in.
+// Attention : le plug-in applique `event.cssClass` sur le **conteneur**
+// (`.cal-event-container`), le `.cal-event` n'en est que l'intérieur.
+.cal-week-view .cal-event,
+.cal-day-view .cal-event {
+  background-color: transparent;
+  border: none;
+  color: inherit;
+  font: var(--mat-sys-label-medium);
+  border-radius: var(--mat-sys-corner-small);
+  overflow: hidden;
+  height: 100%;
+  width: 100%;
+}
+
+.cal-week-view .cal-event-container,
+.cal-day-view .cal-event-container {
+  padding: 1px;
+}
+
+// Contenu d'une case d'événement : heure puis libellé, sur deux lignes.
+.cal-event-container.creneau-evenement,
+.cal-event-container.prof-evenement {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1px;
+  padding: 2px var(--md-spacing-2);
+  line-height: 1.25;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.cal-event-container.creneau-evenement .cal-event,
+.cal-event-container.prof-evenement .cal-event {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1px;
+  padding: 0;
+  line-height: 1.25;
+  color: inherit;
+}
+
+// Créneau : fond, liseré gauche et texte. Le style est porté par le conteneur.
+.cal-event-container.creneau-evenement {
+  border-left: 3px solid var(--mat-sys-outline);
+  border-radius: var(--mat-sys-corner-small);
+  background-color: var(--mat-sys-surface-container);
+  color: var(--mat-sys-on-surface);
+}
+
+// Créneau **retenu** : fond vert (palette ENSAD).
+.cal-event-container.creneau-evenement.creneau-retenu {
+  border-left-color: var(--app-success);
+  background-color: var(--app-success-container);
+  color: var(--app-on-success-container);
+}
+
+.cal-event-container.creneau-evenement.creneau-retenu .cal-event {
+  font-weight: 600;
+}
+
+.cal-event-container.creneau-evenement:hover,
+.cal-event-container.creneau-evenement:focus-within,
+.cal-event-container.prof-evenement:hover,
+.cal-event-container.prof-evenement:focus-within {
+  filter: brightness(1.15);
+}
+
+.cal-event-container.creneau-evenement .cal-event:focus-visible {
+  outline: 2px solid var(--app-success);
+  outline-offset: -2px;
+}
+
+// Disponibilité d'un professeur (calendrier agrégé de l'espace admin) :
+// une variante de couleur par professeur, tirée des rôles M3.
+.cal-event-container.prof-evenement {
+  border-left: 3px solid var(--app-primary);
+  border-radius: var(--mat-sys-corner-small);
+  background-color: var(--app-primary-container);
+  color: var(--app-on-primary-container);
+}
+
+.cal-event-container.prof-evenement.prof-c1 {
+  border-left-color: var(--app-secondary);
+  background-color: var(--app-secondary-container);
+  color: var(--app-on-secondary-container);
+}
+
+.cal-event-container.prof-evenement.prof-c2 {
+  border-left-color: var(--app-tertiary);
+  background-color: var(--app-tertiary-container);
+  color: var(--app-on-tertiary-container);
+}
+
+.cal-event-container.prof-evenement.prof-c3 {
+  border-left-color: var(--app-success);
+  background-color: var(--app-success-container);
+  color: var(--app-on-success-container);
+}
+
+.cal-event-container.prof-evenement.prof-c4 {
+  border-left-color: var(--app-primary);
+  background-color: var(--app-surface-container-high);
+  color: var(--app-on-surface);
+}
+
+.cal-event-container.prof-evenement.prof-c5 {
+  border-left-color: var(--app-error);
+  background-color: var(--app-error-container);
+  color: var(--app-on-error-container);
+}
+
+// Infobulle : fond « inverse surface » M3 plutôt que le noir du plug-in.
+.cal-tooltip-inner {
+  background-color: var(--mat-sys-inverse-surface);
+  color: var(--mat-sys-inverse-on-surface);
+  border-radius: var(--mat-sys-corner-small);
+  padding: var(--md-spacing-2) var(--md-spacing-3);
+  font: var(--mat-sys-body-small);
+  max-width: 260px;
+}
+
+.cal-tooltip.cal-tooltip-top .cal-tooltip-arrow {
+  border-top-color: var(--mat-sys-inverse-surface);
+}
+
+.cal-tooltip.cal-tooltip-bottom .cal-tooltip-arrow {
+  border-bottom-color: var(--mat-sys-inverse-surface);
+}
+
+.cal-tooltip.cal-tooltip-left .cal-tooltip-arrow {
+  border-left-color: var(--mat-sys-inverse-surface);
+}
+
+.cal-tooltip.cal-tooltip-right .cal-tooltip-arrow {
+  border-right-color: var(--mat-sys-inverse-surface);
+}

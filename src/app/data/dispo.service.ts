@@ -4,7 +4,12 @@ import { AUCUN_ABONNEMENT, FIRESTORE_BACKEND, type Abonnement } from '../core/fi
 import { AuthService } from '../core/auth.service';
 import { NotifService } from '../core/notif.service';
 import { CreneauService } from './creneau.service';
-import { normalizeDate, normalizeHeure, trierCreneaux } from '../shared/date.util';
+import {
+  champsCreneauDenormalises,
+  normaliserChampsCreneau,
+  trierCreneaux,
+} from '../shared/date.util';
+import { basculerValeur } from '../shared/collection.util';
 import type { Creneau, Dispo } from './models';
 
 /** Message d'erreur d'écriture + action « Réessayer » (F4). */
@@ -14,24 +19,17 @@ export const MESSAGE_ECHEC_ECRITURE = 'Enregistrement impossible. Réessayer';
 export const MESSAGE_LECTURE_DISPOS = 'Impossible de lire vos disponibilités. Réessayez.';
 
 export function versDispo(id: string, data: Record<string, unknown>): Dispo | null {
-  const date = normalizeDate(data['date']);
-  const debut = normalizeHeure(data['heureDebut']);
-  const fin = normalizeHeure(data['heureFin']);
-  if (!date.ok || !debut.ok || !fin.ok) {
+  const champs = normaliserChampsCreneau(data);
+  if (!champs) {
     return null;
   }
   const maj = data['updatedAt'];
-  const brut = data['libelle'];
-  const libelle = typeof brut === 'string' && brut.trim().length > 0 ? brut.trim() : undefined;
   const login = typeof data['login'] === 'string' ? data['login'].trim() : '';
   const nom = typeof data['nom'] === 'string' ? data['nom'].trim() : '';
   const prenom = typeof data['prenom'] === 'string' ? data['prenom'].trim() : '';
   return {
     creneauId: id,
-    date: date.valeur,
-    heureDebut: debut.valeur,
-    heureFin: fin.valeur,
-    ...(libelle ? { libelle } : {}),
+    ...champs,
     ...(login ? { login } : {}),
     ...(nom ? { nom } : {}),
     ...(prenom ? { prenom } : {}),
@@ -222,25 +220,14 @@ export class DispoService {
 
   /** Document `dispos/{creneauId}` dénormalisé (affichage sans jointure). */
   private documentDispo(creneau: Creneau): Dispo {
-    const identite = this.auth.identiteEcriture();
     return {
-      creneauId: creneau.id,
-      date: creneau.date,
-      heureDebut: creneau.heureDebut,
-      heureFin: creneau.heureFin,
-      ...(creneau.libelle ? { libelle: creneau.libelle } : {}),
-      ...identite,
+      ...champsCreneauDenormalises(creneau),
+      ...this.auth.identiteEcriture(),
       updatedAt: Date.now(),
     };
   }
 
   private marquerEnCours(creneauId: string, actif: boolean): void {
-    const suivant = new Set(this.enCours());
-    if (actif) {
-      suivant.add(creneauId);
-    } else {
-      suivant.delete(creneauId);
-    }
-    this.enCours.set(suivant);
+    this.enCours.set(basculerValeur(this.enCours(), creneauId, actif));
   }
 }

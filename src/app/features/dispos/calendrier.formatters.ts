@@ -1,14 +1,18 @@
-import { Injectable } from '@angular/core';
+import { Injectable, type Provider, type Type } from '@angular/core';
 import {
   CalendarA11y,
   CalendarDateFormatter,
   CalendarEvent,
   CalendarEventTitleFormatter,
+  DateAdapter,
+  provideCalendar,
   type A11yParams,
   type DateFormatterParams,
 } from 'angular-calendar';
+import { adapterFactory } from 'angular-calendar/date-adapters/date-fns';
 
 import { libelleCreneauAccessible } from '../../shared/date.util';
+import { extraireMeta } from '../../shared/calendrier.util';
 import type { Creneau } from '../../data/models';
 
 /** Métadonnées portées par un événement du calendrier. */
@@ -21,17 +25,38 @@ export interface MetaCreneau {
 
 /** Extraire les métadonnées d'un événement (tolérant aux événements sans méta). */
 export function metaCreneau(evenement: CalendarEvent | null | undefined): MetaCreneau | null {
-  const meta = evenement?.meta as Partial<MetaCreneau> | undefined;
-  return meta && meta.creneau ? { creneau: meta.creneau, retenu: meta.retenu === true } : null;
+  const meta = extraireMeta<MetaCreneau>(evenement, ['creneau']);
+  return meta ? { creneau: meta.creneau, retenu: meta.retenu === true } : null;
+}
+
+/**
+ * Fournisseurs `angular-calendar` communs aux deux calendriers : adaptateur de
+ * dates, formatage français et description d'accessibilité. Le formateur de
+ * titre d'événement n'est fourni que par le calendrier enseignant.
+ */
+export function fournisseursCalendrier(
+  a11y: Type<CalendarA11y>,
+  titreEvenement: Type<CalendarEventTitleFormatter> | null = null,
+): Provider[] {
+  return provideCalendar(
+    { provide: DateAdapter, useFactory: adapterFactory },
+    {
+      dateFormatter: { provide: CalendarDateFormatter, useClass: CalendrierDateFormatter },
+      ...(titreEvenement
+        ? {
+            eventTitleFormatter: { provide: CalendarEventTitleFormatter, useClass: titreEvenement },
+          }
+        : {}),
+      a11y: { provide: CalendarA11y, useClass: a11y },
+    },
+  );
 }
 
 /* -------------------------------------------------------------------------- */
 /* Format des dates                                                            */
 /* -------------------------------------------------------------------------- */
 
-const JOURS = new Intl.DateTimeFormat('fr-FR', { weekday: 'long' });
 const JOURS_COURTS = new Intl.DateTimeFormat('fr-FR', { weekday: 'short' });
-const JOUR_MOIS = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'long' });
 const JOUR_MOIS_COURT = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short' });
 const JOUR_MOIS_ANNEE = new Intl.DateTimeFormat('fr-FR', {
   day: 'numeric',

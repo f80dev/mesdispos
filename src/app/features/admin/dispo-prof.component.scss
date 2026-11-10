@@ -1,0 +1,120 @@
+// -----------------------------------------------------------------------------
+// MesDispos — Liste des professeurs (espace admin)
+// -----------------------------------------------------------------------------
+
+@use '../../../styles/mixins' as mx;
+
+:host {
+  display: block;
+}
+
+.page {
+  @include mx.page-centree;
+}
+
+.entete h1 {
+  @include mx.titre-page;
+}
+
+.aide {
+  @include mx.aide;
+}
+
+.liste-profs {
+  @include mx.liste-v;
+}
+
+.champ-recherche {
+  @include mx.champ-plein(480px);
+}
+
+.actions-liste {
+  @include mx.barre-actions(var(--md-spacing-2));
+}
+
+.compteur {
+  margin-left: auto;
+  color: var(--app-on-surface-variant);
+  font: var(--app-type-body-small);
+}
+
+.profs {
+  @include mx.liste-v(var(--md-spacing-1));
+  display: grid;
+  grid-template-columns: 1fr;
+  max-height: 340px;
+  overflow-y: auto;
+  border: 1px solid var(--app-outline-variant);
+  border-radius: var(--app-corner-medium);
+  padding: var(--md-spacing-2);
+}
+
+.profs li {
+  display: flex;
+  align-items: center;
+  gap: var(--md-spacing-2);
+  @include mx.cible-tactile;
+}
+
+.nom-prof {
+  font: var(--app-type-body-medium);
+}
+
+.login {
+  margin-left: var(--md-spacing-2);
+  color: var(--app-on-surface-variant);
+  font: var(--app-type-body-small);
+}
+
+.nombre {
+  margin-left: auto;
+  min-width: 32px;
+  text-align: right;
+  color: var(--app-on-surface-variant);
+  font: var(--app-type-label-medium);
+  font-variant-numeric: tabular-nums;
+}
+
+.zone-erreur {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--md-spacing-3);
+  color: var(--app-error);
+}
+
+.zone-erreur p {
+  margin: 0;
+  font: var(--app-type-body-medium);
+}
+
+.message-erreur {
+  color: var(--app-error);
+  font: var(--app-type-body-medium);
+}
+
+.vide {
+  @include mx.vide;
+}
+
+// Desktop : la liste passe sur deux colonnes.
+@media (min-width: 900px) {
+  .profs {
+    grid-template-columns: 1fr 1fr;
+    column-gap: var(--md-spacing-4);
+    max-height: 420px;
+  }
+}
+
+// Mobile : boutons pleine largeur, compteur sur sa propre ligne.
+@media (max-width: 600px) {
+  .actions-liste button {
+    flex: 1 1 100%;
+    min-height: 48px;
+  }
+
+  .compteur {
+    margin-left: 0;
+    flex-basis: 100%;
+  }
+}

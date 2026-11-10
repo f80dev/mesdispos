@@ -1,0 +1,39 @@
+// -----------------------------------------------------------------------------
+// MesDispos — Calendrier agrégé des professeurs (espace admin)
+// -----------------------------------------------------------------------------
+
+@use '../../../styles/calendar-layout' as cal;
+@use '../../../styles/mixins' as mx;
+
+@include cal.calendrier;
+@include cal.legende;
+@include cal.case-evenement;
+
+// En-tête d'un jour comportant des disponibilités : liseré.
+:host ::ng-deep {
+  .cal-header.cal-avec-disponibles {
+    box-shadow: inset 0 -3px 0 0 var(--app-primary);
+  }
+
+  .cal-week-view .cal-header {
+    text-transform: capitalize;
+  }
+
+  .cal-week-view .cal-header span {
+    text-transform: none;
+  }
+
+  .cal-event-title {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    overflow: hidden;
+  }
+}
+
+// Puce « disponibilité ».
+.puce {
+  background-color: var(--app-primary-container);
+}
+
+@include cal.calendrier-mobile;

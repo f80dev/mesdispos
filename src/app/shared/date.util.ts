@@ -210,6 +210,66 @@ export function trierCreneaux<T extends CreneauTriable>(creneaux: readonly T[]):
   });
 }
 
+/** Champs normalisés d'un document `creneaux` ou `dispos` lu dans Firestore. */
+export interface ChampsCreneauNormalises {
+  readonly date: string;
+  readonly heureDebut: string;
+  readonly heureFin: string;
+  readonly libelle?: string;
+}
+
+/**
+ * Normalise et valide les champs communs d'un document `creneaux`/`dispos`.
+ *
+ * Utilisé par `versCreneau` **et** `versDispo` : une seule règle de lecture,
+ * donc un document incohérent est ignoré de la même façon des deux côtés.
+ */
+export function normaliserChampsCreneau(
+  data: Record<string, unknown>,
+): ChampsCreneauNormalises | null {
+  const date = normalizeDate(data['date']);
+  const debut = normalizeHeure(data['heureDebut']);
+  const fin = normalizeHeure(data['heureFin']);
+  if (!date.ok || !debut.ok || !fin.ok) {
+    return null;
+  }
+  const brut = data['libelle'];
+  const libelle = typeof brut === 'string' && brut.trim().length > 0 ? brut.trim() : undefined;
+  return {
+    date: date.valeur,
+    heureDebut: debut.valeur,
+    heureFin: fin.valeur,
+    ...(libelle ? { libelle } : {}),
+  };
+}
+
+/** Créneau minimal converti en champs dénormalisés d'un document `dispos`. */
+export interface CreneauDenormalisable extends CreneauTriable {
+  readonly id: string;
+  readonly libelle?: string;
+}
+
+/**
+ * Champs dénormalisés communs à tous les documents `dispos`
+ * (`users/{uid}/dispos/{creneauId}`), utilisés par `DispoService` et par
+ * l'attribution administrateur.
+ */
+export function champsCreneauDenormalises(creneau: CreneauDenormalisable): {
+  creneauId: string;
+  date: string;
+  heureDebut: string;
+  heureFin: string;
+  libelle?: string;
+} {
+  return {
+    creneauId: creneau.id,
+    date: creneau.date,
+    heureDebut: creneau.heureDebut,
+    heureFin: creneau.heureFin,
+    ...(creneau.libelle ? { libelle: creneau.libelle } : {}),
+  };
+}
+
 /**
  * Convertit une date `'YYYY-MM-DD'` en `Date` **locale** (minuit local), ou
  * `null` si la chaîne n'est pas une date de calendrier valide.
@@ -249,6 +309,23 @@ const FORMATTEUR_JOUR = new Intl.DateTimeFormat('fr-FR', {
   month: 'long',
 });
 
+/** « lundi 12 janvier » (jour + mois, sans année), en français. */
+export function formaterJour(date: Date): string {
+  return FORMATTEUR_JOUR.format(date);
+}
+
+const FORMATTEUR_JOUR_ANNEE = new Intl.DateTimeFormat('fr-FR', {
+  weekday: 'long',
+  day: 'numeric',
+  month: 'long',
+  year: 'numeric',
+});
+
+/** « lundi 12 janvier 2026 » (en-tête de groupe de la page `/dispos`). */
+export function formaterJourAvecAnnee(date: Date): string {
+  return FORMATTEUR_JOUR_ANNEE.format(date);
+}
+
 /** Élément affichable dans un libellé d'accessibilité. */
 export interface CreneauAffichable {
   readonly date: string;
@@ -273,7 +350,7 @@ export function libelleHeure(heure: string): string {
  */
 export function libelleCreneauAccessible(creneau: CreneauAffichable, selectionne: boolean): string {
   const date = dateLocale(creneau.date);
-  const jourFr = date ? FORMATTEUR_JOUR.format(date) : creneau.date;
+  const jourFr = date ? formaterJour(date) : creneau.date;
   return `${selectionne ? 'Retenu' : 'Disponible'} ${jourFr} de ${libelleHeure(creneau.heureDebut)} à ${libelleHeure(creneau.heureFin)}`;
 }
 

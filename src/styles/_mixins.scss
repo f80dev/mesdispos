@@ -1,0 +1,340 @@
+// =============================================================================
+// MesDispos — Mixins SCSS partagés
+// =============================================================================
+//
+// Factorisation : tout ce qui ressemble d'un module à l'autre est défini une
+// seule fois ici, puis réutilisé via `@include` dans les SCSS de composants.
+//
+// Les mixins n'introduisent **aucune** classe CSS : ils s'appliquent au
+// sélecteur courant. Les feuilles de style des composants restent lisibles et
+// la factorisation reste vérifiable d'un module à l'autre.
+//
+// Usage :  @use 'mixins' as mx;   puis   @include mx.carte();
+// =============================================================================
+
+@use 'sass:color';
+
+// -----------------------------------------------------------------------------
+// Gabarits de mise en page
+// -----------------------------------------------------------------------------
+
+/// Page pleine largeur : colonne flex, espacement vertical standard.
+@mixin page($gap: var(--md-spacing-4)) {
+  display: flex;
+  flex-direction: column;
+  gap: $gap;
+  width: 100%;
+}
+
+/// Conteneur centré et limité (largeur max 1100 px) — pages d'administration.
+@mixin page-centree($max: 1100px) {
+  max-width: $max;
+  margin: 0 auto;
+  padding: var(--md-content-padding);
+}
+
+/// Bloc de contenu posé sur une surface « conteneur » M3.
+@mixin carte($padding: var(--md-spacing-4)) {
+  padding: $padding;
+  border: 1px solid var(--app-outline-variant);
+  border-radius: var(--app-corner-medium);
+  background: var(--app-surface-container-lowest);
+}
+
+/// Bloc de contenu posé sur une surface « conteneur bas » M3, sans contour.
+@mixin bloc($padding: var(--md-spacing-4)) {
+  padding: $padding;
+  border-radius: var(--app-corner-medium);
+  background: var(--app-surface-container);
+}
+
+/// Liste verticale d'éléments (options, actions, créneaux).
+@mixin liste-v($gap: var(--md-spacing-2)) {
+  display: flex;
+  flex-direction: column;
+  gap: $gap;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/// Groupe d'actions horizontales qui passe en colonne sur mobile.
+@mixin barre-actions($gap: var(--md-spacing-3)) {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: $gap;
+}
+
+// -----------------------------------------------------------------------------
+// Typographie
+// -----------------------------------------------------------------------------
+
+/// Titre de page (niveau 1).
+@mixin titre-page {
+  margin: 0 0 var(--md-spacing-2);
+  font: var(--app-type-headline-medium);
+  color: var(--app-on-surface);
+}
+
+/// Titre de section (niveau 2/3), avec icône optionnelle.
+@mixin titre-section {
+  display: flex;
+  align-items: center;
+  gap: var(--md-spacing-2);
+  margin: 0;
+  font: var(--app-type-title-medium);
+  color: var(--app-on-surface);
+
+  mat-icon {
+    color: var(--app-primary);
+    font-size: 20px;
+    width: 20px;
+    height: 20px;
+  }
+}
+
+/// Texte d'aide / secondaire.
+@mixin aide {
+  margin: 0;
+  color: var(--app-on-surface-variant);
+  font: var(--app-type-body-medium);
+
+  code {
+    font-family: var(--md-font-family-mono);
+    background: var(--app-surface-container);
+    border-radius: var(--app-corner-small);
+    padding: 0 4px;
+  }
+}
+
+/// Texte d'état vide.
+@mixin vide {
+  margin: 0;
+  color: var(--app-on-surface-variant);
+  font: var(--app-type-body-medium);
+}
+
+/// Message d'erreur (fond teinté, tone M3 `error`).
+@mixin message-erreur {
+  margin: 0;
+  padding: var(--md-spacing-3);
+  border-radius: var(--app-corner-medium);
+  background: color-mix(in srgb, var(--app-error) 12%, var(--app-surface-container));
+  color: var(--app-on-surface);
+  font: var(--app-type-body-medium);
+}
+
+/// Bloc d'erreur plus lisible (fond `error-container`).
+@mixin zone-erreur {
+  padding: var(--md-spacing-4);
+  border: 1px solid var(--app-error);
+  border-radius: var(--app-corner-medium);
+  background: var(--app-error-container);
+  color: var(--app-on-error-container);
+}
+
+// -----------------------------------------------------------------------------
+// Boutons & cibles tactiles
+// -----------------------------------------------------------------------------
+
+/// Bouton d'action natif (hors composants `matButton`) : fond plein aux tons
+/// de la marque, cible tactile ≥ 48 px.
+@mixin bouton-action($couleur: var(--app-primary), $texte: var(--app-on-primary)) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--md-spacing-2);
+  min-height: 48px;
+  padding-inline: var(--md-spacing-5);
+  border: none;
+  border-radius: var(--app-corner-full);
+  background: $couleur;
+  color: $texte;
+  font: var(--app-type-label-large);
+  cursor: pointer;
+}
+
+/// Bouton Material (`matButton`) : on ne touche qu'à la mise en page, les
+/// couleurs et les variantes (filled / outlined / tonal) restent gérées par
+/// Angular Material.
+@mixin bouton-materiel {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--md-spacing-2);
+  min-height: 48px;
+}
+
+/// Appel à l'action principal posé sur un bouton Material de variante « texte »
+/// (`matButton` sans attribut) : on lui donne l'apparence « filled » M3.
+@mixin bouton-appel {
+  @include bouton-materiel;
+  border-radius: var(--app-corner-full);
+  background: var(--app-primary);
+  color: var(--app-on-primary);
+
+  &:disabled {
+    background: color-mix(in srgb, var(--app-on-surface) 12%, transparent);
+    color: color-mix(in srgb, var(--app-on-surface) 38%, transparent);
+  }
+}
+
+/// Bouton « discret » (lien cliquable) aux tons de la marque.
+@mixin bouton-discret {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--md-spacing-1);
+  min-height: 48px;
+  padding-inline: var(--md-spacing-3);
+  border: none;
+  border-radius: var(--app-corner-full);
+  background: transparent;
+  color: var(--app-primary);
+  text-decoration: none;
+  font: var(--app-type-label-large);
+  white-space: nowrap;
+  cursor: pointer;
+
+  &:hover {
+    background: color-mix(in srgb, var(--app-primary) 8%, transparent);
+  }
+}
+
+/// Cible tactile minimale (48 px) — exigence mobile.
+@mixin cible-tactile {
+  min-height: 48px;
+  min-width: 48px;
+}
+
+// -----------------------------------------------------------------------------
+// Formulaires
+// -----------------------------------------------------------------------------
+
+/// Champ de formulaire pleine largeur.
+@mixin champ-plein($max: none) {
+  width: 100%;
+  max-width: $max;
+}
+
+// -----------------------------------------------------------------------------
+// Tableaux
+// -----------------------------------------------------------------------------
+
+/// Enveloppe scrollable d'un tableau.
+@mixin table-wrapper {
+  overflow-x: auto;
+  border: 1px solid var(--app-outline-variant);
+  border-radius: var(--app-corner-medium);
+  background: var(--app-surface-container-lowest);
+}
+
+/// Tableau de données (thème sombre ENSAD).
+@mixin tableau {
+  width: 100%;
+  border-collapse: collapse;
+  font: var(--app-type-body-medium);
+
+  th,
+  td {
+    padding: var(--md-spacing-2) var(--md-spacing-3);
+    text-align: left;
+    border-bottom: 1px solid var(--app-outline-variant);
+    white-space: nowrap;
+  }
+
+  th {
+    color: var(--app-on-surface-variant);
+    font: var(--app-type-label-large);
+  }
+
+  tr:last-child td {
+    border-bottom: none;
+  }
+}
+
+/// Tableau responsive : sur mobile chaque ligne devient une carte empilée.
+@mixin tableau-mobile {
+  @media (max-width: 600px) {
+    thead {
+      display: none;
+    }
+
+    tr,
+    tbody,
+    td {
+      display: block;
+      width: 100%;
+    }
+
+    tr {
+      border-bottom: 1px solid var(--app-outline-variant);
+      padding: var(--md-spacing-2) 0;
+    }
+
+    td {
+      display: flex;
+      justify-content: space-between;
+      gap: var(--md-spacing-3);
+      border-bottom: none;
+      white-space: normal;
+
+      &::before {
+        content: attr(data-intitule);
+        color: var(--app-on-surface-variant);
+        font: var(--app-type-label-large);
+      }
+    }
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Éléments repliables (détail des lignes invalides, blocs d'aide)
+// -----------------------------------------------------------------------------
+
+/// Bloc `<details>` repliable.
+@mixin bloc-repliable {
+  padding: var(--md-spacing-3);
+  border: 1px solid var(--app-outline-variant);
+  border-radius: var(--app-corner-medium);
+  background: var(--app-surface-container-lowest);
+
+  summary {
+    cursor: pointer;
+    min-height: 48px;
+    display: flex;
+    align-items: center;
+    font: var(--app-type-label-large);
+    color: var(--app-on-surface);
+  }
+}
+
+/// Liste à puces des anomalies.
+@mixin liste-anomalies {
+  margin: var(--md-spacing-2) 0 0;
+  padding-left: var(--md-spacing-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--md-spacing-1);
+  font: var(--app-type-body-medium);
+  color: var(--app-on-surface);
+}
+
+// -----------------------------------------------------------------------------
+// Adaptatif
+// -----------------------------------------------------------------------------
+
+/// Élément étiré sur toute la largeur en mobile.
+@mixin pleine-largeur-mobile {
+  @media (max-width: 600px) {
+    align-self: stretch;
+    justify-content: center;
+  }
+}
+
+/// Barre d'actions passant en colonne inversée en mobile.
+@mixin actions-mobile {
+  @media (max-width: 600px) {
+    flex-direction: column-reverse;
+  }
+}

@@ -16,10 +16,9 @@ import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 
 import { ErreurImport, ExcelImportService, MESSAGE_FORMAT } from '../../data/excel-import.service';
-import { AdminService, MESSAGE_ADMIN_REQUIS } from '../../core/admin.service';
+import { ComposantAdmin } from '../../core/composant-admin';
 import { PlanningApiService } from '../../core/planning-api.service';
 import { CreneauService } from '../../data/creneau.service';
-import { NotifService } from '../../core/notif.service';
 import { DateGroupPipe } from '../../layout/date-group.pipe';
 import { AttributionComponent } from './attribution.component';
 import type { ResultatImport } from '../../data/models';
@@ -45,10 +44,8 @@ import type { ResultatImport } from '../../data/models';
   templateUrl: './import.component.html',
   styleUrl: './import.component.scss',
 })
-export class ImportComponent implements OnDestroy {
+export class ImportComponent extends ComposantAdmin implements OnDestroy {
   private readonly importService = inject(ExcelImportService);
-  private readonly notif = inject(NotifService);
-  private readonly admin = inject(AdminService);
   private readonly creneaux = inject(CreneauService);
   private readonly planningApi = inject(PlanningApiService);
 
@@ -103,15 +100,13 @@ export class ImportComponent implements OnDestroy {
    * affichée et toute action d'import est refusée (le `adminGuard` bloque
    * déjà la route ; ce contrôle est une seconde barrière, côté interface).
    */
-  readonly autorise = this.admin.autorise;
-  readonly verifie = this.admin.verifie;
-  readonly messageAdminRequis = MESSAGE_ADMIN_REQUIS;
 
   readonly valides = computed(() => this.resultat()?.valides ?? []);
   readonly invalides = computed(() => this.resultat()?.invalides ?? []);
   readonly totalValides = computed(() => this.valides().length);
 
   constructor() {
+    super();
     // Les créneaux proposés sont chargés en temps réel sur la page admin :
     // l'attribution automatique en a besoin (et la suppression totale doit
     // refléter l'état courant de la base).
@@ -124,8 +119,7 @@ export class ImportComponent implements OnDestroy {
 
   /** Ouvre le sélecteur de fichiers (la zone de dépôt reste cliquable). */
   choisirFichier(): void {
-    if (!this.autorise()) {
-      this.notif.erreur(MESSAGE_ADMIN_REQUIS);
+    if (!this.exigerAdmin()) {
       return;
     }
     this.champFichier()?.nativeElement.click();
@@ -152,7 +146,7 @@ export class ImportComponent implements OnDestroy {
 
   private async analyser(fichier: File): Promise<void> {
     if (!this.autorise()) {
-      this.message.set(MESSAGE_ADMIN_REQUIS);
+      this.message.set(this.messageAdminRequis);
       return;
     }
     this.message.set(null);
@@ -174,8 +168,7 @@ export class ImportComponent implements OnDestroy {
     if (lignes.length === 0) {
       return;
     }
-    if (!this.autorise()) {
-      this.notif.erreur(MESSAGE_ADMIN_REQUIS);
+    if (!this.exigerAdmin()) {
       return;
     }
     this.importEnCours.set(true);
@@ -195,8 +188,7 @@ export class ImportComponent implements OnDestroy {
 
   /** Affiche la confirmation avant la suppression de tous les créneaux. */
   demanderSuppression(): void {
-    if (!this.autorise()) {
-      this.notif.erreur(MESSAGE_ADMIN_REQUIS);
+    if (!this.exigerAdmin()) {
       return;
     }
     this.confirmationSuppression.set(true);
@@ -209,8 +201,7 @@ export class ImportComponent implements OnDestroy {
 
   /** Supprime définitivement **tous** les créneaux de la base. */
   async supprimerTous(): Promise<void> {
-    if (!this.autorise()) {
-      this.notif.erreur(MESSAGE_ADMIN_REQUIS);
+    if (!this.exigerAdmin()) {
       return;
     }
     this.suppressionEnCours.set(true);
@@ -233,8 +224,7 @@ export class ImportComponent implements OnDestroy {
 
   /** Affiche la confirmation avant la suppression des disponibilités des professeurs. */
   demanderSuppressionDispos(): void {
-    if (!this.autorise()) {
-      this.notif.erreur(MESSAGE_ADMIN_REQUIS);
+    if (!this.exigerAdmin()) {
       return;
     }
     this.confirmationSuppressionDispos.set(true);
@@ -247,8 +237,7 @@ export class ImportComponent implements OnDestroy {
 
   /** Supprime définitivement **toutes** les disponibilités déclarées. */
   async supprimerDispos(): Promise<void> {
-    if (!this.autorise()) {
-      this.notif.erreur(MESSAGE_ADMIN_REQUIS);
+    if (!this.exigerAdmin()) {
       return;
     }
     this.suppressionDisposEnCours.set(true);

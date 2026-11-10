@@ -139,6 +139,15 @@ export const AUCUN_ABONNEMENT: Abonnement = () => undefined;
 /** Taille maximale d'un batch Firestore (F6 : 500 opérations, découpage auto). */
 export const TAILLE_BATCH = 500;
 
+/** Découpe une liste en lots d'au plus `taille` éléments (batch Firestore). */
+export function parLots<T>(elements: readonly T[], taille = TAILLE_BATCH): T[][] {
+  const lots: T[][] = [];
+  for (let debut = 0; debut < elements.length; debut += taille) {
+    lots.push(elements.slice(debut, debut + taille));
+  }
+  return lots;
+}
+
 /**
  * Traduit une erreur du SDK Firestore en **cause courte et actionnable**.
  *
@@ -229,8 +238,7 @@ export class FirestoreReelBackend implements FirestoreBackend {
     }
     const [db, fs] = await this.pair();
     let ecrits = 0;
-    for (let debut = 0; debut < items.length; debut += TAILLE_BATCH) {
-      const lot = items.slice(debut, debut + TAILLE_BATCH);
+    for (const lot of parLots(items)) {
       const batch = fs.writeBatch(db);
       for (const { uid, id, data } of lot) {
         batch.set(fs.doc(db, 'users', uid, 'dispos', id), data as Record<string, unknown>);
@@ -264,8 +272,7 @@ export class FirestoreReelBackend implements FirestoreBackend {
       return 0;
     }
     let importes = 0;
-    for (let debut = 0; debut < items.length; debut += TAILLE_BATCH) {
-      const lot = items.slice(debut, debut + TAILLE_BATCH);
+    for (const lot of parLots(items)) {
       const batch = fs.writeBatch(db);
       for (const { id, data } of lot) {
         batch.set(fs.doc(db, 'creneaux', id), data as Record<string, unknown>);
@@ -295,8 +302,7 @@ export class FirestoreReelBackend implements FirestoreBackend {
     }
     const [db, fs] = await this.pair();
     let supprimes = 0;
-    for (let debut = 0; debut < refs.length; debut += TAILLE_BATCH) {
-      const lot = refs.slice(debut, debut + TAILLE_BATCH);
+    for (const lot of parLots(refs)) {
       const batch = fs.writeBatch(db);
       for (const ref of lot) {
         batch.delete(ref);

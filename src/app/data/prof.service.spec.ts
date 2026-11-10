@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { normaliserProfs } from './prof.service';
+import { normaliserProfs, normaliserProfsExcel } from './prof.service';
 import type { ProfOasis } from '../core/cours.services';
 
 function prof(partiel: Partial<ProfOasis> & { login: string }): ProfOasis {
@@ -134,5 +134,58 @@ describe('normaliserProfs (liste des professeurs Oasis)', () => {
       { login: 'c.d' } as ProfOasis,
     ]);
     expect(resultat.map((p) => p.login)).toEqual(['a.b']);
+  });
+});
+
+describe('normaliserProfsExcel (repli sur public/profs.xlsx)', () => {
+  const entetes = [
+    'Identité / Identifiant Oasis',
+    'Identité / Nom usuel',
+    'Identité / Prénom usuel',
+    'Secteur',
+    'Secteur au hasard',
+  ];
+
+  it('renvoie une liste vide si le classeur est vide', () => {
+    expect(normaliserProfsExcel([])).toEqual([]);
+  });
+
+  it('lit les colonnes par leur en-tête et compose le nom complet', () => {
+    const resultat = normaliserProfsExcel([
+      entetes,
+      ['judith.abensour', 'ABENSOUR', 'Judith', "Cinéma d'Animation", 'Photo / Vidéo'],
+    ]);
+    expect(resultat).toHaveLength(1);
+    expect(resultat[0]?.login).toBe('judith.abensour');
+    expect(resultat[0]?.nomComplet).toBe('Judith ABENSOUR');
+    expect(resultat[0]?.secteur).toBe("Cinéma d'Animation");
+  });
+
+  it('reconnaît les colonnes même dans un ordre différent', () => {
+    const resultat = normaliserProfsExcel([
+      ['Identité / Prénom usuel', 'Identité / Nom usuel', 'Identité / Identifiant Oasis'],
+      ['Ana', 'BEL', 'a.b'],
+    ]);
+    expect(resultat[0]?.login).toBe('a.b');
+    expect(resultat[0]?.nomComplet).toBe('Ana BEL');
+  });
+
+  it('retombe sur l’ordre des colonnes si les en-têtes sont inconnus', () => {
+    const resultat = normaliserProfsExcel([
+      ['colonne 1', 'colonne 2', 'colonne 3'],
+      ['a.b', 'BEL', 'Ana'],
+    ]);
+    expect(resultat[0]?.login).toBe('a.b');
+    expect(resultat[0]?.nomComplet).toBe('Ana BEL');
+  });
+
+  it('ignore les lignes vides et déduplique par login', () => {
+    const resultat = normaliserProfsExcel([
+      entetes,
+      ['a.b', 'BEL', 'Ana', 'Design', 'Design'],
+      ['', '', '', '', ''],
+      ['a.b', 'BEL', 'Ana', 'Design', 'Design'],
+    ]);
+    expect(resultat).toHaveLength(1);
   });
 });

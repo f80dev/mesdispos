@@ -12,9 +12,8 @@ import {
   MAX_CREENEAUX_PAR_PROF,
   type PlanAttribution,
 } from '../../data/attribution.service';
-import { AdminService, MESSAGE_ADMIN_REQUIS } from '../../core/admin.service';
+import { ComposantAdmin } from '../../core/composant-admin';
 import { CreneauService } from '../../data/creneau.service';
-import { NotifService } from '../../core/notif.service';
 import { DateGroupPipe } from '../../layout/date-group.pipe';
 
 // Mobile  : champs pleine largeur, boutons 48 px empilés, tableau des
@@ -35,14 +34,10 @@ import { DateGroupPipe } from '../../layout/date-group.pipe';
   templateUrl: './attribution.component.html',
   styleUrl: './attribution.component.scss',
 })
-export class AttributionComponent {
+export class AttributionComponent extends ComposantAdmin {
   private readonly attribution = inject(AttributionService);
-  private readonly admin = inject(AdminService);
-  private readonly notif = inject(NotifService);
 
   /** L'attribution est réservée à l'administrateur (route + interface). */
-  readonly autorise = this.admin.autorise;
-  readonly messageAdminRequis = MESSAGE_ADMIN_REQUIS;
   readonly maxCreneaux = MAX_CREENEAUX_PAR_PROF;
 
   /** Logins saisie (un par ligne, ou séparés par des espaces). */
@@ -112,6 +107,7 @@ export class AttributionComponent {
   }
 
   constructor() {
+    super();
     // L'abonnement temps réel aux créneaux proposés est piloté par la page
     // hôte (`ImportComponent`) : l'attribution consomme la liste déjà chargée.
   }
@@ -132,8 +128,7 @@ export class AttributionComponent {
 
   /** Calcule le plan d'attribution (aucune écriture). */
   async preparer(): Promise<void> {
-    if (!this.autorise()) {
-      this.notif.erreur(MESSAGE_ADMIN_REQUIS);
+    if (!this.exigerAdmin()) {
       return;
     }
     const plan = await this.attribution.preparer(this.logins(), this.nombre(), this.tousLesProfs());
@@ -148,8 +143,7 @@ export class AttributionComponent {
 
   /** Demande la confirmation avant l'écriture. */
   demanderConfirmation(): void {
-    if (!this.autorise()) {
-      this.notif.erreur(MESSAGE_ADMIN_REQUIS);
+    if (!this.exigerAdmin()) {
       return;
     }
     this.confirmation.set(true);
@@ -163,8 +157,7 @@ export class AttributionComponent {
   /** Écrit le plan : les disponibilités sont créées comme si le professeur
    *  les avait lui-même cochées. */
   async attribuer(): Promise<void> {
-    if (!this.autorise()) {
-      this.notif.erreur(MESSAGE_ADMIN_REQUIS);
+    if (!this.exigerAdmin()) {
       return;
     }
     const plan: PlanAttribution | null = this.plan();

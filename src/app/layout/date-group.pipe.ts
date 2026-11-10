@@ -1,13 +1,6 @@
 import { Pipe, type PipeTransform } from '@angular/core';
 
-import { dateLocale } from '../shared/date.util';
-
-const FORMATTEUR = new Intl.DateTimeFormat('fr-FR', {
-  weekday: 'long',
-  day: 'numeric',
-  month: 'long',
-  year: 'numeric',
-});
+import { dateLocale, formaterJourAvecAnnee } from '../shared/date.util';
 
 /**
  * `dateGroup` — `'YYYY-MM-DD'` → « lundi 12 janvier 2026 » (F3).
@@ -25,6 +18,6 @@ export class DateGroupPipe implements PipeTransform {
       return '';
     }
     const date = dateLocale(valeur);
-    return date ? FORMATTEUR.format(date) : valeur;
+    return date ? formaterJourAvecAnnee(date) : valeur;
   }
 }

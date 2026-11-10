@@ -1,0 +1,72 @@
+// -----------------------------------------------------------------------------
+// MesDispos — Calendrier du planning de soutenances (espace admin)
+// -----------------------------------------------------------------------------
+
+@use '../../../styles/calendar-layout' as cal;
+@use '../../../styles/mixins' as mx;
+
+@include cal.calendrier;
+@include cal.legende;
+@include cal.case-evenement;
+
+.compteur {
+  margin-left: auto;
+  color: var(--app-on-surface-variant);
+  font: var(--app-type-body-small);
+}
+
+// Filtre par salle.
+.filtre-salles {
+  display: flex;
+  flex-direction: column;
+  gap: var(--md-spacing-2);
+}
+
+.champ-salles {
+  @include mx.champ-plein(320px);
+}
+
+.actions-filtre {
+  @include mx.barre-actions;
+}
+
+.bouton-filtre {
+  @include mx.bouton-materiel;
+}
+
+:host ::ng-deep {
+  .cal-week-view .cal-header {
+    text-transform: capitalize;
+  }
+
+  .cal-week-view .cal-header span {
+    text-transform: none;
+  }
+
+  .cal-event-title {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    overflow: hidden;
+  }
+
+  .case-etudiant,
+  .case-salle {
+    font: var(--app-type-label-small);
+    opacity: 0.85;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .case-salle {
+    font-weight: 600;
+  }
+}
+
+// Puce « soutenance ».
+.puce {
+  background-color: var(--app-tertiary-container);
+}
+
+@include cal.calendrier-mobile;

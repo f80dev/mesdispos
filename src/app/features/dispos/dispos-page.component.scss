@@ -1,12 +1,15 @@
+// -----------------------------------------------------------------------------
+// MesDispos — Page des disponibilités (deux listes)
+// -----------------------------------------------------------------------------
+
+@use '../../../styles/mixins' as mx;
+
 :host {
   display: block;
 }
 
 .page {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: var(--md-spacing-5);
-  width: 100%;
+  @include mx.page(var(--md-spacing-5));
 }
 
 .colonnes {
@@ -24,19 +27,7 @@
 }
 
 .titre-section {
-  display: flex;
-  align-items: center;
-  gap: var(--md-spacing-2);
-  margin: 0;
-  font: var(--app-type-title-medium);
-  color: var(--app-on-surface);
-
-  mat-icon {
-    color: var(--app-primary);
-    font-size: 20px;
-    width: 20px;
-    height: 20px;
-  }
+  @include mx.titre-section;
 }
 
 // Pastille de compteur alignée à droite du titre de section.
@@ -85,21 +76,13 @@
 }
 
 .liste {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: var(--md-spacing-2);
+  @include mx.liste-v;
 }
 
 .vide {
-  margin: 0;
+  @include mx.vide;
+  @include mx.bloc;
   padding: var(--md-spacing-4);
-  border-radius: var(--app-corner-medium);
-  background: var(--app-surface-container);
-  color: var(--app-on-surface-variant);
-  font: var(--app-type-body-medium);
 }
 
 .etat-erreur {
@@ -107,8 +90,8 @@
   flex-direction: column;
   align-items: flex-start;
   gap: var(--md-spacing-2);
+  @include mx.bloc;
   padding: var(--md-spacing-4);
-  border-radius: var(--app-corner-medium);
   background: color-mix(in srgb, var(--app-error) 10%, var(--app-surface-container));
   color: var(--app-on-surface);
 

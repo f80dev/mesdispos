@@ -1,0 +1,115 @@
+// =============================================================================
+// MesDispos — Thème Material Design 3 sombre, palette ENSAD
+// =============================================================================
+//
+// Thème sombre appliqué à l'ensemble du programme (pas de bascule
+// `prefers-color-scheme` : l'application est sombre en permanence).
+//
+// `mat.theme()` génère tous les rôles `--mat-sys-*` et les tokens des
+// composants Material à partir des palettes ENSAD (cf. `_palette.scss`).
+// =============================================================================
+
+@use '@angular/material' as mat;
+@use 'palette' as pal;
+
+:root {
+  color-scheme: dark;
+
+  @include mat.theme(
+    (
+      color: (
+        primary: pal.$ensad-red,
+        tertiary: pal.$ensad-blue,
+        theme-type: dark,
+      ),
+      typography: (
+        plain-family: ('Outfit', sans-serif),
+        brand-family: ('Outfit', sans-serif),
+        regular-weight: 400,
+        medium-weight: 500,
+        bold-weight: 700,
+      ),
+      density: (
+        scale: -1,
+      ),
+    )
+  );
+}
+
+// -----------------------------------------------------------------------------
+// Alias applicatifs des rôles M3 (`--mat-sys-*`)
+// Les composants consomment ces alias courts : changer de palette ou de thème
+// n'oblige pas à réécrire les feuilles de style.
+// -----------------------------------------------------------------------------
+:root {
+  // Palette : primary / secondary / tertiary + rôles « on- »
+  --app-primary: var(--mat-sys-primary);
+  --app-on-primary: var(--mat-sys-on-primary);
+  --app-primary-container: var(--mat-sys-primary-container);
+  --app-on-primary-container: var(--mat-sys-on-primary-container);
+  --app-secondary: var(--mat-sys-secondary);
+  --app-on-secondary: var(--mat-sys-on-secondary);
+  --app-secondary-container: var(--mat-sys-secondary-container);
+  --app-on-secondary-container: var(--mat-sys-on-secondary-container);
+  --app-tertiary: var(--mat-sys-tertiary);
+  --app-on-tertiary: var(--mat-sys-on-tertiary);
+  --app-tertiary-container: var(--mat-sys-tertiary-container);
+  --app-on-tertiary-container: var(--mat-sys-on-tertiary-container);
+
+  // Surfaces : base + conteneurs (niveaux 0 → 5) + « on-surface »
+  --app-surface: var(--mat-sys-surface);
+  --app-on-surface: var(--mat-sys-on-surface);
+  --app-surface-variant: var(--mat-sys-surface-variant);
+  --app-on-surface-variant: var(--mat-sys-on-surface-variant);
+  --app-surface-container-lowest: var(--mat-sys-surface-container-lowest);
+  --app-surface-container-low: var(--mat-sys-surface-container-low);
+  --app-surface-container: var(--mat-sys-surface-container);
+  --app-surface-container-high: var(--mat-sys-surface-container-high);
+  --app-surface-container-highest: var(--mat-sys-surface-container-highest);
+
+  // Contours
+  --app-outline: var(--mat-sys-outline);
+  --app-outline-variant: var(--mat-sys-outline-variant);
+
+  // États : erreur M3 (aucune couleur hors palette)
+  --app-error: var(--mat-sys-error);
+  --app-on-error: var(--mat-sys-on-error);
+  --app-error-container: var(--mat-sys-error-container);
+  --app-on-error-container: var(--mat-sys-on-error-container);
+
+  // État « créneau retenu » : vert ENSAD (#1C6333)
+  --app-success: var(--mat-sys-secondary);
+  --app-on-success: var(--mat-sys-on-secondary);
+  --app-success-container: var(--mat-sys-secondary-container);
+  --app-on-success-container: var(--mat-sys-on-secondary-container);
+
+  // Élévations M3 : level0 (aucune) à level5 — 1 seul niveau utilisé par l'app
+  --app-elevation-0: var(--mat-sys-level0);
+  --app-elevation-1: var(--mat-sys-level1);
+  --app-elevation-2: var(--mat-sys-level2);
+  --app-elevation-3: var(--mat-sys-level3);
+  --app-elevation-4: var(--mat-sys-level4);
+  --app-elevation-5: var(--mat-sys-level5);
+
+  // Type-scale M3 : display / headline / title / body / label × large|medium|small
+  --app-type-display-large: var(--mat-sys-display-large);
+  --app-type-display-medium: var(--mat-sys-display-medium);
+  --app-type-headline-large: var(--mat-sys-headline-large);
+  --app-type-headline-medium: var(--mat-sys-headline-medium);
+  --app-type-headline-small: var(--mat-sys-headline-small);
+  --app-type-title-large: var(--mat-sys-title-large);
+  --app-type-title-medium: var(--mat-sys-title-medium);
+  --app-type-title-small: var(--mat-sys-title-small);
+  --app-type-body-large: var(--mat-sys-body-large);
+  --app-type-body-medium: var(--mat-sys-body-medium);
+  --app-type-body-small: var(--mat-sys-body-small);
+  --app-type-label-large: var(--mat-sys-label-large);
+  --app-type-label-medium: var(--mat-sys-label-medium);
+  --app-type-label-small: var(--mat-sys-label-small);
+
+  // Coins M3
+  --app-corner-small: var(--mat-sys-corner-small);
+  --app-corner-medium: var(--mat-sys-corner-medium);
+  --app-corner-large: var(--mat-sys-corner-large);
+  --app-corner-full: var(--mat-sys-corner-full);
+}

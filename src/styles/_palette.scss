@@ -1,0 +1,174 @@
+// =============================================================================
+// MesDispos — Palettes Material Design 3 construites sur l'identité ENSAD
+// =============================================================================
+//
+// Les palettes ci-dessous sont des « tonal palettes » M3 complètes (tons 0 à
+// 100) dérivées des couleurs de marque du site ensad.fr :
+//
+//   rouge  #FE3E0D  (primaire)      vert  #1C6333  (secondaire)
+//   bleu   #2A84FF  (tertiaire)     noir  #151515  (surfaces)
+//   gris   #86868B / #C3C3C5 / #E7EAE8 / #F5F5F7
+//
+// En thème sombre, M3 prend le primaire au ton 80, le conteneur au ton 30 et
+// le « on-… » au ton 90 : les tons sont donc calibrés pour que la couleur de
+// marque apparaisse réellement à l'écran.
+//
+// Elles sont passées à `mat.theme()` : tous les rôles `--mat-sys-*` et les
+// tokens de composants Material en découlent, sans surcharges manuelles.
+// =============================================================================
+
+// -----------------------------------------------------------------------------
+// Rouge ENSAD — palette primaire
+// -----------------------------------------------------------------------------
+$ensad-red: (
+  0: #000000,
+  10: #3b0900,
+  20: #5f1400,
+  25: #741a00,
+  30: #8a1f00,
+  35: #9f2400,
+  40: #b42900,
+  50: #d93500,
+  60: #fe3e0d,
+  70: #ff5a35,
+  80: #fe3e0d,
+  90: #ffb59e,
+  95: #ffdbcf,
+  98: #fff0eb,
+  99: #fffbff,
+  100: #ffffff,
+  secondary: (
+    0: #000000,
+    10: #00210f,
+    20: #00381a,
+    25: #004523,
+    30: #00522d,
+    35: #005f36,
+    40: #006d40,
+    50: #1c6333,
+    60: #3c8c60,
+    70: #5db78d,
+    80: #6fcf97,
+    90: #a2f0c8,
+    95: #baf8d7,
+    98: #d3fbe5,
+    99: #e9fdef,
+    100: #ffffff,
+  ),
+  neutral: (
+    0: #000000,
+    4: #0d0d0d,
+    6: #151515,
+    10: #1c1c1e,
+    12: #232326,
+    17: #2b2b2f,
+    20: #343438,
+    22: #35353a,
+    24: #3a3a3f,
+    25: #3e3e42,
+    30: #494950,
+    35: #54545b,
+    40: #5f5f66,
+    50: #787880,
+    60: #93939b,
+    70: #aeafb7,
+    80: #c9c9d1,
+    87: #d5d5db,
+    90: #e7eae8,
+    92: #eeeeef,
+    94: #f4f4f5,
+    95: #f7f8f8,
+    96: #fafafa,
+    98: #fcfcfc,
+    99: #fefefe,
+    100: #ffffff,
+  ),
+  neutral-variant: (
+    0: #000000,
+    10: #151515,
+    12: #1c1c1e,
+    17: #232326,
+    20: #2b2b2f,
+    22: #303035,
+    24: #35353a,
+    25: #3a3a3f,
+    30: #45454b,
+    35: #505056,
+    40: #5b5b61,
+    50: #74747b,
+    60: #8f8f96,
+    70: #aaaab2,
+    80: #c5c5cd,
+    87: #d1d1d8,
+    90: #e3e3e6,
+    92: #eaeaea,
+    94: #f0f0f1,
+    95: #f3f4f4,
+    96: #f7f7f8,
+    98: #fbfbfc,
+    99: #fdfdfe,
+    100: #ffffff,
+  ),
+  error: (
+    0: #000000,
+    10: #410002,
+    20: #690005,
+    25: #7e0007,
+    30: #93000a,
+    35: #a80710,
+    40: #ba1a1a,
+    50: #de3730,
+    60: #ff5449,
+    70: #ff897d,
+    80: #ffb4ab,
+    90: #ffdad6,
+    95: #ffedea,
+    98: #fff8f7,
+    99: #fffbff,
+    100: #ffffff,
+  ),
+);
+
+// -----------------------------------------------------------------------------
+// Vert ENSAD — palette secondaire (utilisée explicitement)
+// -----------------------------------------------------------------------------
+$ensad-green: (
+  0: #000000,
+  10: #00210f,
+  20: #00381a,
+  25: #004523,
+  30: #00522d,
+  35: #005f36,
+  40: #006d40,
+  50: #1c6333,
+  60: #3c8c60,
+  70: #5db78d,
+  80: #6fcf97,
+  90: #a2f0c8,
+  95: #baf8d7,
+  98: #d3fbe5,
+  99: #e9fdef,
+  100: #ffffff,
+);
+
+// -----------------------------------------------------------------------------
+// Bleu ENSAD — palette tertiaire
+// -----------------------------------------------------------------------------
+$ensad-blue: (
+  0: #000000,
+  10: #001d3d,
+  20: #00325a,
+  25: #003f6e,
+  30: #004c82,
+  35: #005896,
+  40: #0065aa,
+  50: #2a84ff,
+  60: #5897fb,
+  70: #80b4ff,
+  80: #5897fb,
+  90: #d4e3ff,
+  95: #e6f0ff,
+  98: #f3f8ff,
+  99: #fafcff,
+  100: #ffffff,
+);

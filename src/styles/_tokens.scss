@@ -1,0 +1,80 @@
+// =============================================================================
+// MesDispos — Design tokens (source unique pour toute l'application)
+// =============================================================================
+//
+// Toutes les feuilles de style de l'application consomment ces tokens via les
+// variables CSS `--md-*` / `--app-*` : un changement de palette ou de fonte
+// se répercute partout sans retoucher les SCSS de composants.
+//
+// Palette : inspirée de l'identité ENSAD (ensad.fr)
+//   noir/gris  #151515 #86868B #C3C3C5 #DDDDDD #E7EAE8 #F5F5F7
+//   couleurs   rouge #FE3E0D · bleu #2A84FF · vert #1C6333 · violet #3E0088
+//   pastilles  rose #FFE1E9 · bleu clair #E0FCFF · jaune #FCFCDE · vert #E6FFEA
+//
+// Fonte : « Outfit » (webfont de repli de la « Bascule » de l'ENSAD, chargée
+// par le site ensad.fr depuis Google Fonts) — voir `src/index.html`.
+// =============================================================================
+
+:root {
+  // -----------------------------------------------------------------------------
+  // Palette de marque ENSAD (valeurs brutes, réutilisées par le thème sombre)
+  // -----------------------------------------------------------------------------
+  --ensad-black: #151515;
+  --ensad-grey-1: #86868b;
+  --ensad-grey-2: #c3c3c5;
+  --ensad-grey-3: #dddddd;
+  --ensad-grey-4: #e7eae8;
+  --ensad-grey-5: #f5f5f7;
+  --ensad-red: #fe3e0d;
+  --ensad-blue: #2a84ff;
+  --ensad-green: #1c6333;
+  --ensad-purple: #3e0088;
+  --ensad-marron: #936847;
+  --ensad-rouge-starck: #842c1e;
+  --ensad-pink: #ffe1e9;
+  --ensad-pale-blue: #e0fcff;
+  --ensad-pale-yellow: #fcfcde;
+  --ensad-pale-green: #e6ffea;
+
+  // -----------------------------------------------------------------------------
+  // Espacement — échelle MD3 (4 / 8 / 12 / 16 / 24 / 32 px)
+  // -----------------------------------------------------------------------------
+  --md-spacing-1: 4px;
+  --md-spacing-2: 8px;
+  --md-spacing-3: 12px;
+  --md-spacing-4: 16px;
+  --md-spacing-5: 24px;
+  --md-spacing-6: 32px;
+
+  // -----------------------------------------------------------------------------
+  // Padding échelonné du contenu (F7) : desktop 48 / ≤900 24 / ≤700 16 / ≤420 8+16
+  // -----------------------------------------------------------------------------
+  --md-content-padding: 48px;
+
+  // -----------------------------------------------------------------------------
+  // Motion M3 — durées et courbes de la spécification
+  // -----------------------------------------------------------------------------
+  --md-motion-duration-short: 150ms;
+  --md-motion-duration-medium: 250ms;
+  --md-motion-duration-long: 400ms;
+  --md-motion-duration-extra-long: 600ms;
+
+  // -----------------------------------------------------------------------------
+  // Densité — compact par défaut (§3 du cahier des charges)
+  // -----------------------------------------------------------------------------
+  --md-density-default: -1;
+
+  // -----------------------------------------------------------------------------
+  // Fontes
+  // -----------------------------------------------------------------------------
+  --md-font-family: 'Outfit', 'Helvetica Neue', sans-serif;
+  --md-font-family-mono: ui-monospace, 'SFMono-Regular', Menlo, monospace;
+
+  // -----------------------------------------------------------------------------
+  // Rayons — reutilise les coins M3 générés par `mat.theme()`
+  // -----------------------------------------------------------------------------
+  --md-radius-small: var(--mat-sys-corner-small);
+  --md-radius-medium: var(--mat-sys-corner-medium);
+  --md-radius-large: var(--mat-sys-corner-large);
+  --md-radius-full: var(--mat-sys-corner-full);
+}

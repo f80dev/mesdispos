@@ -1,0 +1,123 @@
+<!--
+  Mobile  : filtre des salles en liste défilante, calendrier sur une colonne
+            (grille défilante horizontalement), cibles tactiles ≥ 48 px.
+  Desktop : filtre des salles en colonnes, calendrier sur 7 jours.
+-->
+<div class="calendrier">
+  <div class="barre">
+    <div class="navigation">
+      <button
+        matIconButton
+        type="button"
+        (click)="semainePrecedente()"
+        aria-label="Semaine précédente"
+      >
+        <mat-icon>chevron_left</mat-icon>
+      </button>
+
+      <button matIconButton type="button" (click)="semaineActuelle()" aria-label="Semaine actuelle">
+        <mat-icon>today</mat-icon>
+      </button>
+
+      <button matIconButton type="button" (click)="semaineSuivante()" aria-label="Semaine suivante">
+        <mat-icon>chevron_right</mat-icon>
+      </button>
+    </div>
+
+    <h3 class="titre">
+      {{ viewDate() | calendarDate: 'weekViewTitle' : 'fr' : 1 }}
+    </h3>
+
+    <span class="compteur">{{ nombreAffiche() }} soutenance(s)</span>
+  </div>
+
+  @if (salles().length > 0) {
+    <div class="filtre-salles">
+      <mat-form-field appearance="outline" class="champ-salles">
+        <mat-label>Filtrer par salle</mat-label>
+        <mat-select
+          multiple
+          [value]="sallesChoisis()"
+          (selectionChange)="selectionnerSalles($event.value)"
+          aria-label="Filtrer les soutenances par salle"
+        >
+          @for (salle of salles(); track salle) {
+            <mat-option [value]="salle">{{ salle }}</mat-option>
+          }
+        </mat-select>
+        <mat-hint>
+          {{ sallesChoisis().length }} salle(s) cochée(s) sur {{ salles().length }}
+        </mat-hint>
+      </mat-form-field>
+
+      <div class="actions-filtre">
+        <button matButton="outlined" type="button" class="bouton-filtre" (click)="toutAfficher()">
+          <mat-icon aria-hidden="true">done_all</mat-icon>
+          Toutes
+        </button>
+        <button matButton="outlined" type="button" class="bouton-filtre" (click)="toutMasquer()">
+          <mat-icon aria-hidden="true">clear_all</mat-icon>
+          Aucune
+        </button>
+      </div>
+    </div>
+  }
+
+  <div class="grille">
+    <mwl-calendar-week-view
+      [viewDate]="viewDate()"
+      [events]="evenements()"
+      [locale]="'fr'"
+      [weekStartsOn]="1"
+      [dayStartHour]="heureDebut()"
+      [dayEndHour]="heureFin()"
+      [hourSegments]="2"
+      [hourSegmentHeight]="32"
+      [minimumEventHeight]="28"
+      [eventTitleTemplate]="titreEvenement"
+      [headerTemplate]="enteteSemaine"
+      [tooltipAppendToBody]="true"
+    />
+  </div>
+
+  <!-- Contenu d'une case : l'horaire en ligne 1, le mémoire et la salle ensuite. -->
+  <ng-template #titreEvenement let-event="event">
+    <span class="case-heure">{{ event.title }}</span>
+    <span class="case-libelle">{{ event.meta?.soutenance?.titre }}</span>
+    @if (event.meta?.soutenance?.etudiant) {
+      <span class="case-etudiant">{{ event.meta?.soutenance?.etudiant }}</span>
+    }
+    @if (event.meta?.soutenance?.salle) {
+      <span class="case-salle">{{ event.meta?.soutenance?.salle }}</span>
+    }
+  </ng-template>
+
+  <!-- En-têtes de colonnes : jour de la semaine + numéro du jour. -->
+  <ng-template #enteteSemaine let-days="days">
+    <div class="cal-day-headers" role="row">
+      @for (day of days; track day.date.toISOString()) {
+        <div
+          class="cal-header"
+          [class.cal-past]="day.isPast"
+          [class.cal-today]="day.isToday"
+          [class.cal-future]="day.isFuture"
+          [class.cal-weekend]="day.isWeekend"
+          role="columnheader"
+        >
+          <b>{{ day.date | calendarDate: 'weekViewColumnHeader' : 'fr' }}</b>
+          <span>{{ day.date | calendarDate: 'weekViewColumnSubHeader' : 'fr' }}</span>
+        </div>
+      }
+    </div>
+  </ng-template>
+
+  <p class="legende">
+    <span class="legende-item">
+      <span class="puce" aria-hidden="true"></span>
+      Une soutenance planifiée
+    </span>
+    <span class="legende-aide">
+      Décochez une salle pour la masquer ; le planning reste affiché sur la semaine affichée.
+    </span>
+  </p>
+</div>

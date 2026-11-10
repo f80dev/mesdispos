@@ -10,16 +10,21 @@
 import { Injectable, InjectionToken } from '@angular/core';
 
 export interface XLSXBackend {
-  /** Parse un fichier `.xlsx` et renvoie un tableau de lignes. */
-  lire(fichier: File): Promise<unknown[][]>;
+  /**
+   * Parse un fichier `.xlsx` et renvoie un tableau de lignes.
+   *
+   * @param fichier le classeur à lire
+   * @param feuille nom de la feuille à lire (1ʳᵉ feuille par défaut)
+   */
+  lire(fichier: File, feuille?: string): Promise<unknown[][]>;
 }
 
 export const XLSX_BACKEND = new InjectionToken<XLSXBackend>('XLSXBackend');
 
 @Injectable({ providedIn: 'root' })
 export class XLSXReelBackend implements XLSXBackend {
-  async lire(fichier: File): Promise<unknown[][]> {
+  async lire(fichier: File, feuille?: string): Promise<unknown[][]> {
     const mod = await import('read-excel-file');
-    return (await mod.default(fichier)) as unknown[][];
+    return (await mod.default(fichier, feuille ? { sheet: feuille } : undefined)) as unknown[][];
   }
 }

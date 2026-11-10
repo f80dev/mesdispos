@@ -1,44 +1,72 @@
+// -----------------------------------------------------------------------------
+// MesDispos — Console d'import (espace administrateur)
+// -----------------------------------------------------------------------------
+
+@use '../../../styles/mixins' as mx;
+
 :host {
   display: block;
 }
 
 .page-prompt {
-  display: flex;
-  flex-direction: column;
-  gap: var(--md-spacing-4);
-  width: 100%;
+  @include mx.page;
 }
 
 .entete h1 {
-  margin: 0 0 var(--md-spacing-2);
-  font: var(--app-type-headline-medium);
+  @include mx.titre-page;
 }
 
 .aide {
-  margin: 0;
-  color: var(--app-on-surface-variant);
-  font: var(--app-type-body-medium);
-
-  code {
-    font-family: ui-monospace, 'SFMono-Regular', Menlo, monospace;
-    background: var(--app-surface-container);
-    border-radius: var(--app-corner-small);
-    padding: 0 4px;
-  }
+  @include mx.aide;
 }
 
 .actions {
+  @include mx.barre-actions;
+}
+
+.import-memoires {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   gap: var(--md-spacing-3);
 }
 
-.bouton {
+.import-planning {
   display: flex;
-  align-items: center;
-  gap: var(--md-spacing-2);
-  min-height: 48px;
-  padding-inline: var(--md-spacing-5);
+  flex-direction: column;
+  gap: var(--md-spacing-3);
+}
+
+.liste-anomalies {
+  @include mx.liste-anomalies;
+}
+
+.actions-import {
+  @include mx.barre-actions;
+}
+
+.bouton-import {
+  @include mx.bouton-action;
+
+  input[type='file'] {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+  }
+}
+
+.fichier-importe {
+  color: var(--app-on-surface-variant);
+  font: var(--app-type-body-medium);
+}
+
+.bouton {
+  @include mx.bouton-materiel;
 }
 
 .compteurs {
@@ -48,27 +76,11 @@
 }
 
 .message-erreur {
-  margin: 0;
-  padding: var(--md-spacing-3);
-  background: color-mix(in srgb, var(--app-error) 12%, var(--app-surface-container));
-  color: var(--app-on-surface);
-  font: var(--app-type-body-medium);
+  @include mx.message-erreur;
 }
 
 .apercu {
-  border: 1px solid var(--app-outline-variant);
-  border-radius: var(--app-corner-medium);
-  padding: var(--md-spacing-3);
-  background: var(--app-surface-container-lowest);
-
-  summary {
-    cursor: pointer;
-    min-height: 48px;
-    display: flex;
-    align-items: center;
-    font: var(--app-type-label-large);
-    color: var(--app-on-surface);
-  }
+  @include mx.bloc-repliable;
 }
 
 .texte {
@@ -78,7 +90,7 @@
   padding: var(--md-spacing-3);
   background: var(--app-surface-container);
   border-radius: var(--app-corner-medium);
-  font-family: ui-monospace, 'SFMono-Regular', Menlo, monospace;
+  font-family: var(--md-font-family-mono);
   font-size: 12px;
   white-space: pre-wrap;
   word-break: break-word;

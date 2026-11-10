@@ -1,34 +1,19 @@
-import { Component, computed, effect, input, output, signal } from '@angular/core';
-import {
-  CalendarA11y,
-  CalendarDateFormatter,
-  CalendarDatePipe,
-  CalendarDayViewComponent,
-  CalendarEvent,
-  CalendarEventTitleFormatter,
-  CalendarNextViewDirective,
-  CalendarPreviousViewDirective,
-  CalendarTodayDirective,
-  CalendarView,
-  CalendarWeekViewComponent,
-  DateAdapter,
-  provideCalendar,
-} from 'angular-calendar';
-import { adapterFactory } from 'angular-calendar/date-adapters/date-fns';
-import { MatButtonModule } from '@angular/material/button';
-import { MatIconModule } from '@angular/material/icon';
+import { Component, computed, effect, input, output } from '@angular/core';
+import { CalendarEvent } from 'angular-calendar';
 
 import {
   CalendrierA11y,
-  CalendrierDateFormatter,
   CalendrierEventTitleFormatter,
+  fournisseursCalendrier,
   metaCreneau,
 } from './calendrier.formatters';
-import { creneauVersIntervalle, dateLocale, jourIso } from '../../shared/date.util';
+import { creneauVersIntervalle, dateLocale } from '../../shared/date.util';
+import { IMPORTS_CALENDRIER } from '../../shared/calendrier.util';
+import { CalendrierBase } from '../../shared/calendrier-base';
+import type { VueCalendrier } from '../../shared/calendrier.util';
 import type { Creneau } from '../../data/models';
 
-/** Vue courante du calendrier : journée ou semaine. */
-export type VueCalendrier = CalendarView.Day | CalendarView.Week;
+export type { VueCalendrier };
 
 /**
  * `CreneauCalendarComponent` — calendrier chronologique des créneaux
@@ -49,33 +34,12 @@ export type VueCalendrier = CalendarView.Day | CalendarView.Week;
  */
 @Component({
   selector: 'app-creneau-calendar',
-  imports: [
-    CalendarDatePipe,
-    CalendarDayViewComponent,
-    CalendarNextViewDirective,
-    CalendarPreviousViewDirective,
-    CalendarTodayDirective,
-    CalendarWeekViewComponent,
-    MatButtonModule,
-    MatIconModule,
-  ],
-  providers: [
-    ...provideCalendar(
-      { provide: DateAdapter, useFactory: adapterFactory },
-      {
-        dateFormatter: { provide: CalendarDateFormatter, useClass: CalendrierDateFormatter },
-        eventTitleFormatter: {
-          provide: CalendarEventTitleFormatter,
-          useClass: CalendrierEventTitleFormatter,
-        },
-        a11y: { provide: CalendarA11y, useClass: CalendrierA11y },
-      },
-    ),
-  ],
+  imports: [...IMPORTS_CALENDRIER],
+  providers: [fournisseursCalendrier(CalendrierA11y, CalendrierEventTitleFormatter)],
   templateUrl: './creneau-calendar.component.html',
   styleUrl: './creneau-calendar.component.scss',
 })
-export class CreneauCalendarComponent {
+export class CreneauCalendarComponent extends CalendrierBase {
   /** Tous les créneaux proposés (retenus ou non). */
   readonly creneaux = input.required<Creneau[]>();
 
@@ -85,30 +49,11 @@ export class CreneauCalendarComponent {
   /** Émis au clic sur un créneau du calendrier : le parent déclenche l'écriture. */
   readonly basculer = output<Creneau>();
 
-  /**
-   * Vue affichée (« jour » ou « semaine »). Sur smartphone, la vue « jour » est
-   * retenue par défaut : 7 colonnes sont illisibles sous 900 px.
-   */
-  readonly vue = signal<VueCalendrier>(
-    typeof window !== 'undefined' && window.innerWidth < 900 ? CalendarView.Day : CalendarView.Week,
-  );
-
-  /** Date pivot de la vue courante (navigation précédent / aujourd'hui / suivant). */
-  readonly viewDate = signal<Date>(new Date());
-
-  /** Jours ('YYYY-MM-DD') comportant au moins un créneau affiché. */
-  readonly joursAffiches = computed(() => {
-    const jours = new Set<string>();
-    for (const creneau of this.creneaux()) {
-      jours.add(creneau.date);
-    }
-    return jours;
-  });
-
   /** Identifiants de la liste précédente — sert à détecter les ajouts. */
   private idsConnus = new Set<string>();
 
   constructor() {
+    super();
     // Le calendrier affiche les disponibilités de l'utilisateur. À chaque
     // arrivée d'un créneau retenu, la vue se positionne sur son jour : un
     // créneau sélectionné devient immédiatement visible dans le calendrier.
@@ -127,15 +72,6 @@ export class CreneauCalendarComponent {
       }
     });
   }
-
-  /** Exposition de l'énumération pour le template. */
-  readonly CalendarView = CalendarView;
-
-  /** Locale française (titres de colonnes, libellés de jours). */
-  readonly locale = 'fr';
-
-  /** La semaine française commence le lundi. */
-  readonly weekStartsOn = 1;
 
   /** Événements du calendrier, dérivés des créneaux (couleurs selon l'état). */
   readonly evenements = computed<CalendarEvent[]>(() => {
@@ -159,28 +95,6 @@ export class CreneauCalendarComponent {
     return evenements;
   });
 
-  /** Première heure affichée (bornée par les créneaux), pour éviter une grille vide. */
-  readonly heureDebut = computed(() => {
-    const heures = this.creneaux()
-      .map((creneau) => Number.parseInt(creneau.heureDebut.slice(0, 2), 10))
-      .filter((heure) => Number.isFinite(heure));
-    if (heures.length === 0) {
-      return 8;
-    }
-    return Math.max(0, Math.min(...heures) - 1);
-  });
-
-  /** Dernière heure affichée (bornée par les créneaux). */
-  readonly heureFin = computed(() => {
-    const heures = this.creneaux()
-      .map((creneau) => Number.parseInt(creneau.heureFin.slice(0, 2), 10))
-      .filter((heure) => Number.isFinite(heure));
-    if (heures.length === 0) {
-      return 19;
-    }
-    return Math.min(24, Math.max(...heures) + 1);
-  });
-
   /** Un clic sur un événement du calendrier = un clic sur le créneau (F4). */
   surClicEvenement(evenement: CalendarEvent): void {
     const meta = metaCreneau(evenement);
@@ -192,15 +106,5 @@ export class CreneauCalendarComponent {
   /** Libellé (optionnel) du créneau porté par l'événement — 2ᵉ ligne de la case. */
   libelleEvenement(evenement: CalendarEvent): string | undefined {
     return metaCreneau(evenement)?.creneau.libelle;
-  }
-
-  /** Ce jour comporte-t-il au moins une disponibilité affichée ? (pastille d'en-tête) */
-  aDesAffiches(date: Date): boolean {
-    return this.joursAffiches().has(jourIso(date));
-  }
-
-  /** Bascule entre la vue « semaine » et la vue « jour ». */
-  changerVue(vue: VueCalendrier): void {
-    this.vue.set(vue);
   }
 }

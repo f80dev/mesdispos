@@ -20,6 +20,35 @@
   } @else if (!autorise()) {
     <p class="message-erreur" role="alert">{{ messageAdminRequis }}</p>
   } @else {
+    <div class="import-memoires">
+      <p class="aide">
+        Pour utiliser une autre liste de mémoires, importez un classeur
+        <code>.xlsx</code> au même format que <code>{{ urlMemoires }}</code> : il remplacera ce
+        fichier pour les prochains prompts (il reste en mémoire, rien n'est envoyé).
+      </p>
+
+      <div class="actions-import">
+        <label class="bouton-import">
+          <input
+            type="file"
+            accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            (change)="importMemoires($event)"
+          />
+          Importer un fichier mémoires
+        </label>
+
+        @if (fichierMemoires(); as nom) {
+          <span class="fichier-importe"> {{ nom }} — {{ nbMemoiresImportees() }} mémoire(s) </span>
+          <button matButton type="button" class="bouton" (click)="retirerMemoires()">
+            <mat-icon aria-hidden="true">close</mat-icon>
+            Retirer
+          </button>
+        } @else {
+          <span class="fichier-importe">Fichier par défaut : {{ urlMemoires }}</span>
+        }
+      </div>
+    </div>
+
     <div class="actions">
       <button
         matButton
@@ -71,6 +100,57 @@
         <summary>Voir le prompt assemblé</summary>
         <pre class="texte">{{ texte }}</pre>
       </details>
+    }
+
+    <div class="import-planning">
+      <p class="aide">
+        Après avoir collé le prompt dans une IA, importez le classeur
+        <code>.xlsx</code> du planning obtenu (feuille « Planning » : Date, Heure, Titre du mémoire,
+        Étudiant·e, Directeur·rice, Jury 2, Jury 3, Salle — la colonne « Heure » contient la plage
+        <code>HH:mm-HH:mm</code>). Le planning s'affiche dans un calendrier hebdomadaire filtrable
+        par salle ; le fichier reste en mémoire, rien n'est envoyé.
+      </p>
+
+      <div class="actions-import">
+        <label class="bouton-import">
+          <input
+            type="file"
+            accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            [disabled]="lecturePlanning()"
+            (change)="importPlanning($event)"
+          />
+          Importer le planning
+        </label>
+
+        @if (fichierPlanning(); as nom) {
+          <span class="fichier-importe">{{ nom }} — {{ soutenances().length }} soutenance(s)</span>
+          <button matButton type="button" class="bouton" (click)="retirerPlanning()">
+            <mat-icon aria-hidden="true">close</mat-icon>
+            Retirer
+          </button>
+        } @else {
+          <span class="fichier-importe">Aucun planning importé</span>
+        }
+      </div>
+
+      @if (lecturePlanning()) {
+        <mat-progress-bar mode="indeterminate" aria-label="Lecture du planning" />
+      }
+    </div>
+
+    @if (lignesInvalides().length > 0) {
+      <details class="apercu">
+        <summary>{{ lignesInvalides().length }} ligne(s) ignorée(s)</summary>
+        <ul class="liste-anomalies">
+          @for (ligne of lignesInvalides(); track ligne.ligne) {
+            <li>Ligne {{ ligne.ligne }} : {{ ligne.erreur }}</li>
+          }
+        </ul>
+      </details>
+    }
+
+    @if (soutenances().length > 0) {
+      <app-planning-calendar [soutenances]="soutenances()" />
     }
   }
 </section>
