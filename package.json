@@ -12,7 +12,8 @@
     "test:e2e:install": "playwright install",
     "deploy": "node increment-version.js && ng build && npx wrangler pages deploy dist/mesdispos/browser --project-name=mesdispo",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "empreinte-mdp": "node scripts/empreinte-mot-de-passe.mjs"
   },
   "private": true,
   "packageManager": "npm@10.9.8",

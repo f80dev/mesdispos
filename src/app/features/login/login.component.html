@@ -102,39 +102,68 @@
     <button class="bouton-continuer" matButton type="submit" [disabled]="!peutContinuer()">
       Continuer
     </button>
-
   </form>
 
   <div class="carte carte-admin">
-      <h2 class="titre-admin">Espace administrateur</h2>
-      <p class="aide">
-        Réservé à l'import des créneaux. Connectez-vous avec votre compte Google administrateur.
-      </p>
+    <h2 class="titre-admin">Espace administrateur</h2>
+    <p class="aide">
+      Réservé à l'import des créneaux. Saisissez le mot de passe administrateur, ou connectez-vous
+      avec votre compte Google administrateur.
+    </p>
 
-      <button
-        class="bouton-admin"
-        matButton="outlined"
-        type="button"
-        [disabled]="enCoursAdmin()"
-        (click)="connecterAdmin()"
-      >
+    <form
+      class="formulaire-admin"
+      [formGroup]="formulaireAdmin"
+      (ngSubmit)="connecterAdminParMotDePasse()"
+      novalidate
+    >
+      <mat-form-field appearance="outline" class="champ-mdp">
+        <mat-label>Mot de passe administrateur</mat-label>
+        <input
+          matInput
+          type="password"
+          formControlName="motDePasse"
+          autocomplete="current-password"
+          placeholder="••••••••"
+          enterkeyhint="go"
+          name="motDePasse"
+        />
+      </mat-form-field>
+
+      <button class="bouton-admin" matButton="outlined" type="submit" [disabled]="enCoursAdmin()">
         @if (enCoursAdmin()) {
           <mat-spinner diameter="18" />
         } @else {
-          <mat-icon aria-hidden="true">account_circle</mat-icon>
+          <mat-icon aria-hidden="true">lock</mat-icon>
         }
-        Connexion avec Google
+        Connexion par mot de passe
       </button>
+    </form>
 
-      @if (erreurAdmin(); as message) {
-        <p class="erreur" role="alert">{{ message }}</p>
+    <button
+      class="bouton-admin"
+      matButton="outlined"
+      type="button"
+      [disabled]="enCoursAdmin()"
+      (click)="connecterAdmin()"
+    >
+      @if (enCoursAdmin()) {
+        <mat-spinner diameter="18" />
+      } @else {
+        <mat-icon aria-hidden="true">account_circle</mat-icon>
       }
+      Connexion avec Google
+    </button>
 
-      @if (uidAdmin(); as uid) {
-        <p class="aide">
-          Identifiant de session : <code>{{ uid }}</code
-          >. Ce document doit exister dans la collection <code>admins</code> pour autoriser l'accès.
-        </p>
-      }
+    @if (erreurAdmin(); as message) {
+      <p class="erreur" role="alert">{{ message }}</p>
+    }
+
+    @if (uidAdmin(); as uid) {
+      <p class="aide">
+        Identifiant de session : <code>{{ uid }}</code
+        >. Ce document doit exister dans la collection <code>admins</code> pour autoriser l'accès.
+      </p>
+    }
   </div>
 </section>

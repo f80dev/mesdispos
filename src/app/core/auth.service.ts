@@ -79,6 +79,19 @@ export function utilisateurGoogle(fb: FirebaseUser): Utilisateur {
   };
 }
 
+/**
+ * Conversion d'une session **anonyme** (Firebase Auth, sans e-mail ni compte
+ * tiers) vers la forme unifiée : c'est la session ouverte par l'accès
+ * « administrateur par mot de passe ».
+ */
+export function utilisateurAdminAnonyme(fb: FirebaseUser): Utilisateur {
+  return {
+    uid: fb.uid,
+    displayName: 'Administrateur',
+    session: 'firebase',
+  };
+}
+
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   /**
@@ -232,6 +245,37 @@ export class AuthService {
   }
 
   /**
+   * Connexion **par mot de passe** — réservée à l'espace administrateur.
+   *
+   * Aucun compte tiers, aucun e-mail : une session Firebase **anonyme**
+   * (`signInAnonymously`) est ouverte, ce qui donne au client une session
+   * authentifiée (`request.auth != null`). Le mot de passe n'est jamais
+   * transmis à Firebase : seule son empreinte SHA-256 est comparée — côté
+   * serveur — à celle stockée dans `config/admin` (cf. `firestore.rules`).
+   *
+   * Nécessite l'activation du fournisseur « Anonyme » dans la console Firebase
+   * (Authentication → Sign-in methods).
+   */
+  async connecterAnonymeAdmin(): Promise<boolean> {
+    this.erreur.set(null);
+    if (!firebaseConfigure()) {
+      this.erreur.set(MESSAGE_CONFIG_MANQUANTE);
+      return false;
+    }
+    try {
+      const [auth, { signInAnonymously }] = await Promise.all([firebaseAuth(), chargerAuth()]);
+      const credential = await signInAnonymously(auth);
+      this.appliquerAdmin(credential.user);
+      return true;
+    } catch {
+      this.erreur.set(
+        'Connexion administrateur impossible : activez le fournisseur « Anonyme » dans la console Firebase (Authentication → Sign-in methods).',
+      );
+      return false;
+    }
+  }
+
+  /**
    * Restauration de session Firebase (`onAuthStateChanged`).
    * Idempotent : guards, header et page `/dispos` peuvent tous l'appeler.
    * Charge `firebase/auth` à la demande (import dynamique).
@@ -268,7 +312,7 @@ export class AuthService {
   }
 
   private appliquerAdmin(fb: FirebaseUser): void {
-    const admin = utilisateurGoogle(fb);
+    const admin = fb.isAnonymous ? utilisateurAdminAnonyme(fb) : utilisateurGoogle(fb);
     this.sessionAdmin.set(admin);
     // Le cookie « nom seul » prime pour l'affichage : la session Google
     // reste ouverte mais ne remplace pas l'identité du professeur.

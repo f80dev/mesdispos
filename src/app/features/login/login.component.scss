@@ -115,6 +115,17 @@
   padding: var(--md-spacing-4);
 }
 
+// Formulaire d'accès administrateur (mot de passe).
+.formulaire-admin {
+  display: flex;
+  flex-direction: column;
+  gap: var(--md-spacing-2);
+}
+
+.champ-mdp {
+  @include mx.champ-plein;
+}
+
 .titre-admin {
   margin: 0;
   font: var(--app-type-title-medium);
@@ -157,4 +168,3 @@
     gap: var(--md-spacing-3);
   }
 }
-

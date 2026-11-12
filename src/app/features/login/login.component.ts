@@ -27,6 +27,7 @@ import { ROUTES } from '../../app.routes';
 import { ProfService, filtrerProfs, type Prof } from '../../data/prof.service';
 import { profilDepuisProf, profilDepuisSaisieLibre } from '../../data/profil.service';
 import { LONGUEUR_NOM_MAX } from '../../shared/date.util';
+import { sha256Hex } from '../../shared/sha256.util';
 
 /** Valeur synthétique du sélecteur : « je ne suis pas dans la liste ». */
 export const CHOIX_AUTRE = '__autre__';
@@ -75,6 +76,15 @@ export class LoginComponent {
   readonly formulaire = this.fb.group({
     prof: [''],
     prenom: ['', Validators.maxLength(LONGUEUR_NOM_MAX)],
+  });
+
+  /**
+   * Formulaire de l'espace administrateur : le mot de passe saisi n'est
+   * jamais stocké ailleurs que dans le contrôle (jamais en clair dans le
+   * Firestore : seule son empreinte SHA-256 est transmise).
+   */
+  readonly formulaireAdmin = this.fb.group({
+    motDePasse: [''],
   });
 
   /** Enseignants proposés, chargés depuis l'API Oasis. */
@@ -132,6 +142,14 @@ export class LoginComponent {
   readonly erreurAdmin = signal<string | null>(null);
   readonly uidAdmin = signal<string | null>(null);
 
+  /**
+   * Vrai pendant la connexion administrateur **par mot de passe** : le
+   * contrôle automatique déclenché par l'ouverture de la session Firebase
+   * anonyme ne doit pas conclure à un refus (la fiche `admins/{uid}` n'existe
+   * pas encore à cet instant — elle est créée juste après).
+   */
+  private connexionMotDePasseEnCours = false;
+
   /** Message d'erreur de la session « nom seul » (nom invalide). */
   readonly erreur = signal<string | null>(null);
 
@@ -181,7 +199,7 @@ export class LoginComponent {
     // alors les droits et on ouvre l'import si l'utilisateur est autorisé.
     effect(() => {
       const admin = this.auth.sessionAdmin();
-      if (admin && this.demandeAdmin()) {
+      if (admin && this.demandeAdmin() && !this.connexionMotDePasseEnCours) {
         void this.verifierEtOuvrir(admin.uid);
       }
     });
@@ -304,6 +322,52 @@ export class LoginComponent {
       }
     } finally {
       this.enCoursAdmin.set(false);
+    }
+  }
+
+  /**
+   * Connexion administrateur **par mot de passe** (ni e-mail, ni compte
+   * tiers) : une session Firebase **anonyme** est ouverte, puis la fiche
+   * `admins/{uid}` est créée. `firestore.rules` n'accepte cette écriture que
+   * si l'empreinte SHA-256 du mot de passe correspond à celle stockée dans
+   * `config/admin` — la comparaison se fait donc côté serveur, sans que le
+   * secret transite en clair.
+   */
+  async connecterAdminParMotDePasse(): Promise<void> {
+    const motDePasse = this.formulaireAdmin.controls.motDePasse.value.trim();
+    if (!motDePasse) {
+      this.erreurAdmin.set('Saisissez le mot de passe administrateur.');
+      return;
+    }
+    this.erreurAdmin.set(null);
+    this.uidAdmin.set(null);
+    this.uidVerifie = null;
+    this.enCoursAdmin.set(true);
+    this.connexionMotDePasseEnCours = true;
+    try {
+      const connecte = await this.auth.connecterAnonymeAdmin();
+      if (!connecte) {
+        this.erreurAdmin.set(this.auth.erreur() ?? 'Connexion administrateur impossible.');
+        return;
+      }
+      const uid = this.auth.sessionAdmin()?.uid ?? null;
+      if (!uid) {
+        this.erreurAdmin.set('Connexion administrateur impossible.');
+        return;
+      }
+      try {
+        await this.adminService.autoriserParMotDePasse(uid, sha256Hex(motDePasse));
+      } catch {
+        this.erreurAdmin.set(
+          'Mot de passe incorrect, ou document « config/admin » absent de la console Firebase (champ « empreinte »).',
+        );
+        return;
+      }
+      await this.router.navigateByUrl(this.retour() ?? ROUTES.admin);
+    } finally {
+      this.connexionMotDePasseEnCours = false;
+      this.enCoursAdmin.set(false);
+      this.formulaireAdmin.controls.motDePasse.setValue('');
     }
   }
 

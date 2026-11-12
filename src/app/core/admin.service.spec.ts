@@ -39,6 +39,9 @@ function creerFauxBackend(admin: boolean): FirestoreBackend {
     supprimerTousCreneaux: vi.fn(async () => 0),
     supprimerToutesDispos: vi.fn(async () => 0),
     estAdmin: vi.fn(async () => admin),
+    creerAdmin: vi.fn(async () => undefined),
+    listerProfils: vi.fn(async () => []),
+    lireToutesDispos: vi.fn(async () => []),
   };
 }
 
@@ -88,5 +91,26 @@ describe('AdminService', () => {
 
   it('expose un message de refus français', () => {
     expect(MESSAGE_ADMIN_REQUIS).toBe('Accès réservé à un administrateur');
+  });
+
+  it('autorise la session ouverte par mot de passe (création de admins/{uid})', async () => {
+    auth.sessionAdmin.set(ADMIN);
+    const service = TestBed.inject(AdminService);
+
+    await service.autoriserParMotDePasse(ADMIN.uid, 'abc123');
+
+    expect(service.autorise()).toBe(true);
+    expect(service.verifie()).toBe(true);
+  });
+
+  it('propage le refus des règles quand l’empreinte est incorrecte', async () => {
+    preparer(false);
+    auth.sessionAdmin.set(ADMIN);
+    const backend = TestBed.inject(FIRESTORE_BACKEND);
+    vi.mocked(backend.creerAdmin).mockRejectedValueOnce(new Error('permission-denied'));
+    const service = TestBed.inject(AdminService);
+
+    await expect(service.autoriserParMotDePasse(ADMIN.uid, 'mauvaise')).rejects.toThrow();
+    expect(service.autorise()).toBe(false);
   });
 });

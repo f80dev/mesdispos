@@ -16,6 +16,13 @@
  * `FIRESTORE_BACKEND.estAdmin()` (injectable, donc testable) et sur la session
  * `sessionAdmin` de l'`AuthService` — la session « nom seul » (cookie) n'est
  * **jamais** habilitée.
+ *
+ * Deux voies d'accès à l'espace administrateur coexistent :
+ *  - session **Google** (`admins/{uid}` écrit depuis la console Firebase) ;
+ *  - session **par mot de passe** : une session Firebase anonyme est ouverte,
+ *    puis `autoriserParMotDePasse()` crée `admins/{uid}` — l'écriture n'est
+ *    acceptée par `firestore.rules` que si l'empreinte du mot de passe
+ *    correspond à celle stockée dans `config/admin`.
  */
 import { Injectable, computed, effect, inject, signal } from '@angular/core';
 
@@ -70,10 +77,39 @@ export class AdminService {
     }
     // Réponse périmée (la session a changé entre-temps) : on l'ignore.
     if (this.uid() === uid) {
-      this.autorise.set(autorise);
+      // Une autorisation déjà acquise (mot de passe administrateur) n'est pas
+      // révoquée par une vérification tardive arrivée entre-temps.
+      if (autorise || this.autorise()) {
+        this.autorise.set(true);
+        this.verifie.set(true);
+        return true;
+      }
+      this.autorise.set(false);
       this.verifie.set(true);
     }
     return autorise;
+  }
+
+  /**
+   * Ouvre l'accès administrateur à partir d'un **mot de passe**.
+   *
+   * Le mot de passe n'est jamais écrit en clair : le service ne reçoit que
+   * son empreinte SHA-256 (`empreinte`), comparée **côté serveur** par
+   * `firestore.rules` à celle stockée dans `config/admin`. En cas d'empreinte
+   * incorrecte, l'écriture est refusée (`permission-denied`) et l'appel
+   * échoue.
+   *
+   * @param `uid` uid de la session Firebase anonyme ouverte pour l'admin.
+   * @param `empreinte` empreinte SHA-256 (hex) du mot de passe saisi.
+   */
+  async autoriserParMotDePasse(uid: string, empreinte: string): Promise<void> {
+    await this.backend.creerAdmin(uid, {
+      email: 'admin-mot-de-passe',
+      empreinte,
+      updatedAt: Date.now(),
+    });
+    this.autorise.set(true);
+    this.verifie.set(true);
   }
 
   /**

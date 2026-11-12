@@ -119,6 +119,41 @@ professeur, même sur un poste partagé, ne peut pas importer de créneaux.
 > ⚠️ L'`uid` affiché est celui du **compte Google** ; il reste stable quel que
 > soit le navigateur. Le compte doit être autorisé par un document `admins/{uid}`.
 
+### Accès administrateur par mot de passe (sans e-mail)
+
+L'encart « Espace administrateur » de la page `/login` accepte également un
+**simple mot de passe** : ni e-mail, ni compte tiers, ni popup.
+
+Mise en place (une seule fois, par l'humain) :
+
+1. Console Firebase → Authentication → Sign-in method → activer le
+   fournisseur **Anonyme** (c'est lui qui ouvre la session technique de
+   l'administrateur) ;
+2. calculer l'empreinte du mot de passe choisi :
+
+   ```bash
+   npm run empreinte-mdp -- "mon mot de passe"
+   ```
+
+3. Console Firebase → Firestore → créer le document **`config/admin`** (ID
+   `admin`, collection `config`) avec un champ texte **`empreinte`** contenant
+   l'empreinte renvoyée ci-dessus ;
+4. déployer les règles : `npx firebase deploy --only firestore:rules` ;
+5. sur `/login`, saisir le mot de passe dans l'encart « Espace administrateur »
+   → « Connexion par mot de passe » : l'accès à `/admin/import`,
+   `/admin/prompt` et `/admin/dispos` s'ouvre.
+
+Fonctionnement : le mot de passe n'est **jamais** transmis ni stocké en clair.
+L'application calcule son empreinte SHA-256 (`sha256Hex`) et tente d'écrire la
+fiche `admins/{uid}` de la session anonyme ouverte ; `firestore.rules` compare
+cette empreinte à celle de `config/admin` et **refuse** l'écriture si elle ne
+correspond pas (« Mot de passe incorrect… »). Le secret ne se trouve donc ni dans
+le bundle JavaScript, ni dans le fichier `firestore.rules`.
+
+> ⚠️ Il s'agit d'un **secret partagé** : quiconque connaît le mot de passe
+> devient administrateur. Pour un accès réellement nominatif, préférez la
+> connexion Google (ci-dessus) ou des *custom claims* Firebase.
+
 ## Liste des professeurs (API Oasis)
 
 La page `/login` propose les enseignants dans une **liste déroulante**, alimentée

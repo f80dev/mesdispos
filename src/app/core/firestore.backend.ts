@@ -117,6 +117,16 @@ export interface FirestoreBackend {
   estAdmin(uid: string): Promise<boolean>;
 
   /**
+   * `setDoc(admins/{uid}, …)` — **création** de la fiche d'administrateur
+   * d'une session ouverte par mot de passe.
+   *
+   * `firestore.rules` n'autorise cette écriture que si l'empreinte fournie
+   * correspond à celle stockée dans `config/admin` (le serveur compare, le
+   * secret ne transite donc jamais en clair dans les règles).
+   */
+  creerAdmin(uid: string, data: unknown): Promise<void>;
+
+  /**
    * `getDocs(collection(db, 'users'))` — l'inventaire des professeurs
    * (login, nom, prénom) et de leur partition `uid`.
    */
@@ -321,6 +331,11 @@ export class FirestoreReelBackend implements FirestoreBackend {
     } catch {
       return false;
     }
+  }
+
+  async creerAdmin(uid: string, data: unknown): Promise<void> {
+    const [db, fs] = await this.pair();
+    await fs.setDoc(fs.doc(db, 'admins', uid), data as Record<string, unknown>);
   }
 
   async listerProfils(): Promise<readonly ProfilAdmin[]> {
