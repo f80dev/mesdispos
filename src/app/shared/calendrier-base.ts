@@ -41,7 +41,11 @@ export abstract class CalendrierBase {
     return jours;
   });
 
-  /** Première heure affichée (bornée par les événements), pour éviter une grille vide. */
+  /**
+   * Première heure affichée (bornée par les événements), pour éviter une grille
+   * vide. Aucune marge n'est ajoutée : la grille démarre à l'heure du
+   * premier créneau, ce qui réduit la hauteur affichée.
+   */
   readonly heureDebut = computed(() => {
     const heures = this.evenements()
       .map((evenement) => evenement.start.getHours())
@@ -49,10 +53,13 @@ export abstract class CalendrierBase {
     if (heures.length === 0) {
       return 8;
     }
-    return Math.max(0, Math.min(...heures) - 1);
+    return Math.max(0, Math.min(23, Math.min(...heures)));
   });
 
-  /** Dernière heure affichée (bornée par les événements). */
+  /**
+   * Dernière heure affichée (bornée par les événements) : dernière heure pleine
+   * couverte par un créneau, sans heure supplémentaire.
+   */
   readonly heureFin = computed(() => {
     const heures = this.evenements()
       .map((evenement) => evenement.end?.getHours() ?? Number.NaN)
@@ -60,13 +67,45 @@ export abstract class CalendrierBase {
     if (heures.length === 0) {
       return 19;
     }
-    return Math.min(24, Math.max(...heures) + 1);
+    return Math.max(this.heureDebut(), Math.min(23, Math.max(...heures)));
   });
 
   /** Ce jour comporte-t-il au moins un événement affiché ? (pastille d'en-tête) */
   aDesAffiches(date: Date): boolean {
     return this.joursAffiches().has(jourIso(date));
   }
+
+  /**
+   * Les 7 jours de la semaine affichée (lundi → dimanche), à partir de la
+   * date pivot de la vue courante.
+   */
+  readonly joursSemaineCourante = computed<Date[]>(() => {
+    const pivot = this.viewDate();
+    const decalage = (pivot.getDay() - this.weekStartsOn + 7) % 7;
+    const lundi = new Date(pivot.getFullYear(), pivot.getMonth(), pivot.getDate() - decalage);
+    return Array.from({ length: 7 }, (_, index) =>
+      new Date(lundi.getFullYear(), lundi.getMonth(), lundi.getDate() + index),
+    );
+  });
+
+  /**
+   * Numéros de jour de la semaine (0 = dimanche) **sans aucun événement** dans
+   * la semaine affichée : le plug-in `angular-calendar` exclut alors ces
+   * colonnes de la vue « semaine » (aucune colonne vide à l'écran).
+   */
+  readonly joursExclus = computed<number[]>(() =>
+    this.joursSemaineCourante()
+      .filter((jour) => !this.joursAffiches().has(jourIso(jour)))
+      .map((jour) => jour.getDay()),
+  );
+
+  /** La semaine affichée ne comporte aucun événement. */
+  readonly semaineVide = computed(
+    () => this.joursSemaineCourante().every((jour) => !this.joursAffiches().has(jourIso(jour))),
+  );
+
+  /** Le jour affiché (vue « jour ») ne comporte aucun événement. */
+  readonly jourCourantVide = computed(() => !this.joursAffiches().has(jourIso(this.viewDate())));
 
   /** Bascule entre la vue « semaine » et la vue « jour ». */
   changerVue(vue: VueCalendrier): void {

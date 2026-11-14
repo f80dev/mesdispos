@@ -160,6 +160,14 @@
   color: var(--app-on-success-container);
 }
 
+// Créneau **non retenu** : fond rouge — le professeur ne s'est pas déclaré
+// disponible sur ce créneau.
+.cal-event-container.creneau-evenement.creneau-non-retenu {
+  border-left-color: var(--app-error);
+  background-color: var(--app-error-container);
+  color: var(--app-on-error-container);
+}
+
 .cal-event-container.creneau-evenement.creneau-retenu .cal-event {
   font-weight: 600;
 }

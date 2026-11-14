@@ -156,6 +156,7 @@ export class PromptIaComponent extends ComposantAdmin {
     } catch (erreur) {
       this.notif.erreur(erreur instanceof Error ? erreur.message : 'Génération impossible.');
     }
+    this.copier()
   }
 
   /** Assemble (au besoin) le prompt et le copie dans le presse-papiers. */

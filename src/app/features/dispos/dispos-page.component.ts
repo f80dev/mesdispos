@@ -36,8 +36,15 @@ export class DisposPageComponent implements OnDestroy {
   /** Identifiants des créneaux retenus (coloration du calendrier). */
   readonly idsSelectionnes = this.dispoService.idsSelectionnes;
 
-  /** Créneaux retenus par l'utilisateur — source du calendrier. */
+  /** Créneaux retenus par l'utilisateur — compteur et liste de la section. */
   readonly creneauxRetenus = this.dispoService.retenus;
+
+  /**
+   * **Tous** les créneaux proposés (retenus ou non) — source du calendrier :
+   * chaque créneau y est positionné, rouge quand le professeur ne s'est pas
+   * déclaré disponible, vert quand il l'a fait.
+   */
+  readonly creneauxDuCalendrier = this.creneauxService.creneaux;
 
   /** Groupes de jours pour la section « Créneaux disponibles ». */
   readonly groupesDisponibles = computed(() => grouperParJour(this.dispoService.disponibles()));

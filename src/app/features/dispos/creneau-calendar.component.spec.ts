@@ -49,6 +49,21 @@ describe('CreneauCalendarComponent', () => {
     expect(evenements[1]?.cssClass).not.toContain('creneau-retenu');
   });
 
+  it('marque les créneaux non retenus (rouge) avec la classe CSS dédiée', () => {
+    fixture.detectChanges();
+
+    const evenements = fixture.componentInstance.evenements();
+    expect(evenements[0]?.cssClass).toContain('creneau-non-retenu');
+    expect(evenements[0]?.cssClass).not.toContain('creneau-retenu');
+
+    fixture.componentRef.setInput('idsSelectionnes', new Set([CRENEAUX[0]?.id ?? '']));
+    fixture.detectChanges();
+
+    const apres = fixture.componentInstance.evenements();
+    expect(apres[0]?.cssClass).toContain('creneau-retenu');
+    expect(apres[0]?.cssClass).not.toContain('creneau-non-retenu');
+  });
+
   it('émet le créneau cliqué', () => {
     const emis: Creneau[] = [];
     fixture.componentInstance.basculer.subscribe((creneau) => emis.push(creneau));

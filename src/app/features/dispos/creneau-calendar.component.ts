@@ -1,4 +1,13 @@
-import { Component, computed, effect, input, output } from '@angular/core';
+import {
+  Component,
+  computed,
+  effect,
+  ElementRef,
+  input,
+  output,
+  signal,
+  viewChild,
+} from '@angular/core';
 import { CalendarEvent } from 'angular-calendar';
 
 import {
@@ -50,28 +59,87 @@ export class CreneauCalendarComponent extends CalendrierBase {
   readonly basculer = output<Creneau>();
 
   /** Identifiants de la liste précédente — sert à détecter les ajouts. */
-  private idsConnus = new Set<string>();
+  private idsRetenusConnus = new Set<string>();
+
+  /** Élément de la grille : sa hauteur pilote la taille des lignes horaires. */
+  private readonly grille = viewChild<ElementRef<HTMLElement>>('grille');
+
+  /** Hauteur disponible (px) pour la grille, mesurée sur l'élément. */
+  private readonly hauteurGrille = signal(0);
+
+  /**
+   * Hauteur d'un demi-segment horaire (px). La grille occupe toute la hauteur
+   * disponible : les lignes horaires s'étirent pour la remplir, sans jamais
+   * descendre sous une lisibilité acceptable ni dépasser une taille excessive.
+   */
+  readonly hauteurSegment = computed(() => {
+    const hauteur = this.hauteurGrille();
+    if (hauteur <= 0) {
+      return 16;
+    }
+    const nbHeures = this.heureFin() - this.heureDebut() + 1;
+    const nbSegments = Math.max(1, nbHeures * 2);
+    // Hauteur réservée à l'en-tête des colonnes de jours.
+    const disponible = hauteur - 56;
+    return Math.max(14, Math.min(44, Math.floor(disponible / nbSegments)));
+  });
 
   constructor() {
     super();
-    // Le calendrier affiche les disponibilités de l'utilisateur. À chaque
-    // arrivée d'un créneau retenu, la vue se positionne sur son jour : un
-    // créneau sélectionné devient immédiatement visible dans le calendrier.
+    // Le calendrier affiche **tous** les créneaux. À chaque arrivée d'un
+    // créneau retenu, la vue se positionne sur son jour : un créneau
+    // sélectionné devient immédiatement visible dans le calendrier.
     // La désélection d'un créneau ne déplace pas la vue.
     effect(() => {
-      const creneaux = this.creneaux();
-      const nouveaux = creneaux.filter((creneau) => !this.idsConnus.has(creneau.id));
-      this.idsConnus = new Set(creneaux.map((creneau) => creneau.id));
+      const selectionnes = this.idsSelectionnes();
+      const nouveaux = [...selectionnes].filter((id) => !this.idsRetenusConnus.has(id));
+      this.idsRetenusConnus = new Set(selectionnes);
       if (nouveaux.length === 0) {
         return;
       }
-      const jour = [...nouveaux].map((creneau) => creneau.date).sort()[0] ?? '';
-      const cible = dateLocale(jour);
+      const parId = new Map(this.creneaux().map((creneau) => [creneau.id, creneau]));
+      const jour = nouveaux
+        .map((id) => parId.get(id)?.date ?? '')
+        .filter((date) => date !== '')
+        .sort()[0];
+      const cible = dateLocale(jour ?? '');
       if (cible) {
         this.viewDate.set(cible);
       }
     });
+
+    // Positionnement initial : le calendrier s'ouvre sur le premier jour
+    // comportant des créneaux (indépendamment de l'état de sélection).
+    effect(() => {
+      const creneaux = this.creneaux();
+      if (this.premierCreneauPositionne || creneaux.length === 0) {
+        return;
+      }
+      this.premierCreneauPositionne = true;
+      const cible = dateLocale(creneaux[0].date);
+      if (cible) {
+        this.viewDate.set(cible);
+      }
+    });
+
+    // Mesure de la grille : la hauteur disponible détermine la taille des
+    // lignes horaires, pour que le calendrier occupe toute la page.
+    effect((onCleanup) => {
+      const element = this.grille()?.nativeElement;
+      if (!element) {
+        return;
+      }
+      const observateur = new ResizeObserver((entrees) => {
+        const hauteur = entrees[0]?.contentRect.height ?? 0;
+        this.hauteurGrille.set(Math.round(hauteur));
+      });
+      observateur.observe(element);
+      onCleanup(() => observateur.disconnect());
+    });
   }
+
+  /** Le premier jour comportant des créneaux a déjà été atteint. */
+  private premierCreneauPositionne = false;
 
   /** Événements du calendrier, dérivés des créneaux (couleurs selon l'état). */
   readonly evenements = computed<CalendarEvent[]>(() => {
@@ -88,7 +156,9 @@ export class CreneauCalendarComponent extends CalendrierBase {
         title: `${creneau.heureDebut} – ${creneau.heureFin}`,
         start: intervalle.debut,
         end: intervalle.fin,
-        cssClass: retenu ? 'creneau-evenement creneau-retenu' : 'creneau-evenement',
+        cssClass: retenu
+          ? 'creneau-evenement creneau-retenu'
+          : 'creneau-evenement creneau-non-retenu',
         meta: { creneau, retenu },
       });
     }

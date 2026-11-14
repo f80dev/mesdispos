@@ -5,11 +5,18 @@
 @use '../../../styles/mixins' as mx;
 
 :host {
-  display: block;
+  display: flex;
+  flex-direction: column;
+  // La page occupe toute la hauteur disponible : le calendrier remplit
+  // l'espace restant (la légende reste visible, sans défilement de page).
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 .page {
   @include mx.page(var(--md-spacing-5));
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 .colonnes {
@@ -24,6 +31,12 @@
   flex-direction: column;
   gap: var(--md-spacing-3);
   min-width: 0;
+}
+
+// Section du calendrier : elle occupe la hauteur restante de la page.
+.section-calendrier {
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 .titre-section {
@@ -83,6 +96,13 @@
   @include mx.vide;
   @include mx.bloc;
   padding: var(--md-spacing-4);
+}
+
+// Texte d'aide sous le titre de section.
+.aide {
+  margin: 0;
+  font: var(--app-type-body-small);
+  color: var(--app-on-surface-variant);
 }
 
 .etat-erreur {

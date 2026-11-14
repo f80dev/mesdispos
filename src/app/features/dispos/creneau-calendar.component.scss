@@ -9,6 +9,20 @@
 @include cal.legende;
 @include cal.case-evenement;
 
+// Le composant occupe toute la hauteur restante de la page.
+:host {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+// La grille remplit l'espace disponible ; si les créneaux sont plus nombreux
+// que la hauteur libre, elle défile — la légende, elle, reste visible.
+.grille {
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+}
+
 // En-tête d'un jour comportant des créneaux disponibles : liseré vert.
 :host ::ng-deep {
   .cal-header.cal-avec-disponibles {
@@ -31,10 +45,25 @@
   }
 }
 
+// Message affiché quand la période affichée ne comporte aucun créneau.
+.vide {
+  margin: 0;
+  padding: var(--md-spacing-6) var(--md-spacing-4);
+  color: var(--app-on-surface-variant);
+  font: var(--app-type-body-medium);
+  text-align: center;
+}
+
 // Puce « créneau retenu ».
 .puce.retenu {
   border-color: var(--app-success);
   background-color: var(--app-success-container);
+}
+
+// Puce « créneau non retenu ».
+.puce.non-retenu {
+  border-color: var(--app-error);
+  background-color: var(--app-error-container);
 }
 
 @include cal.calendrier-mobile;

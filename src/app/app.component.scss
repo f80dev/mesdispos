@@ -5,14 +5,17 @@
 @use '../styles/mixins' as mx;
 
 :host {
-  display: block;
+  display: flex;
+  flex-direction: column;
   min-height: 100dvh;
   background: var(--app-surface);
   color: var(--app-on-surface);
 }
 
 .contenu {
-  display: block;
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
   box-sizing: border-box;
   width: 100%;
   // Desktop ≥ 1280 px et tablette : largeur max 1100 px centrée (F7).

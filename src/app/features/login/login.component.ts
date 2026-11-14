@@ -28,6 +28,7 @@ import { ProfService, filtrerProfs, type Prof } from '../../data/prof.service';
 import { profilDepuisProf, profilDepuisSaisieLibre } from '../../data/profil.service';
 import { LONGUEUR_NOM_MAX } from '../../shared/date.util';
 import { sha256Hex } from '../../shared/sha256.util';
+import { MatExpansionPanel, MatExpansionPanelHeader } from '@angular/material/expansion';
 
 /** Valeur synthétique du sélecteur : « je ne suis pas dans la liste ». */
 export const CHOIX_AUTRE = '__autre__';
@@ -46,6 +47,8 @@ export const CHOIX_AUTRE = '__autre__';
     MatButtonModule,
     MatIconModule,
     MatProgressSpinnerModule,
+    MatExpansionPanel,
+    MatExpansionPanelHeader,
   ],
   templateUrl: './login.component.html',
   styleUrl: './login.component.scss',

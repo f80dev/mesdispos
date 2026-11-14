@@ -9,49 +9,52 @@
 }
 
 <div class="page">
-  <section class="section section-disponibles" aria-labelledby="titre-disponibles">
-    <h2 id="titre-disponibles" class="titre-section">
-      <mat-icon aria-hidden="true">event</mat-icon>
-      Créneaux disponibles
-      <span class="compteur">({{ nombreDisponibles() }})</span>
-    </h2>
+<!--  <section class="section section-disponibles" aria-labelledby="titre-disponibles">-->
+<!--    <h2 id="titre-disponibles" class="titre-section">-->
+<!--      <mat-icon aria-hidden="true">event</mat-icon>-->
+<!--      Créneaux disponibles-->
+<!--      <span class="compteur">({{ nombreDisponibles() }})</span>-->
+<!--    </h2>-->
 
-    @if (erreur(); as message) {
-      <div class="etat-erreur" role="alert">
-        <p>{{ message }}</p>
-        <button matButton="outlined" type="button" (click)="reessayerLecture()">Réessayer</button>
-      </div>
-    } @else if (!chargement() && groupesDisponibles().length === 0) {
-      <p class="vide">Aucun créneau proposé pour le moment.</p>
-    } @else {
-      <div class="planning">
-        @for (groupe of groupesDisponibles(); track groupe.date) {
-          <section class="jour" [attr.aria-label]="groupe.date | dateGroup">
-            <h3 class="jour-titre">{{ groupe.date | dateGroup }}</h3>
-            <ul class="liste">
-              @for (creneau of groupe.creneaux; track creneau.id) {
-                <li>
-                  <app-creneau-card
-                    [creneau]="creneau"
-                    [selectionne]="false"
-                    [enCours]="estEnCours(creneau.id)"
-                    (basculer)="basculer($event)"
-                  />
-                </li>
-              }
-            </ul>
-          </section>
-        }
-      </div>
-    }
-  </section>
+<!--    @if (erreur(); as message) {-->
+<!--      <div class="etat-erreur" role="alert">-->
+<!--        <p>{{ message }}</p>-->
+<!--        <button matButton="outlined" type="button" (click)="reessayerLecture()">Réessayer</button>-->
+<!--      </div>-->
+<!--    } @else if (!chargement() && groupesDisponibles().length === 0) {-->
+<!--      <p class="vide">Aucun créneau proposé pour le moment.</p>-->
+<!--    } @else {-->
+<!--      <div class="planning">-->
+<!--        @for (groupe of groupesDisponibles(); track groupe.date) {-->
+<!--          <section class="jour" [attr.aria-label]="groupe.date | dateGroup">-->
+<!--            <h3 class="jour-titre">{{ groupe.date | dateGroup }}</h3>-->
+<!--            <ul class="liste">-->
+<!--              @for (creneau of groupe.creneaux; track creneau.id) {-->
+<!--                <li>-->
+<!--                  <app-creneau-card-->
+<!--                    [creneau]="creneau"-->
+<!--                    [selectionne]="false"-->
+<!--                    [enCours]="estEnCours(creneau.id)"-->
+<!--                    (basculer)="basculer($event)"-->
+<!--                  />-->
+<!--                </li>-->
+<!--              }-->
+<!--            </ul>-->
+<!--          </section>-->
+<!--        }-->
+<!--      </div>-->
+<!--    }-->
+<!--  </section>-->
 
   <section class="section section-calendrier" aria-labelledby="titre-retenus">
     <h2 id="titre-retenus" class="titre-section">
       <mat-icon aria-hidden="true">calendar_month</mat-icon>
-      Mes disponibilités
-      <span class="compteur">({{ nombreRetenus() }})</span>
+      Calendrier des créneaux
+      <span class="compteur">({{ nombreRetenus() }} / {{ creneauxDuCalendrier().length }})</span>
     </h2>
+    <p class="aide">
+      Un clic permet de basculer de disponible à non disponible
+    </p>
 
     @if (erreur(); as message) {
       <div class="etat-erreur" role="alert">
@@ -59,11 +62,11 @@
         <button matButton="outlined" type="button" (click)="reessayerLecture()">Réessayer</button>
       </div>
     } @else {
-      @if (!chargement() && creneauxRetenus().length === 0) {
-        <p class="vide">Vous n'avez pas encore retenu de créneau.</p>
+      @if (!chargement() && creneauxDuCalendrier().length === 0) {
+        <p class="vide">Aucun créneau proposé pour le moment.</p>
       }
       <app-creneau-calendar
-        [creneaux]="creneauxRetenus()"
+        [creneaux]="creneauxDuCalendrier()"
         [idsSelectionnes]="idsSelectionnes()"
         (basculer)="basculer($event)"
       />

@@ -9,9 +9,11 @@ import type { CalendarEvent } from 'angular-calendar';
 
 import { ComposantAdmin } from '../../core/composant-admin';
 import { DispoProfService, filtrerProfsDispo, type ProfDispo } from '../../data/dispo-prof.service';
+import { ProfService, type Prof } from '../../data/prof.service';
 import { creneauVersIntervalle } from '../../shared/date.util';
 import { avecValeurs, basculerValeur } from '../../shared/collection.util';
 import { ProfsCalendarComponent } from './profs-calendar.component';
+import { MatAccordion, MatExpansionPanel, MatExpansionPanelHeader } from '@angular/material/expansion';
 
 /**
  * Nombre de variantes de couleur attribuées aux professeurs dans le
@@ -33,12 +35,16 @@ export const PALETTE_PROFS = 6;
     MatInputModule,
     MatProgressBarModule,
     ProfsCalendarComponent,
+    MatExpansionPanel,
+    MatExpansionPanelHeader,
+    MatAccordion,
   ],
   templateUrl: './dispo-prof.component.html',
   styleUrl: './dispo-prof.component.scss',
 })
 export class DispoProfComponent extends ComposantAdmin {
   private readonly service = inject(DispoProfService);
+  private readonly annuaireService = inject(ProfService);
 
   /** Tous les professeurs ayant déclaré au moins une disponibilité. */
   readonly profs = this.service.profs;
@@ -93,9 +99,57 @@ export class DispoProfComponent extends ComposantAdmin {
   /** Nombre de disponibilités affichées dans le calendrier. */
   readonly nombreEvenements = computed(() => this.evenements().length);
 
+  /**
+   * Annuaire des enseignants (API Oasis) indexé par `login` : il apporte le
+   * secteur de rattachement et l'adresse professionnelle, absents des
+   * documents de disponibilité.
+   */
+  readonly annuaire = computed<ReadonlyMap<string, Prof>>(
+    () => new Map(this.annuaireService.profs().map((prof) => [prof.login, prof])),
+  );
+
   constructor() {
     super();
     void this.service.charger();
+    void this.annuaireService.charger();
+  }
+
+  /** Secteur de rattachement d'un professeur (`—` si inconnu). */
+  secteur(prof: ProfDispo): string {
+    const secteur = this.annuaire().get(prof.login)?.secteur?.trim();
+    return secteur && secteur.length > 0 ? secteur : '—';
+  }
+
+  /** Adresse professionnelle d'un professeur (`null` si inconnue). */
+  mail(prof: ProfDispo): string | null {
+    const mail = this.annuaire().get(prof.login)?.mailPro?.trim();
+    return mail && mail.length > 0 ? mail : null;
+  }
+
+  /**
+   * Nombre de créneaux disponibles **plannifiés** pour un professeur : les
+   * créneaux déclarés qui figurent effectivement dans le planning (0 si le
+   * professeur n'est pas coché).
+   */
+  nombreCreneauxPlannifies(prof: ProfDispo): number {
+    if (!this.estCoche(prof.uid)) {
+      return 0;
+    }
+    return prof.dispos.filter((dispo) => creneauVersIntervalle(dispo) !== null).length;
+  }
+
+  /**
+   * Adresse `mailto:` pour contacter un professeur (sujet et corps préremplis).
+   * `null` si l'adresse professionnelle est inconnue.
+   */
+  lienMail(prof: ProfDispo): string | null {
+    const mail = this.mail(prof);
+    if (!mail) {
+      return null;
+    }
+    const sujet = 'Vos disponibilités — MesDispos';
+    const corps = `Bonjour ${prof.prenom || prof.nomComplet},\n\n`;
+    return `mailto:${mail}?subject=${encodeURIComponent(sujet)}&body=${encodeURIComponent(corps)}`;
   }
 
   /** Met à jour le texte de recherche à partir de l'événement `input`. */

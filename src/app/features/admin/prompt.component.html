@@ -64,21 +64,6 @@
         }
         Générer le prompt
       </button>
-
-      <button
-        matButton="filled"
-        type="button"
-        class="bouton"
-        [disabled]="enCours() || copieEnCours()"
-        (click)="copier()"
-      >
-        @if (copieEnCours()) {
-          <mat-spinner diameter="18" />
-        } @else {
-          <mat-icon aria-hidden="true">content_copy</mat-icon>
-        }
-        Copier dans le presse-papiers
-      </button>
     </div>
 
     @if (enCours()) {

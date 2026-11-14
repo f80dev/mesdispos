@@ -18,6 +18,10 @@
     flex-direction: column;
     gap: var(--md-spacing-3);
     min-width: 0;
+    // Le calendrier occupe toute la hauteur restante : la grille grandit,
+    // la légende reste visible en bas.
+    flex: 1 1 auto;
+    min-height: 0;
   }
 
   .barre {
@@ -61,9 +65,12 @@
 
   // La grille (vue semaine / jour) peut être plus large que l'écran : c'est
   // elle qui défile horizontalement, pas la barre de navigation ni la page.
+  // Sa hauteur est pilotée par le flex parent (elle remplit l'espace restant).
   .grille {
     overflow-x: auto;
     overscroll-behavior-x: contain;
+    flex: 1 1 auto;
+    min-height: 0;
   }
 
   :host ::ng-deep {
@@ -87,6 +94,8 @@
     margin: 0;
     color: var(--app-on-surface-variant);
     font: var(--app-type-body-small);
+    // La légende ne se comprime pas : elle reste visible sous la grille.
+    flex: 0 0 auto;
   }
 
   .legende-item {

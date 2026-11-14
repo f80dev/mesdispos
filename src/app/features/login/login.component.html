@@ -53,9 +53,6 @@
           <mat-option [value]="prof.login">
             <span class="option-prof">
               <span class="option-nom">{{ prof.nomComplet }}</span>
-              @if (prof.service) {
-                <span class="option-service">{{ prof.service }}</span>
-              }
             </span>
           </mat-option>
         }
@@ -104,8 +101,8 @@
     </button>
   </form>
 
-  <div class="carte carte-admin">
-    <h2 class="titre-admin">Espace administrateur</h2>
+  <mat-expansion-panel class="carte carte-admin">
+    <mat-expansion-panel-header class="titre-admin">Espace administrateur</mat-expansion-panel-header>
     <p class="aide">
       Réservé à l'import des créneaux. Saisissez le mot de passe administrateur, ou connectez-vous
       avec votre compte Google administrateur.
@@ -165,5 +162,5 @@
         >. Ce document doit exister dans la collection <code>admins</code> pour autoriser l'accès.
       </p>
     }
-  </div>
+  </mat-expansion-panel>
 </section>

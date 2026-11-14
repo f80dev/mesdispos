@@ -1,8 +1,10 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { computed, signal } from '@angular/core';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { DisposPageComponent } from './dispos-page.component';
+import { CreneauCalendarComponent } from './creneau-calendar.component';
 import { CreneauService } from '../../data/creneau.service';
 import { DispoService } from '../../data/dispo.service';
 import { grouperParJour } from '../../shared/date.util';
@@ -97,7 +99,7 @@ describe('DisposPageComponent (F3 / F4)', () => {
     fixture.detectChanges();
 
     expect(titreSection('titre-disponibles')).toContain('Créneaux disponibles');
-    expect(titreSection('titre-retenus')).toContain('Mes disponibilités');
+    expect(titreSection('titre-retenus')).toContain('Calendrier des créneaux');
   });
 
   it('affiche la liste des créneaux disponibles au-dessus du calendrier', () => {
@@ -116,13 +118,22 @@ describe('DisposPageComponent (F3 / F4)', () => {
     expect(fixture.nativeElement.querySelector('app-creneau-calendar')).toBeTruthy();
   });
 
+  it('positionne tous les créneaux dans le calendrier (retenus ou non)', () => {
+    fixture.detectChanges();
+
+    const calendrier = fixture.debugElement.query(By.directive(CreneauCalendarComponent));
+    expect(calendrier).toBeTruthy();
+    const composant = calendrier.componentInstance as CreneauCalendarComponent;
+    expect(composant.creneaux().length).toBe(CRENEAUX.length);
+  });
+
   it('affiche le compteur N des disponibilités', () => {
     fixture.detectChanges();
-    expect(titreSection('titre-retenus')).toContain('(0)');
+    expect(titreSection('titre-retenus')).toContain('(0 / 2)');
 
     dispo.retenusIds.set([CRENEAUX[0]?.id ?? '']);
     fixture.detectChanges();
-    expect(titreSection('titre-retenus')).toContain('(1)');
+    expect(titreSection('titre-retenus')).toContain('(1 / 2)');
   });
 
   it('regroupe les créneaux par jour avec le libellé français', () => {
@@ -143,7 +154,6 @@ describe('DisposPageComponent (F3 / F4)', () => {
 
     const textes = fixture.nativeElement.textContent as string;
     expect(textes).toContain('Aucun créneau proposé pour le moment.');
-    expect(textes).toContain("Vous n'avez pas encore retenu de créneau.");
   });
 
   it("affiche l'état d'erreur avec un bouton Réessayer qui réécoute", () => {

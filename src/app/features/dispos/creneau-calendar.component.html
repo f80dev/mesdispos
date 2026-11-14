@@ -70,37 +70,46 @@
     </div>
   </div>
 
-  <div class="grille">
+  <div class="grille" #grille>
     @if (vue() === CalendarView.Week) {
-      <mwl-calendar-week-view
-        [viewDate]="viewDate()"
-        [events]="evenements()"
-        [locale]="locale"
-        [weekStartsOn]="weekStartsOn"
-        [dayStartHour]="heureDebut()"
-        [dayEndHour]="heureFin()"
-        [hourSegments]="2"
-        [hourSegmentHeight]="32"
-        [minimumEventHeight]="28"
-        [eventTitleTemplate]="titreEvenement"
-        [headerTemplate]="enteteSemaine"
-        [tooltipAppendToBody]="true"
-        (eventClicked)="surClicEvenement($event.event)"
-      />
+      @if (semaineVide()) {
+        <p class="vide">Aucun créneau cette semaine.</p>
+      } @else {
+        <mwl-calendar-week-view
+          [viewDate]="viewDate()"
+          [events]="evenements()"
+          [excludeDays]="joursExclus()"
+          [locale]="locale"
+          [weekStartsOn]="weekStartsOn"
+          [dayStartHour]="heureDebut()"
+          [dayEndHour]="heureFin()"
+          [hourSegments]="2"
+          [hourSegmentHeight]="hauteurSegment()"
+          [minimumEventHeight]="28"
+          [eventTitleTemplate]="titreEvenement"
+          [headerTemplate]="enteteSemaine"
+          [tooltipAppendToBody]="true"
+          (eventClicked)="surClicEvenement($event.event)"
+        />
+      }
     } @else {
-      <mwl-calendar-day-view
-        [viewDate]="viewDate()"
-        [events]="evenements()"
-        [locale]="locale"
-        [dayStartHour]="heureDebut()"
-        [dayEndHour]="heureFin()"
-        [hourSegments]="2"
-        [hourSegmentHeight]="32"
-        [minimumEventHeight]="28"
-        [eventTitleTemplate]="titreEvenement"
-        [tooltipAppendToBody]="true"
-        (eventClicked)="surClicEvenement($event.event)"
-      />
+      @if (jourCourantVide()) {
+        <p class="vide">Aucun créneau ce jour-là.</p>
+      } @else {
+        <mwl-calendar-day-view
+          [viewDate]="viewDate()"
+          [events]="evenements()"
+          [locale]="locale"
+          [dayStartHour]="heureDebut()"
+          [dayEndHour]="heureFin()"
+          [hourSegments]="2"
+          [hourSegmentHeight]="hauteurSegment()"
+          [minimumEventHeight]="28"
+          [eventTitleTemplate]="titreEvenement"
+          [tooltipAppendToBody]="true"
+          (eventClicked)="surClicEvenement($event.event)"
+        />
+      }
     }
   </div>
 
@@ -138,10 +147,14 @@
   <p class="legende">
     <span class="legende-item">
       <span class="puce retenu" aria-hidden="true"></span>
-      Vous êtes disponible (vert)
+      Vous êtes disponible pour les soutenances (vert)
+    </span>
+    <span class="legende-item">
+      <span class="puce non-retenu" aria-hidden="true"></span>
+      Vous n'êtes pas disponible (rouge)
     </span>
     <span class="legende-aide">
-      Cliquez sur un créneau du calendrier pour retirer votre disponibilité.
+      Cliquez sur un créneau du calendrier pour modifier votre disponibilité.
     </span>
   </p>
 </div>

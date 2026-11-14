@@ -172,11 +172,15 @@
   @include bouton-materiel;
   border-radius: var(--app-corner-full);
   background: var(--app-primary);
-  color: var(--app-on-primary);
+  color: var(--body-text-color);
 
   &:disabled {
     background: color-mix(in srgb, var(--app-on-surface) 12%, transparent);
     color: color-mix(in srgb, var(--app-on-surface) 38%, transparent);
+  }
+
+  &:enabled {
+    color: black;
   }
 }
 

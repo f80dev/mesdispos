@@ -38,41 +38,94 @@
   font: var(--app-type-body-small);
 }
 
-.profs {
-  @include mx.liste-v(var(--md-spacing-1));
-  display: grid;
-  grid-template-columns: 1fr;
-  max-height: 340px;
-  overflow-y: auto;
+.tableau-profs {
+  overflow-x: auto;
   border: 1px solid var(--app-outline-variant);
   border-radius: var(--app-corner-medium);
-  padding: var(--md-spacing-2);
 }
 
-.profs li {
-  display: flex;
-  align-items: center;
-  gap: var(--md-spacing-2);
-  @include mx.cible-tactile;
+.profs {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.legende {
+  padding: var(--md-spacing-2) var(--md-spacing-3);
+  color: var(--app-on-surface-variant);
+  font: var(--app-type-body-small);
+  text-align: left;
+}
+
+.profs thead th {
+  position: sticky;
+  top: 0;
+  padding: var(--md-spacing-2) var(--md-spacing-3);
+  background: var(--app-surface-container-low);
+  color: var(--app-on-surface-variant);
+  font: var(--app-type-label-medium);
+  white-space: nowrap;
+}
+
+.profs tbody td {
+  padding: var(--md-spacing-1) var(--md-spacing-3);
+  border-top: 1px solid var(--app-outline-variant);
+  vertical-align: middle;
+}
+
+.profs tbody tr.coche {
+  background: var(--app-surface-container-lowest);
+}
+
+.col-planning {
+  width: 96px;
+}
+
+.col-prof {
+  min-width: 200px;
+}
+
+.col-nombre {
+  width: 160px;
+  white-space: nowrap;
+}
+
+.col-secteur {
+  min-width: 140px;
+}
+
+.col-mail {
+  width: 120px;
 }
 
 .nom-prof {
+  display: block;
   font: var(--app-type-body-medium);
 }
 
 .login {
-  margin-left: var(--md-spacing-2);
+  display: block;
   color: var(--app-on-surface-variant);
   font: var(--app-type-body-small);
 }
 
 .nombre {
-  margin-left: auto;
-  min-width: 32px;
-  text-align: right;
-  color: var(--app-on-surface-variant);
-  font: var(--app-type-label-medium);
+  font: var(--app-type-label-large);
   font-variant-numeric: tabular-nums;
+}
+
+.detail {
+  margin-left: var(--md-spacing-1);
+  color: var(--app-on-surface-variant);
+  font: var(--app-type-body-small);
+}
+
+.bouton-mail {
+  min-height: 48px;
+}
+
+.sans-mail {
+  color: var(--app-on-surface-variant);
 }
 
 .zone-erreur {
@@ -97,12 +150,14 @@
   @include mx.vide;
 }
 
-// Desktop : la liste passe sur deux colonnes.
+// Desktop : colonnes plus larges et lignes plus aérées.
 @media (min-width: 900px) {
-  .profs {
-    grid-template-columns: 1fr 1fr;
-    column-gap: var(--md-spacing-4);
-    max-height: 420px;
+  .profs tbody td {
+    padding: var(--md-spacing-2) var(--md-spacing-3);
+  }
+
+  .col-prof {
+    min-width: 260px;
   }
 }
 
