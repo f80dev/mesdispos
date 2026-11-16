@@ -29,6 +29,7 @@ import { profilDepuisProf, profilDepuisSaisieLibre } from '../../data/profil.ser
 import { LONGUEUR_NOM_MAX } from '../../shared/date.util';
 import { sha256Hex } from '../../shared/sha256.util';
 import { MatExpansionPanel, MatExpansionPanelHeader } from '@angular/material/expansion';
+import packageJson from '../../../../package.json';
 
 /** Valeur synthétique du sélecteur : « je ne suis pas dans la liste ». */
 export const CHOIX_AUTRE = '__autre__';
@@ -66,6 +67,8 @@ export class LoginComponent {
   private readonly liste = viewChild<MatSelect>('liste');
 
   readonly maxLength = LONGUEUR_NOM_MAX;
+  /** Version de l'application, lue dans `package.json`. */
+  readonly version = packageJson.version;
   readonly choixAutre = CHOIX_AUTRE;
 
   /**
@@ -100,6 +103,17 @@ export class LoginComponent {
 
   /** Enseignants correspondant au filtre (nom ou prénom). */
   readonly profsFiltres = computed(() => filtrerProfs(this.profs(), this.filtre()));
+
+  /**
+   * Vrai quand la liste **complète** des professeurs est disponible.
+   *
+   * La connexion administrateur n'est autorisée qu'une fois cette liste
+   * chargée : tant que le chargement est en cours (ou a échoué), les
+   * boutons d'administration restent désactivés.
+   */
+  readonly listeProfetesComplete = computed(
+    () => !this.chargementProfs() && !this.erreurProfs() && this.profs().length > 0,
+  );
 
   /** Vrai quand un filtre est actif mais ne retourne aucun résultat. */
   readonly filtreSansResultat = computed(
@@ -309,6 +323,12 @@ export class LoginComponent {
    * exister dans la collection `admins` pour ouvrir `/admin/import`.
    */
   async connecterAdmin(): Promise<void> {
+    if (!this.listeProfetesComplete()) {
+      this.erreurAdmin.set(
+        'Chargement de la liste des professeurs en cours. Réessayez dans un instant.',
+      );
+      return;
+    }
     this.erreurAdmin.set(null);
     this.uidAdmin.set(null);
     this.uidVerifie = null;
@@ -337,6 +357,12 @@ export class LoginComponent {
    * secret transite en clair.
    */
   async connecterAdminParMotDePasse(): Promise<void> {
+    if (!this.listeProfetesComplete()) {
+      this.erreurAdmin.set(
+        'Chargement de la liste des professeurs en cours. Réessayez dans un instant.',
+      );
+      return;
+    }
     const motDePasse = this.formulaireAdmin.controls.motDePasse.value.trim();
     if (!motDePasse) {
       this.erreurAdmin.set('Saisissez le mot de passe administrateur.');

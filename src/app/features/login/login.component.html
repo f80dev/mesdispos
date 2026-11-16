@@ -108,40 +108,60 @@
       avec votre compte Google administrateur.
     </p>
 
-    <form
-      class="formulaire-admin"
-      [formGroup]="formulaireAdmin"
-      (ngSubmit)="connecterAdminParMotDePasse()"
-      novalidate
-    >
-      <mat-form-field appearance="outline" class="champ-mdp">
-        <mat-label>Mot de passe administrateur</mat-label>
-        <input
-          matInput
-          type="password"
-          formControlName="motDePasse"
-          autocomplete="current-password"
-          placeholder="••••••••"
-          enterkeyhint="go"
-          name="motDePasse"
-        />
-      </mat-form-field>
-
-      <button class="bouton-admin" matButton="outlined" type="submit" [disabled]="enCoursAdmin()">
-        @if (enCoursAdmin()) {
-          <mat-spinner diameter="18" />
+    @if (!listeProfetesComplete()) {
+      <p class="aide" role="status">
+        @if (chargementProfs()) {
+          Chargement de la liste des ({{ profs().length }}) professeurs… La connexion administrateur
+          sera disponible dès que la liste sera complète.
         } @else {
-          <mat-icon aria-hidden="true">lock</mat-icon>
+          Liste des professeurs indisponible. La connexion administrateur est bloquée tant que la
+          liste n'a pas pu être chargée.
         }
-        Connexion par mot de passe
-      </button>
-    </form>
+      </p>
+    }
+
+    @if (!chargementProfs()) {
+      <form
+        class="formulaire-admin"
+        [formGroup]="formulaireAdmin"
+        (ngSubmit)="connecterAdminParMotDePasse()"
+        novalidate
+      >
+        <mat-form-field appearance="outline" class="champ-mdp">
+          <mat-label>Mot de passe administrateur</mat-label>
+          <input
+            matInput
+            type="text"
+            formControlName="motDePasse"
+            autocomplete="current-password"
+            enterkeyhint="go"
+            name="motDePasse"
+            [disabled]="!listeProfetesComplete()"
+          />
+        </mat-form-field>
+
+        <button
+          class="bouton-admin"
+          matButton="outlined"
+          type="submit"
+          [disabled]="enCoursAdmin() || !listeProfetesComplete()"
+        >
+          @if (enCoursAdmin()) {
+            <mat-spinner diameter="18" />
+          } @else {
+            <mat-icon aria-hidden="true">lock</mat-icon>
+          }
+          Connexion par mot de passe
+        </button>
+      </form>
+
+    }
 
     <button
       class="bouton-admin"
       matButton="outlined"
       type="button"
-      [disabled]="enCoursAdmin()"
+      [disabled]="enCoursAdmin() || !listeProfetesComplete()"
       (click)="connecterAdmin()"
     >
       @if (enCoursAdmin()) {
@@ -163,4 +183,6 @@
       </p>
     }
   </mat-expansion-panel>
+
+  <p class="version">Version {{ version }}</p>
 </section>

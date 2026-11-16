@@ -150,6 +150,13 @@
   font: var(--app-type-body-medium);
 }
 
+// Version de l'application (lue dans package.json).
+.version {
+  margin: 0;
+  color: var(--app-on-surface-variant);
+  font: var(--app-type-body-small);
+}
+
 // Mobile ≤ 420 px : padding horizontal échelonné (8 + 16), pas de scroll horizontal.
 @media (max-width: 420px) {
   .page-login {

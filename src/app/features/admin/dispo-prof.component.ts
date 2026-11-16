@@ -69,26 +69,35 @@ export class DispoProfComponent extends ComposantAdmin {
 
   /**
    * Événements du calendrier : une disponibilité par professeur et par
-   * créneau. Les disponibilités des professeur cochés sont superposées.
+   * créneau. **Tous** les créneaux renseignés sont affichés, y compris ceux
+   * des professeurs non cochés ; la coche sert uniquement à mettre en
+   * évidence un professeur (classe `prof-selectionne`).
    */
   readonly evenements = computed<CalendarEvent[]>(() => {
     const selection = this.selection();
     const evenements: CalendarEvent[] = [];
     this.profs().forEach((prof, index) => {
-      if (!selection.has(prof.uid)) {
-        return;
-      }
       for (const dispo of prof.dispos) {
         const intervalle = creneauVersIntervalle(dispo);
         if (!intervalle) {
           continue;
+        }
+        const classes = [
+          'creneau-evenement',
+          'prof-evenement',
+          `prof-c${index % PALETTE_PROFS}`,
+        ];
+        if (selection.has(prof.uid)) {
+          classes.push('prof-selectionne');
+        } else {
+          classes.push('prof-non-selectionne');
         }
         evenements.push({
           id: `${prof.uid}_${dispo.creneauId}`,
           title: `${dispo.heureDebut} – ${dispo.heureFin}`,
           start: intervalle.debut,
           end: intervalle.fin,
-          cssClass: `creneau-evenement prof-evenement prof-c${index % PALETTE_PROFS}`,
+          cssClass: classes.join(' '),
           meta: { prof, dispo },
         });
       }
@@ -128,13 +137,10 @@ export class DispoProfComponent extends ComposantAdmin {
 
   /**
    * Nombre de créneaux disponibles **plannifiés** pour un professeur : les
-   * créneaux déclarés qui figurent effectivement dans le planning (0 si le
-   * professeur n'est pas coché).
+   * créneaux déclarés qui figurent effectivement dans le planning. Le calcul
+   * ne dépend pas de la coche : tous les créneaux renseignés sont affichés.
    */
   nombreCreneauxPlannifies(prof: ProfDispo): number {
-    if (!this.estCoche(prof.uid)) {
-      return 0;
-    }
     return prof.dispos.filter((dispo) => creneauVersIntervalle(dispo) !== null).length;
   }
 
@@ -148,7 +154,7 @@ export class DispoProfComponent extends ComposantAdmin {
       return null;
     }
     const sujet = 'Vos disponibilités — MesDispos';
-    const corps = `Bonjour ${prof.prenom || prof.nomComplet},\n\n`;
+    const corps = `Bonjour ${prof.prenom || prof.nomComplet},\n\n. N'oubliez pas de saisir l'ensemble de vos disponibilités pour les soutenances de mémoire avant le 31 janvier afin que nous puissions plannifier l'ensemble de ses soutenances au plus vite`;
     return `mailto:${mail}?subject=${encodeURIComponent(sujet)}&body=${encodeURIComponent(corps)}`;
   }
 

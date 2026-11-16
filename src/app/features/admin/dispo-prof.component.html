@@ -10,8 +10,8 @@
     <mat-expansion-panel [expanded]="true">
       <mat-expansion-panel-header class="entete">Disponibilités des professeurs</mat-expansion-panel-header>
       <p class="aide">
-        Cochez des professeurs dans la liste : le calendrier affiche toutes leurs disponibilités,
-        superposées sur la même plage horaire.
+        Tous les créneaux renseignés sont affichés dans le calendrier, superposés sur la même
+        plage horaire. Cochez des professeurs pour les mettre en évidence.
       </p>
       <div class="liste-profs">
         <mat-form-field appearance="outline" class="champ-recherche">
@@ -47,7 +47,8 @@
           <div class="tableau-profs">
             <table class="profs">
               <caption class="legende">
-                Cochez un professeur pour faire apparaître ses créneaux dans le planning.
+                Tous les créneaux renseignés sont affichés dans le planning ; cochez un professeur
+                pour le mettre en évidence.
               </caption>
               <thead>
               <tr>
@@ -121,7 +122,7 @@
 
 
         @if (nombreEvenements() === 0) {
-          <p class="vide">Cochez au moins un professeur pour afficher le calendrier.</p>
+          <p class="vide">Aucun créneau n'a été renseigné pour le moment.</p>
         } @else {
           <app-profs-calendar [evenements]="evenements()" />
         }

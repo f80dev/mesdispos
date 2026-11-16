@@ -7,7 +7,8 @@ import { authGuard } from './core/auth.guard';
 export const ROUTES = {
   login: '/login',
   dispos: '/dispos',
-  admin: '/admin/import',
+  admin: '/admin',
+  adminImport: '/admin/import',
   adminPrompt: '/admin/prompt',
   adminDispos: '/admin/dispos',
 } as const;
@@ -27,6 +28,12 @@ export const routes: Routes = [
     canActivate: [authGuard],
     loadComponent: () =>
       import('./features/dispos/dispos-page.component').then((m) => m.DisposPageComponent),
+  },
+  {
+    // Écran admin par défaut : le prompt IA.
+    path: 'admin',
+    redirectTo: 'admin/prompt',
+    pathMatch: 'full',
   },
   {
     // Accès admin : connecté (mode B obligatoire) ET document `admins/{uid}`.
