@@ -210,7 +210,7 @@ function texteCellule(cellule: unknown): string {
 /**
  * Normalise la feuille `Enseignants` du classeur `profs.xlsx`.
  *
- * Le classeur est le **repli** de l'API Oasis : mêmes notions, colonnes
+ * Le classeur est la **source primaire** de la liste : mêmes notions, colonnes
  * libellées « Identité / Identifiant Oasis », « Identité / Nom usuel »,
  * « Identité / Prénom usuel » et « Secteur ». Les colonnes sont reconnues par
  * leur en-tête ; en cas d'en-tête inconnu, l'ordre des colonnes du fichier
@@ -270,8 +270,9 @@ export function normaliserProfsExcel(rangees: readonly unknown[][]): Prof[] {
 }
 
 /**
- * `ProfService` — charge la liste des professeurs depuis l'API Oasis
- * (`GET /api/v1/profs`) et l'expose sous forme de signals.
+ * `ProfService` — charge la liste des professeurs depuis le classeur
+ * `profs.xlsx` (repli : API Oasis `GET /api/v1/profs`) et l'expose sous forme
+ * de signals.
  *
  * Le chargement est déclenché à la demande (`charger()`) et le résultat est
  * mis en cache pour la durée de la session de l'onglet : la liste des
@@ -303,8 +304,9 @@ export class ProfService {
   /**
    * Charge la liste (une seule fois par session de l'onglet).
    *
-   * Source primaire : l'API Oasis. Si l'appel échoue, on se replie sur le
-   * classeur `profs.xlsx` servi par l'hébergement (feuille « Enseignants »).
+   * Source primaire : le classeur `profs.xlsx` servi par l'hébergement
+   * (feuille « Enseignants »). Si le fichier n'est pas disponible, on se replie
+   * sur l'API Oasis (`GET /api/v1/profs`).
    * Le repli n'échoue silencieusement : si les deux sources sont injoignables,
    * un message d'erreur est affiché.
    */
@@ -315,13 +317,15 @@ export class ProfService {
     this.chargement.set(true);
     this.erreur.set(null);
     try {
-      const reponse = await firstValueFrom(this.cours.getProfs());
-      this.profs.set(normaliserProfs(reponse?.elements));
-      this.source.set('api');
-      this.dejaCharge = true;
-    } catch {
-      const charge = await this.chargerDepuisFichier();
-      if (!charge) {
+      if (await this.chargerDepuisFichier()) {
+        return;
+      }
+      try {
+        const reponse = await firstValueFrom(this.cours.getProfs());
+        this.profs.set(normaliserProfs(reponse?.elements));
+        this.source.set('api');
+        this.dejaCharge = true;
+      } catch {
         this.erreur.set('Liste des professeurs indisponible. Réessayez.');
       }
     } finally {
@@ -330,7 +334,7 @@ export class ProfService {
   }
 
   /**
-   * Repli : charge la liste des enseignants depuis `public/profs.xlsx`.
+   * Source primaire : charge la liste des enseignants depuis `public/profs.xlsx`.
    *
    * @returns `true` si la liste a été chargée depuis le fichier.
    */
