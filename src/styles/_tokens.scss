@@ -8,7 +8,8 @@
 //
 // Palette : inspirée de l'identité ENSAD (ensad.fr)
 //   noir/gris  #151515 #86868B #C3C3C5 #DDDDDD #E7EAE8 #F5F5F7
-//   couleurs   rouge #FE3E0D · bleu #2A84FF · vert #1C6333 · violet #3E0088
+//   couleurs   rouge #FE3E0D . bleu #2A84FF . bleu nuit #01223E . vert #1C6333
+//              violet #3E0088 . marron #936847 . rouge Starck #842C1E
 //   pastilles  rose #FFE1E9 · bleu clair #E0FCFF · jaune #FCFCDE · vert #E6FFEA
 //
 // Fonte : « Outfit » (webfont de repli de la « Bascule » de l'ENSAD, chargée
@@ -17,7 +18,7 @@
 
 :root {
   // -----------------------------------------------------------------------------
-  // Palette de marque ENSAD (valeurs brutes, réutilisées par le thème sombre)
+  // Palette de marque ENSAD (valeurs brutes, réutilisées par les deux thèmes)
   // -----------------------------------------------------------------------------
   --ensad-black: #151515;
   --ensad-grey-1: #86868b;
@@ -27,6 +28,7 @@
   --ensad-grey-5: #f5f5f7;
   --ensad-red: #fe3e0d;
   --ensad-blue: #2a84ff;
+  --ensad-navy: #01223e;
   --ensad-green: #1c6333;
   --ensad-purple: #3e0088;
   --ensad-marron: #936847;

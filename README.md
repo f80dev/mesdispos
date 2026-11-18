@@ -22,6 +22,7 @@ journal des décisions techniques est dans [`docs/decisions.md`](./docs/decision
 - [Liste des professeurs (API Oasis)](#liste-des-professeurs-api-oasis)
 - [Format du fichier Excel](#format-du-fichier-excel)
 - [Attribution automatique de créneaux (espace administrateur)](#attribution-automatique-de-créneaux-espace-administrateur)
+- [Thème clair / sombre](#thème-clair--sombre)
 - [Commandes](#commandes)
 - [Déploiement](#déploiement)
 - [Émulateurs locaux](#émulateurs-locaux)
@@ -291,6 +292,26 @@ Les règles Firestore (`firestore.rules`) accordent à l'administrateur
 inscrit dans `admins/{uid}` l'écriture dans **toute** partition
 `users/{uid}/dispos` — c'est la contrepartie nécessaire de cette fonction.
 
+## Génération de disponibilités fictives (espace administrateur)
+
+La page `/admin/import` comporte une zone **« Générer des disponibilités
+fictives »** : un bouton crée, pour **tous les professeurs de la liste**
+(`public/profs.xlsx`, repli sur l'API Oasis), **4 ou 5 disponibilités** tirées au
+hasard — le nombre variant d'un professeur à l'autre.
+
+- les créneaux sont tirés **parmi ceux que le professeur n'a pas encore
+  retenus** : une disponibilité réellement déclarée n'est jamais écrasée par une
+  donnée de démonstration ;
+- les documents écrits portent un champ **`fictif: true`** : ils sont
+  identifiables dans la console Firebase et dans `/admin/dispos`, et peuvent être
+  supprimés en bloc avec l'action **« Supprimer les disponibilités des
+  professeurs »** ;
+- l'`uid` des partitions est recalculé comme dans l'attribution
+  (`anon_<sha256(nomComplet)[:12]>`) : un professeur qui se connecte plus tard
+  retrouve ses créneaux fictifs dans « Mes disponibilités » ;
+- une **confirmation** est demandée avant l'écriture (le traitement porte sur
+  ~390 professeurs).
+
 ## Prompt IA (espace administrateur)
 
 Le menu **« Admin »** du header (visible uniquement pour un administrateur
@@ -318,6 +339,17 @@ Format du CSV des disponibilités (une ligne par professeur) :
 login,nom,prenom,nb_creneaux,disponibilites
 judith.abensour,ABENSOUR,Judith,2,2026-01-12 08:45-09:30; 2026-01-13 10:00-11:00
 ```
+
+## Thème clair / sombre
+
+L'application propose deux thèmes construits sur la **palette ENSAD** (celle du site ensad.fr : rouge `#FE3E0D`, vert `#1C6333`, bleu `#2A84FF`, anthracite `#151515`, gris `#86868B` / `#C3C3C5` / `#E7EAE8` / `#F5F5F7`) :
+
+- **Clair** — surfaces blanches/gris clair, texte anthracite ;
+- **Sombre** — surfaces anthracite, texte clair.
+
+Le sélecteur (icône soleil / lune, en haut à droite du header et de la page de connexion) propose trois choix : **Clair**, **Sombre** et **Automatique** (suivi du réglage du système d'exploitation). Le choix est mémorisé dans `localStorage` (`mesdispos_theme`) — préférence d'affichage, exempte de déclaration de cookie.
+
+Le rendu est piloté par la propriété CSS `color-scheme` de l'élément racine : les tokens Material `--mat-sys-*` sont générés par `mat.theme()` en `theme-type: color-scheme` (valeurs `light-dark(clair, sombre)`), ce qui évite de dupliquer les tokens pour les deux thèmes.
 
 ## Commandes
 

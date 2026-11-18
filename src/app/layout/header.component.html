@@ -36,6 +36,23 @@
     </mat-menu>
   }
 
+  @if (joursRestants() !== null) {
+    <span
+      class="echeance"
+      [class.urgente]="(joursRestants() ?? 0) <= 7"
+      [attr.title]="
+        (joursRestants() ?? 0) > 0
+          ? 'Il reste ' + joursRestants() + ' jour(s) pour répondre'
+          : 'Date limite de réponse dépassée'
+      "
+    >
+      <mat-icon aria-hidden="true">schedule</mat-icon>
+      <span class="echeance-libelle">{{ libelleEcheance() }}</span>
+    </span>
+  }
+
+  <app-theme-switcher />
+
   @if (user(); as utilisateur) {
     <div class="session">
       <span class="avatar" [attr.aria-hidden]="true">{{ initiale() }}</span>

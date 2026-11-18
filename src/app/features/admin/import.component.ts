@@ -19,6 +19,11 @@ import { ErreurImport, ExcelImportService, MESSAGE_FORMAT } from '../../data/exc
 import { ComposantAdmin } from '../../core/composant-admin';
 import { PlanningApiService } from '../../core/planning-api.service';
 import { CreneauService } from '../../data/creneau.service';
+import {
+  AttributionService,
+  NB_DISPO_FICTIVES_MAX,
+  NB_DISPO_FICTIVES_MIN,
+} from '../../data/attribution.service';
 import { DateGroupPipe } from '../../layout/date-group.pipe';
 import { AttributionComponent } from './attribution.component';
 import type { ResultatImport } from '../../data/models';
@@ -48,6 +53,7 @@ export class ImportComponent extends ComposantAdmin implements OnDestroy {
   private readonly importService = inject(ExcelImportService);
   private readonly creneaux = inject(CreneauService);
   private readonly planningApi = inject(PlanningApiService);
+  private readonly attribution = inject(AttributionService);
 
   /**
    * Accès à l'API locale de planning (`AutoPlanning/api.py`) : disponible
@@ -93,6 +99,19 @@ export class ImportComponent extends ComposantAdmin implements OnDestroy {
 
   /** `true` pendant la suppression des disponibilités des professeurs. */
   readonly suppressionDisposEnCours = signal<boolean>(false);
+
+  /** `true` pendant la génération des disponibilités fictives. */
+  readonly generationFictivesEnCours = signal<boolean>(false);
+
+  /** `true` quand la confirmation de génération fictive est affichée. */
+  readonly confirmationFictives = signal<boolean>(false);
+
+  /** Nombre de disponibilités fictives générées par professeur (4 ou 5). */
+  readonly nbFictifsMin = NB_DISPO_FICTIVES_MIN;
+  readonly nbFictifsMax = NB_DISPO_FICTIVES_MAX;
+
+  /** Message d'erreur de la génération fictive (`null` si tout va bien). */
+  readonly erreurFictifs = signal<string | null>(null);
 
   /**
    * L'import est **réservé à l'administrateur** : tant que la session
@@ -219,6 +238,53 @@ export class ImportComponent extends ComposantAdmin implements OnDestroy {
     } finally {
       this.suppressionEnCours.set(false);
       this.confirmationSuppression.set(false);
+    }
+  }
+
+  /**
+   * Demande la confirmation avant la génération des disponibilités fictives.
+   */
+  demanderGenerationFictives(): void {
+    if (!this.exigerAdmin()) {
+      return;
+    }
+    this.confirmationFictives.set(true);
+  }
+
+  /** Referme la confirmation sans rien écrire. */
+  annulerGenerationFictives(): void {
+    this.confirmationFictives.set(false);
+  }
+
+  /**
+   * Génère des **disponibilités fictives** pour l'ensemble des professeurs
+   * de la liste (`profs.xlsx`) : chaque professeur reçoit 4 ou 5 créneaux
+   * tirés au hasard parmi ceux qu'il n'a pas encore retenus.
+   */
+  async genererFictives(): Promise<void> {
+    if (!this.exigerAdmin()) {
+      return;
+    }
+    this.generationFictivesEnCours.set(true);
+    this.erreurFictifs.set(null);
+    try {
+      const ecrits = await this.attribution.genererFictifs();
+      this.confirmationFictives.set(false);
+      if (ecrits === 0) {
+        this.erreurFictifs.set(
+          this.attribution.erreur() ?? 'Aucune disponibilité fictive n’a pu être générée.',
+        );
+        return;
+      }
+      this.notif.succes(
+        `${ecrits} disponibilité(s) fictive(s) générée(s) (${this.nbFictifsMin} ou ${this.nbFictifsMax} par professeur).`,
+      );
+    } catch (erreur) {
+      this.erreurFictifs.set(
+        erreur instanceof Error ? erreur.message : 'La génération a échoué. Réessayez.',
+      );
+    } finally {
+      this.generationFictivesEnCours.set(false);
     }
   }
 

@@ -100,7 +100,31 @@
     display: none;
   }
 
-  .lien-admin {
+.echeance {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--md-spacing-1);
+  padding: 0 var(--md-spacing-2);
+  min-height: 32px;
+  border-radius: var(--app-corner-full);
+  background: var(--app-secondary-container);
+  color: var(--app-on-secondary-container);
+  font: var(--app-type-label-medium);
+  white-space: nowrap;
+
+  mat-icon {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+  }
+}
+
+.echeance.urgente {
+  background: var(--app-error-container);
+  color: var(--app-on-error-container);
+}
+
+.lien-admin {
     padding-inline: var(--md-spacing-2);
     font: var(--app-type-label-medium);
   }
@@ -108,6 +132,11 @@
   // Le libellé « Admin » cède la place à l'icône : le header reste compact.
   .libelle-admin {
     display: none;
+  }
+
+  // L'échéance ne garde que l'icône + « J-n » pour éviter tout débordement.
+  .echeance {
+    padding: 0 var(--md-spacing-1);
   }
 }
 

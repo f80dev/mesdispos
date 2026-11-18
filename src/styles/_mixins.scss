@@ -180,7 +180,7 @@
   }
 
   &:enabled {
-    color: black;
+    color: var(--app-on-primary);
   }
 }
 
@@ -233,7 +233,7 @@
   background: var(--app-surface-container-lowest);
 }
 
-/// Tableau de données (thème sombre ENSAD).
+/// Tableau de données (clair ou sombre, tokens ENSAD).
 @mixin tableau {
   width: 100%;
   border-collapse: collapse;

@@ -115,6 +115,28 @@ export const MESSAGE_AUCUN_PROF_TOUS = 'Aucun professeur à attribuer : la liste
 export type Alea = () => number;
 
 /**
+ * Bornes du nombre de disponibilités **fictives** générées par professeur
+ * (données de démonstration).
+ */
+export const NB_DISPO_FICTIVES_MIN = 4;
+export const NB_DISPO_FICTIVES_MAX = 5;
+
+/**
+ * Tire un nombre entier dans `[min, max]` **inclus** à partir de la source
+ * d'aléa fournie.
+ *
+ * Fonction **pure** (l'aléa est injecté) : testable sans Angular ni réseau.
+ */
+export function nombreAleatoire(
+  min: number,
+  max: number,
+  alea: Alea = Math.random,
+): number {
+  const borne = Math.max(0, max - min);
+  return min + Math.floor(alea() * (borne + 1));
+}
+
+/**
  * Mélange une liste **en place** (Fisher–Yates) et la renvoie.
  *
  * Fonction **pure** du point de vue de l'appelant (la copie interne est
@@ -210,74 +232,148 @@ export class AttributionService {
 
     this.enCours.set(true);
     try {
-      await this.profs.charger();
-      if (this.profs.profs().length === 0) {
-        this.erreur.set(this.profs.erreur() ?? MESSAGE_PROFS_INDISPONIBLES);
-        return null;
+      return await this.construirePlan(
+        logins,
+        tousLesProfs,
+        () => nombre,
+        alea,
+        tousLesProfs ? MESSAGE_AUCUN_PROF_TOUS : MESSAGE_AUCUN_PROF,
+      );
+    } finally {
+      this.enCours.set(false);
+    }
+  }
+
+  /**
+   * Construit le plan d'attribution : résolution des cibles, `uid` de chaque
+   * partition, créneaux déjà retenus et créneaux à ajouter.
+   *
+   * @param logins logins résolus explicitement (vide si `tousLesProfs`).
+   * @param tousLesProfs `true` pour prendre la liste complète des professeurs.
+   * @param nombrePour fonction donnant le nombre de créneaux à attribuer à
+   *   chaque professeur (aléatoire pour les données de démonstration).
+   * @param alea source du tirage au hasard des créneaux.
+   * @param messageAucun message d'erreur quand aucune cible n'est résolue.
+   * @param publierPlan `true` pour publier le plan dans le signal `plan`
+   *   (attribution manuelle) ; `false` pour un plan éphémère (données de
+   *   démonstration), qui ne doit pas écraser l'attribution en cours.
+   */
+  private async construirePlan(
+    logins: readonly string[],
+    tousLesProfs: boolean,
+    nombrePour: (prof: Prof) => number,
+    alea: Alea,
+    messageAucun: string,
+    publierPlan = true,
+  ): Promise<PlanAttribution | null> {
+    await this.profs.charger();
+    if (this.profs.profs().length === 0) {
+      this.erreur.set(this.profs.erreur() ?? MESSAGE_PROFS_INDISPONIBLES);
+      return null;
+    }
+
+    const cibles: CibleAttribution[] = [];
+    const inconnus: string[] = [];
+
+    // Attribution à l'ensemble des professeurs : la liste Oasis fait foi.
+    const resolves = tousLesProfs
+      ? this.profs.profs().map((prof) => ({ prof, login: prof.login.toLowerCase() }))
+      : logins.map((login) => ({
+          login,
+          prof: this.profs.profs().find((p) => p.login.toLowerCase() === login),
+        }));
+
+    const connus = resolves.filter((r): r is { login: string; prof: Prof } => !!r.prof);
+    for (const { login, prof } of resolves) {
+      if (!prof) {
+        inconnus.push(login);
       }
+    }
 
-      const cibles: CibleAttribution[] = [];
-      const inconnus: string[] = [];
-
-      // Attribution à l'ensemble des professeurs : la liste Oasis fait foi.
-      const resolves = tousLesProfs
-        ? this.profs.profs().map((prof) => ({ prof, login: prof.login.toLowerCase() }))
-        : logins.map((login) => ({
-            login,
-            prof: this.profs.profs().find((p) => p.login.toLowerCase() === login),
-          }));
-
-      const connus = resolves.filter((r): r is { login: string; prof: Prof } => !!r.prof);
-      for (const { login, prof } of resolves) {
-        if (!prof) {
-          inconnus.push(login);
+    // Lectures des créneaux déjà retenus : par lots de 20 en parallèle
+    // (l'attribution à tous les professeurs implique ~400 partitions).
+    const retenus = new Map<string, string[]>();
+    for (const lot of parLots(connus, TAILLE_LECTURE_PARALLELE)) {
+      const resultats = await Promise.all(
+        lot.map(async ({ prof }) => {
+          // Même calcul d'`uid` que la connexion « liste Oasis » : le nom
+          // affiché du professeur est son `nomComplet`.
+          const uid = utilisateurAnonyme(prof.nomComplet).uid;
+          return { uid, ids: await this.retenusDuProf(uid) };
+        }),
+      );
+      resultats.forEach((resultat, index) => {
+        const prof = lot[index]?.prof;
+        if (prof) {
+          retenus.set(prof.login.toLowerCase(), resultat.ids);
         }
-      }
+      });
+    }
 
-      // Lectures des créneaux déjà retenus : par lots de 20 en parallèle
-      // (l'attribution à tous les professeurs implique ~400 partitions).
-      const retenus = new Map<string, string[]>();
-      for (const lot of parLots(connus, TAILLE_LECTURE_PARALLELE)) {
-        const resultats = await Promise.all(
-          lot.map(async ({ prof }) => {
-            // Même calcul d'`uid` que la connexion « liste Oasis » : le nom
-            // affiché du professeur est son `nomComplet`.
-            const uid = utilisateurAnonyme(prof.nomComplet).uid;
-            return { uid, ids: await this.retenusDuProf(uid) };
-          }),
-        );
-        resultats.forEach((resultat, index) => {
-          const prof = lot[index]?.prof;
-          if (prof) {
-            retenus.set(prof.login.toLowerCase(), resultat.ids);
-          }
-        });
-      }
+    for (const { login, prof } of connus) {
+      // Même calcul d'`uid` que la connexion « liste Oasis » : le nom
+      // affiché du professeur est son `nomComplet`.
+      const uid = utilisateurAnonyme(prof.nomComplet).uid;
+      const ids = retenus.get(login) ?? [];
+      cibles.push({
+        login: prof.login,
+        nomComplet: prof.nomComplet,
+        uid,
+        nom: prof.nom,
+        prenom: prof.prenom,
+        dejaRetenus: ids.length,
+        creneaux: choisirCreneaux(
+          this.creneaux.creneaux(),
+          ids,
+          nombrePour(prof),
+          alea,
+        ),
+      });
+    }
 
-      for (const { login, prof } of connus) {
-        // Même calcul d'`uid` que la connexion « liste Oasis » : le nom
-        // affiché du professeur est son `nomComplet`.
-        const uid = utilisateurAnonyme(prof.nomComplet).uid;
-        const ids = retenus.get(login) ?? [];
-        cibles.push({
-          login: prof.login,
-          nomComplet: prof.nomComplet,
-          uid,
-          nom: prof.nom,
-          prenom: prof.prenom,
-          dejaRetenus: ids.length,
-          creneaux: choisirCreneaux(this.creneaux.creneaux(), ids, nombre, alea),
-        });
-      }
+    if (cibles.length === 0) {
+      this.erreur.set(messageAucun);
+      return null;
+    }
 
-      if (cibles.length === 0) {
-        this.erreur.set(tousLesProfs ? MESSAGE_AUCUN_PROF_TOUS : MESSAGE_AUCUN_PROF);
-        return null;
-      }
+    const plan: PlanAttribution = { cibles, inconnus };
+    this.plan.set(plan);
+    return plan;
+  }
 
-      const plan: PlanAttribution = { cibles, inconnus };
-      this.plan.set(plan);
-      return plan;
+  /**
+   * Prépare un plan de **disponibilités fictives** pour l'ensemble des
+   * professeurs de la liste (`profs.xlsx` ou API Oasis) : chaque professeur
+   * reçoit un nombre **aléatoire** de créneaux compris entre
+   * `NB_DISPO_FICTIVES_MIN` et `NB_DISPO_FICTIVES_MAX` (4 ou 5).
+   *
+   * Les créneaux sont tirés au hasard parmi ceux que le professeur n'a pas
+   * encore retenus : les disponibilités déjà déclarées ne sont jamais
+   * écrasées par des données de démonstration.
+   *
+   * @returns le plan, ou `null` (le message d'erreur est dans `erreur`).
+   */
+  async preparerFictifs(
+    min = NB_DISPO_FICTIVES_MIN,
+    max = NB_DISPO_FICTIVES_MAX,
+    alea: Alea = Math.random,
+  ): Promise<PlanAttribution | null> {
+    this.erreur.set(null);
+    this.ecrits.set(0);
+    if (!this.backend.configure) {
+      this.erreur.set(MESSAGE_CONFIG_MANQUANTE);
+      return null;
+    }
+    this.enCours.set(true);
+    try {
+      return await this.construirePlan(
+        [],
+        true,
+        () => nombreAleatoire(min, max, alea),
+        alea,
+        MESSAGE_AUCUN_PROF_TOUS,
+        false,
+      );
     } finally {
       this.enCours.set(false);
     }
@@ -287,9 +383,15 @@ export class AttributionService {
    * Écrit le plan calculé : les documents `dispos` (identiques à ceux
    * produits par un clic du professeur) et le document de profil.
    *
+   * @param plan plan à écrire (`null` : rien à faire).
+   * @param options `fictif: true` marque les documents écrits comme des
+   *   **données de démonstration** (champ `fictif`).
    * @returns le nombre de créneaux écrits.
    */
-  async appliquer(plan: PlanAttribution | null): Promise<number> {
+  async appliquer(
+    plan: PlanAttribution | null,
+    options: { fictif?: boolean } = {},
+  ): Promise<number> {
     if (!plan || plan.cibles.length === 0) {
       return 0;
     }
@@ -302,7 +404,7 @@ export class AttributionService {
         cible.creneaux.map((creneau) => ({
           uid: cible.uid,
           id: creneau.id,
-          data: this.documentDispo(cible, creneau),
+          data: this.documentDispo(cible, creneau, options.fictif === true),
         })),
       );
       const ecrits = await this.backend.upsertDispos(items);
@@ -322,13 +424,37 @@ export class AttributionService {
     }
   }
 
+  /**
+   * Prépare **et** écrit les disponibilités fictives (4 ou 5 par
+   * professeur) pour l'ensemble de la liste des professeurs.
+   *
+   * @returns le nombre de disponibilités écrites, ou `0` en cas d'échec
+   *   (le message est alors dans `erreur`).
+   */
+  async genererFictifs(
+    min = NB_DISPO_FICTIVES_MIN,
+    max = NB_DISPO_FICTIVES_MAX,
+    alea: Alea = Math.random,
+  ): Promise<number> {
+    const plan = await this.preparerFictifs(min, max, alea);
+    if (!plan) {
+      return 0;
+    }
+    return this.appliquer(plan, { fictif: true });
+  }
+
   /** Document `dispos` — même forme que celui écrit par `DispoService`. */
-  private documentDispo(cible: CibleAttribution, creneau: Creneau): Record<string, unknown> {
+  private documentDispo(
+    cible: CibleAttribution,
+    creneau: Creneau,
+    fictif = false,
+  ): Record<string, unknown> {
     return {
       ...champsCreneauDenormalises(creneau),
       login: cible.login,
       nom: cible.nom,
       prenom: cible.prenom,
+      ...(fictif ? { fictif: true } : {}),
       updatedAt: Date.now(),
     };
   }

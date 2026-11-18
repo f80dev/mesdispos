@@ -24,12 +24,14 @@ import { AuthService } from '../../core/auth.service';
 import { CookieService } from '../../core/cookie.service';
 import { AdminService } from '../../core/admin.service';
 import { ROUTES } from '../../app.routes';
+import { ThemeSwitcherComponent } from '../../layout/theme-switcher.component';
 import { ProfService, filtrerProfs, type Prof } from '../../data/prof.service';
 import { profilDepuisProf, profilDepuisSaisieLibre } from '../../data/profil.service';
 import { LONGUEUR_NOM_MAX } from '../../shared/date.util';
 import { sha256Hex } from '../../shared/sha256.util';
 import { MatExpansionPanel, MatExpansionPanelHeader } from '@angular/material/expansion';
 import packageJson from '../../../../package.json';
+import { settings } from '../../../environments/settings';
 
 /** Valeur synthétique du sélecteur : « je ne suis pas dans la liste ». */
 export const CHOIX_AUTRE = '__autre__';
@@ -50,6 +52,7 @@ export const CHOIX_AUTRE = '__autre__';
     MatProgressSpinnerModule,
     MatExpansionPanel,
     MatExpansionPanelHeader,
+    ThemeSwitcherComponent,
   ],
   templateUrl: './login.component.html',
   styleUrl: './login.component.scss',
@@ -422,4 +425,6 @@ export class LoginComponent {
         `${uid} depuis la console Firebase.`,
     );
   }
+
+  protected readonly settings = settings;
 }

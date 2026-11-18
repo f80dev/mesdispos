@@ -8,7 +8,7 @@ import {
   signal,
   viewChild,
 } from '@angular/core';
-import { CalendarEvent } from 'angular-calendar';
+import { CalendarEvent, CalendarView } from 'angular-calendar';
 
 import {
   CalendrierA11y,
@@ -86,6 +86,8 @@ export class CreneauCalendarComponent extends CalendrierBase {
 
   constructor() {
     super();
+    // Vue « semaine » imposée : les vues « jour »/« semaine » ont été retirées.
+    this.vue.set(CalendarView.Week);
     // Le calendrier affiche **tous** les créneaux. À chaque arrivée d'un
     // créneau retenu, la vue se positionne sur son jour : un créneau
     // sélectionné devient immédiatement visible dans le calendrier.

@@ -16,22 +16,24 @@ const EN_TETES_MEMOIRES = [
   [
     '[[ CODE ]]',
     '[[ CODE_STUDENT ]]',
-    '[[ CODE_THESIS_TYPE ]]',
     '[[ TITLE ]]',
+    '[[ SUBTITLE ]]',
     '[[ STATUS ]]',
     '[[ DIRECTION_STATUS ]]',
     '[[ DIRECTOR ]]',
     '[[ SUBJECT_SUBMISSION_DATE ]]',
+    '[[ CODE_TRAINING ]]',
   ],
   [
-    'Identifiant unique',
+    'Identifiant',
     'Étudiant',
-    'Type de mémoire',
-    'Titre',
+    'Titre du mémoire',
+    'Sous titre du mémoire',
     'Statut du mémoire',
     'Statut de la direction de mémoire',
     'Directeurs / Directeur de mémoire',
     'Date de dépôt du sujet',
+    'Secteur du mémoire',
   ],
 ];
 
@@ -99,15 +101,17 @@ describe('construireCsvMemoires', () => {
         'Directeur confirmé',
         'WHILHEM Marie',
         'Jeudi 29 octobre 2026 à 15:32',
+        'Design Textile et Matière',
       ],
     ]);
     const lignes = csv.trim().split('\n');
     expect(lignes[0]).toBe(
-      'identifiant,etudiant,type,titre,statut,statut_direction,directeur,date_depot_sujet',
+      'identifiant,etudiant,titre,sous_titre,statut,statut_direction,directeur,' +
+        'date_depot_sujet,secteur',
     );
     expect(lignes[1]).toBe(
       '34,BENDELAC Noé,Mémoire M1,titre de mémoire,En attente de soutenance,' +
-        'Directeur confirmé,WHILHEM Marie,Jeudi 29 octobre 2026 à 15:32',
+        'Directeur confirmé,WHILHEM Marie,Jeudi 29 octobre 2026 à 15:32,Design Textile et Matière',
     );
     expect(compterLignes(csv)).toBe(1);
   });
@@ -122,14 +126,15 @@ describe('formatMemoiresReconnu', () => {
     expect(
       formatMemoiresReconnu([
         [
-          'Identifiant unique',
+          'Identifiant',
           'Étudiant',
-          'Type de mémoire',
-          'Titre',
+          'Titre du mémoire',
+          'Sous titre du mémoire',
           'Statut du mémoire',
           'Statut de la direction de mémoire',
           'Directeurs / Directeur de mémoire',
           'Date de dépôt du sujet',
+          'Secteur du mémoire',
         ],
       ]),
     ).toBe(true);

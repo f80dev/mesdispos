@@ -66,7 +66,8 @@ export const MESSAGE_FORMAT_NON_PRIS_EN_CHARGE =
 /** Message affiché quand le classeur déposé n'a pas la structure de `memoires.xlsx`. */
 export const MESSAGE_FORMAT_MEMOIRES_INCONNU =
   'Format non reconnu : le fichier doit avoir les mêmes colonnes que memoires.xlsx ' +
-  '(identifiant, étudiant, type, titre, statut, statut de la direction, directeur, date de dépôt).';
+  '(identifiant, étudiant, titre, sous-titre, statut, statut de la direction, ' +
+  'directeur, date de dépôt du sujet, secteur).';
 
 /** Message affiché quand la base des disponibilités est injoignable. */
 export const MESSAGE_BASE_INJOIGNABLE = 'Impossible de lire les disponibilités des professeurs.';
@@ -84,26 +85,34 @@ interface ColonneSource {
 }
 
 const COLONNES_MEMOIRES: readonly ColonneSource[] = [
-  { cle: 'etudiant', technique: 'CODE_STUDENT', humain: 'etudiant', position: 0 },
-  { cle: 'titre', technique: 'TITLE', humain: 'titre', position: 1 },
-  { cle: 'statut', technique: 'STATUS', humain: 'statut du memoire', position: 2 },
+  { cle: 'identifiant', technique: 'CODE', humain: 'identifiant', position: 0 },
+  { cle: 'etudiant', technique: 'CODE_STUDENT', humain: 'etudiant', position: 1 },
+  { cle: 'titre', technique: 'TITLE', humain: 'titre du memoire', position: 2 },
+  { cle: 'sous_titre', technique: 'SUBTITLE', humain: 'sous titre du memoire', position: 3 },
+  { cle: 'statut', technique: 'STATUS', humain: 'statut du memoire', position: 4 },
   {
     cle: 'statut_direction',
     technique: 'DIRECTION_STATUS',
     humain: 'statut de la direction de memoire',
-    position: 3,
+    position: 5,
   },
   {
     cle: 'directeur',
     technique: 'DIRECTOR',
     humain: 'directeurs directeur de memoire',
-    position: 4,
+    position: 6,
   },
   {
     cle: 'date_depot_sujet',
     technique: 'SUBJECT_SUBMISSION_DATE',
     humain: 'date de depot du sujet',
-    position: 5,
+    position: 7,
+  },
+  {
+    cle: 'secteur',
+    technique: 'CODE_TRAINING',
+    humain: 'secteur du memoire',
+    position: 8,
   },
 ];
 
@@ -152,7 +161,24 @@ export function indexerColonnesSource(
     };
   }
 
-  return { indexes: colonnes.map((colonne) => colonne.position), premiereDonnee: 2 };
+  // Correspondance partielle : chaque colonne est recherchée par son nom
+  // technique puis humain ; les colonnes absentes retombent sur leur position.
+  const indexes = colonnes.map((colonne) => {
+    const nomTechnique = normaliserEnteteCsv(colonne.technique);
+    const nomHumain = normaliserEnteteCsv(colonne.humain);
+    const indexTechnique = technique.indexOf(nomTechnique);
+    if (indexTechnique >= 0) {
+      return indexTechnique;
+    }
+    const indexHumain = humain.indexOf(nomHumain);
+    return indexHumain >= 0 ? indexHumain : colonne.position;
+  });
+  const nbTechniques = colonnes.filter((colonne) =>
+    technique.includes(normaliserEnteteCsv(colonne.technique)),
+  ).length;
+  const premiereDonnee = nbTechniques > colonnes.length / 2 ? 2 : 1;
+
+  return { indexes, premiereDonnee };
 }
 
 /**
@@ -200,15 +226,12 @@ export function construireCsvSalles(rangees: readonly unknown[][]): string {
 export function formatMemoiresReconnu(rangees: readonly unknown[][]): boolean {
   const premiere = rangees[0] ?? [];
   const entetes = premiere.map(normaliserEnteteCsv);
-  const technique = COLONNES_MEMOIRES.every((colonne) =>
-    entetes.includes(normaliserEnteteCsv(colonne.technique)),
-  );
-  if (technique) {
-    return true;
-  }
-  return COLONNES_MEMOIRES.every((colonne) =>
-    entetes.includes(normaliserEnteteCsv(colonne.humain)),
-  );
+  const connues = COLONNES_MEMOIRES.filter(
+    (colonne) =>
+      entetes.includes(normaliserEnteteCsv(colonne.technique)) ||
+      entetes.includes(normaliserEnteteCsv(colonne.humain)),
+  ).length;
+  return connues > COLONNES_MEMOIRES.length / 2;
 }
 
 /** Nombre de mémoires (lignes de données) contenues dans des lignes brutes. */

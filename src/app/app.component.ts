@@ -5,6 +5,7 @@ import { filter, map, startWith } from 'rxjs';
 
 import { HeaderComponent } from './layout/header.component';
 import { ROUTES } from './app.routes';
+import { ThemeService } from './core/theme.service';
 
 // Mobile: header compact masqué sur /login, contenu pleine largeur.
 // Desktop: header permanent 56 px + contenu centré (max 1100 px).
@@ -16,6 +17,9 @@ import { ROUTES } from './app.routes';
 })
 export class App {
   private readonly router = inject(Router);
+
+  /** Service de thème : instancié au démarrage pour appliquer le thème mémorisé. */
+  readonly theme = inject(ThemeService);
 
   private readonly url = toSignal(
     this.router.events.pipe(

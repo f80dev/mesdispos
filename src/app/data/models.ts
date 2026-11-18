@@ -38,6 +38,11 @@ export interface Dispo {
   login?: string;
   nom?: string;
   prenom?: string;
+  /**
+   * `true` lorsque la disponibilité a été générée par l'administrateur
+   * comme **donnée de démonstration** (et non déclarée par le professeur).
+   */
+  fictif?: boolean;
   updatedAt: number; // Date.now() — horodatage d'affichage uniquement
 }
 
