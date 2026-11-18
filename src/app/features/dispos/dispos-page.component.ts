@@ -19,9 +19,7 @@ import type { Creneau } from '../../data/models';
 @Component({
   selector: 'app-dispos-page',
   imports: [
-    CreneauCardComponent,
     CreneauCalendarComponent,
-    DateGroupPipe,
     MatButtonModule,
     MatIconModule,
     MatProgressBarModule,

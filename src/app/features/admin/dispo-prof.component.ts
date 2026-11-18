@@ -15,6 +15,12 @@ import { avecValeurs, basculerValeur } from '../../shared/collection.util';
 import { ProfsCalendarComponent } from './profs-calendar.component';
 import { MatAccordion, MatExpansionPanel, MatExpansionPanelHeader } from '@angular/material/expansion';
 
+/** Colonnes triables du tableau des professeurs. */
+export type ColonneTri = 'planning' | 'prof' | 'nombre' | 'secteur' | 'mail';
+
+/** Sens de tri. */
+export type SensTri = 'asc' | 'desc';
+
 /**
  * Nombre de variantes de couleur attribuées aux professeurs dans le
  * calendrier (rôles M3 : primary, secondary, tertiary, success, error,
@@ -36,8 +42,7 @@ export const PALETTE_PROFS = 6;
     MatProgressBarModule,
     ProfsCalendarComponent,
     MatExpansionPanel,
-    MatExpansionPanelHeader,
-    MatAccordion,
+    MatExpansionPanelHeader
   ],
   templateUrl: './dispo-prof.component.html',
   styleUrl: './dispo-prof.component.scss',
@@ -61,22 +66,38 @@ export class DispoProfComponent extends ComposantAdmin {
   /** `uid` des professeurs cochés. */
   readonly selection = signal<ReadonlySet<string>>(new Set<string>());
 
-  /** Professeurs affichés dans la liste (après recherche). */
-  readonly profsAffiches = computed(() => filtrerProfsDispo(this.profs(), this.recherche()));
+  /** Colonne de tri active (`null` : tri par défaut). */
+  readonly triColonne = signal<ColonneTri | null>(null);
+
+  /** Sens de tri actif. */
+  readonly triSens = signal<SensTri>('asc');
+
+  /** Professeurs affichés dans la liste (après recherche, puis tri). */
+  readonly profsAffiches = computed(() => {
+    const liste = filtrerProfsDispo(this.profs(), this.recherche(), (prof) => this.secteur(prof));
+    const colonne = this.triColonne();
+    if (!colonne) {
+      return liste;
+    }
+    const sens = this.triSens() === 'asc' ? 1 : -1;
+    return [...liste].sort((a, b) => sens * this.compareColonne(a, b, colonne));
+  });
 
   /** Nombre de professeurs cochés. */
   readonly nombreCoches = computed(() => this.selection().size);
 
   /**
    * Événements du calendrier : une disponibilité par professeur et par
-   * créneau. **Tous** les créneaux renseignés sont affichés, y compris ceux
-   * des professeurs non cochés ; la coche sert uniquement à mettre en
-   * évidence un professeur (classe `prof-selectionne`).
+   * créneau. **Seuls les créneaux des professeurs cochés** dans le tableau
+   * `tblProfs` sont affichés.
    */
   readonly evenements = computed<CalendarEvent[]>(() => {
     const selection = this.selection();
     const evenements: CalendarEvent[] = [];
     this.profs().forEach((prof, index) => {
+      if (!selection.has(prof.uid)) {
+        return;
+      }
       for (const dispo of prof.dispos) {
         const intervalle = creneauVersIntervalle(dispo);
         if (!intervalle) {
@@ -87,11 +108,7 @@ export class DispoProfComponent extends ComposantAdmin {
           'prof-evenement',
           `prof-c${index % PALETTE_PROFS}`,
         ];
-        if (selection.has(prof.uid)) {
-          classes.push('prof-selectionne');
-        } else {
-          classes.push('prof-non-selectionne');
-        }
+        classes.push('prof-selectionne');
         evenements.push({
           id: `${prof.uid}_${dispo.creneauId}`,
           title: `${dispo.heureDebut} – ${dispo.heureFin}`,
@@ -136,11 +153,15 @@ export class DispoProfComponent extends ComposantAdmin {
   }
 
   /**
-   * Nombre de créneaux disponibles **plannifiés** pour un professeur : les
-   * créneaux déclarés qui figurent effectivement dans le planning. Le calcul
-   * ne dépend pas de la coche : tous les créneaux renseignés sont affichés.
+   * Nombre de créneaux **plannifiés** pour un professeur : les créneaux
+   * déclarés qui figurent effectivement dans le planning, c'est-à-dire ceux
+   * du professeur **coché** dans le tableau. Un professeur non coché n'a
+   * aucun créneau planifié.
    */
   nombreCreneauxPlannifies(prof: ProfDispo): number {
+    if (!this.estCoche(prof.uid)) {
+      return 0;
+    }
     return prof.dispos.filter((dispo) => creneauVersIntervalle(dispo) !== null).length;
   }
 
@@ -156,6 +177,61 @@ export class DispoProfComponent extends ComposantAdmin {
     const sujet = 'Vos disponibilités — MesDispos';
     const corps = `Bonjour ${prof.prenom || prof.nomComplet},\n\n. N'oubliez pas de saisir l'ensemble de vos disponibilités pour les soutenances de mémoire avant le 31 janvier afin que nous puissions plannifier l'ensemble de ses soutenances au plus vite`;
     return `mailto:${mail}?subject=${encodeURIComponent(sujet)}&body=${encodeURIComponent(corps)}`;
+  }
+
+  /**
+   * Compare deux professeurs selon une colonne triable. Renvoie un nombre
+   * négatif, nul ou positif (convention `Array.prototype.sort`).
+   */
+  private compareColonne(a: ProfDispo, b: ProfDispo, colonne: ColonneTri): number {
+    switch (colonne) {
+      case 'planning':
+        return this.nombreDispos(a) - this.nombreDispos(b);
+      case 'nombre':
+        return this.nombreCreneauxPlannifies(a) - this.nombreCreneauxPlannifies(b);
+      case 'secteur':
+        return this.compareTexte(this.secteur(a), this.secteur(b));
+      case 'mail':
+        return this.compareTexte(this.mail(a) ?? '', this.mail(b) ?? '');
+      case 'prof':
+      default:
+        return this.compareTexte(a.nomComplet, b.nomComplet);
+    }
+  }
+
+  /** Comparaison textuelle insensible à la casse et aux accents. */
+  private compareTexte(a: string, b: string): number {
+    return a.localeCompare(b, 'fr', { sensitivity: 'base', numeric: true });
+  }
+
+  /**
+   * Tri par colonne : un premier clic sur une colonne trie par ordre
+   * croissant, un second clic inverse le sens, un clic sur une autre colonne
+   * change de colonne (réinitialisant le sens en croissant).
+   */
+  trier(colonne: ColonneTri): void {
+    if (this.triColonne() === colonne) {
+      this.triSens.set(this.triSens() === 'asc' ? 'desc' : 'asc');
+      return;
+    }
+    this.triColonne.set(colonne);
+    this.triSens.set('asc');
+  }
+
+  /** `aria-sort` de l'en-tête de colonne (pour les lecteurs d'écran). */
+  ariaSort(colonne: ColonneTri): 'ascending' | 'descending' | 'none' {
+    if (this.triColonne() !== colonne) {
+      return 'none';
+    }
+    return this.triSens() === 'asc' ? 'ascending' : 'descending';
+  }
+
+  /** Icône de tri de l'en-tête (vide si la colonne n'est pas triée). */
+  iconeTri(colonne: ColonneTri): string {
+    if (this.triColonne() !== colonne) {
+      return 'unfold_more';
+    }
+    return this.triSens() === 'asc' ? 'arrow_upward' : 'arrow_downward';
   }
 
   /** Met à jour le texte de recherche à partir de l'événement `input`. */

@@ -8,16 +8,22 @@
   display: block;
 }
 
+.btn-ico {
+  width:120px;
+  line-height: 0.9;
+  display: inline;
+  margin: 10px !important;
+}
+
 .header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--md-spacing-3);
-  height: 56px;
+  height: 45px;
   padding: 0 var(--md-spacing-4);
   background: var(--app-surface-container);
   color: var(--app-on-surface);
-  border-bottom: 1px solid var(--app-outline-variant);
 }
 
 .marque {

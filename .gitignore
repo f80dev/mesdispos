@@ -53,3 +53,6 @@ Thumbs.db
 
 # Identifiants de projet locaux : le modèle versionné est .firebaserc.example
 .firebaserc
+
+# Cache local des bundles conservés entre deux déploiements Cloudflare Pages
+/.deploy-assets

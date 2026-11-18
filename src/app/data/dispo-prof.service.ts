@@ -106,17 +106,23 @@ export function regrouperDisposParProf(
 
 /**
  * Filtre une liste de professeurs sur un texte libre (nom, prénom, login).
+ * `texteComplementaire` permet d'ajouter d'autres champs à la recherche
+ * (par exemple le secteur de rattachement).
  *
  * Fonction **pure** : testable sans Angular.
  */
 export function filtrerProfsDispo(
   profs: readonly ProfDispo[],
   recherche: string | null | undefined,
+  texteComplementaire?: (prof: ProfDispo) => string,
 ): ProfDispo[] {
   return filtrerParRecherche(
     profs,
     recherche,
-    (prof) => `${prof.prenom} ${prof.nom} ${prof.login} ${prof.nomComplet}`,
+    (prof) =>
+      `${prof.prenom} ${prof.nom} ${prof.login} ${prof.nomComplet} ${
+        texteComplementaire ? texteComplementaire(prof) : ''
+      }`,
   );
 }
 

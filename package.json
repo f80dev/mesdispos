@@ -1,6 +1,6 @@
 {
   "name": "mesdispos",
-  "version": "0.0.9",
+  "version": "0.0.15",
   "scripts": {
     "ng": "ng",
     "start": "ng serve",
@@ -10,7 +10,9 @@
     "test:watch": "ng test --watch",
     "test:e2e": "playwright test",
     "test:e2e:install": "playwright install",
-    "deploy": "node increment-version.js && ng build && npx wrangler pages deploy dist/mesdispos/browser --project-name=mesdispo",
+    "verif:dist": "node scripts/verif-dist.mjs",
+    "seed:assets": "node scripts/seed-assets.mjs",
+    "deploy": "node increment-version.js && ng build --configuration=production && node scripts/merge-assets.mjs && node scripts/verif-dist.mjs && npx wrangler pages deploy dist/mesdispos/browser --project-name=mesdispo",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "empreinte-mdp": "node scripts/empreinte-mot-de-passe.mjs"

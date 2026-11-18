@@ -39,7 +39,11 @@
 }
 
 .tableau-profs {
+  max-height: 50vh;
   overflow-x: auto;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
   border: 1px solid var(--app-outline-variant);
   border-radius: var(--app-corner-medium);
 }
@@ -152,7 +156,32 @@
 
 // Desktop : colonnes plus larges et lignes plus aérées.
 @media (min-width: 900px) {
-  .profs tbody td {
+.entete-tri {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--md-spacing-1);
+  min-height: 48px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.entete-tri:hover {
+  color: var(--app-on-surface);
+}
+
+.icone-tri {
+  width: 18px;
+  height: 18px;
+  font-size: 18px;
+  opacity: 0.6;
+}
+
+.profs tbody td {
     padding: var(--md-spacing-2) var(--md-spacing-3);
   }
 

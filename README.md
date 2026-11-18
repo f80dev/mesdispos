@@ -343,21 +343,50 @@ npm run format:check                # vérification de formatage (CI)
 
 ## Déploiement
 
+L'hébergement de production est **Cloudflare Pages** (projet `mesdispo`) ; les
+règles et index Firestore restent déployés par le CLI Firebase.
+
 ```bash
+# règles et index Firestore
 npx firebase login
 npx firebase use --add                       # ou renseigner .firebaserc
-npx ng build --configuration=production
-npx firebase deploy --only firestore:rules,firestore:indexes,hosting
+npx firebase deploy --only firestore:rules,firestore:indexes
+
+# application (Cloudflare Pages)
+npm run deploy
 ```
 
-- `firebase.json` publie `dist/mesdispos/browser` avec la réécriture SPA
-  `** → /index.html`, sans cache sur `index.html` et `immutable` sur les bundles ;
-- `firestore.rules` autorise la lecture des créneaux (y compris anonymes),
-  réserve l'écriture des créneaux aux admins et n'ouvre chaque partition
-  `users/{uid}/dispos` qu'à son titulaire (`uid` de session Firebase **ou**
-  `uid` anonyme bien formé) ;
-- `firestore.indexes.json` ne déclare aucun index composite (toutes les lectures
-  sont mono-collection).
+`npm run deploy` enchaîne : incrément de version → build de production →
+conservation des bundles précédents → contrôle d'intégrité → `wrangler pages
+deploy`.
+
+### Garde-fous « erreur MIME » (bundles absents)
+
+Cloudflare Pages sert **`index.html` en `200 text/html` pour toute ressource
+absente** (repli SPA). Un `index.html` encore en circulation (onglet ouvert,
+cache navigateur) qui référence `styles-<hash>.css` d'une version précédente
+reçoit alors du HTML à la place du CSS : le navigateur refuse la feuille de
+style (« Refused to apply style … MIME type 'text/html' ») et la page
+s'affiche sans styles.
+
+Trois garde-fous sont en place :
+
+| Garde-fou | Fichier | Effet |
+|---|---|---|
+| Cache HTTP | `public/_headers` | `index.html` en `no-store` ; bundles en `immutable` (1 an) |
+| Conservation des bundles | `scripts/merge-assets.mjs` | les bundles des déploiements précédents (`/.deploy-assets`) sont republiés : un ancien `index.html` retrouve toujours ses assets |
+| Contrôle d'intégrité | `scripts/verif-dist.mjs` | le déploiement est **annulé** si `index.html` référence une ressource absente du dossier publié |
+
+Commandes utiles :
+
+```bash
+npm run verif:dist     # contrôle d'intégrité seul
+npm run seed:assets    # précharge le cache local avec les bundles en ligne
+```
+
+> Après un déploiement, un onglet resté ouvert peut encore afficher l'ancienne
+> version : un rechargement forcé (Ctrl+F5) suffit. Si le problème persiste,
+> purger le cache Cloudflare (Dashboard → Caching → Purge Everything).
 
 CI (`.github/workflows/ci.yml`) : `npm ci` → `npm run format:check` →
 `ng build --configuration=production` → upload de `dist/`. Les tests y sont

@@ -34,7 +34,7 @@
 // Mobile ≤ 700 px : padding 16 px (token), espacement vertical compact.
 @media (max-width: 700px) {
   .contenu {
-    padding-block: var(--md-spacing-3);
+    padding-block: var(--md-spacing-1);
   }
 }
 
@@ -42,6 +42,6 @@
 // ≥ 8 px et ≥ 16 px sur un côté ») — aucun débordement horizontal à 375 px.
 @media (max-width: 420px) {
   .contenu {
-    padding-inline: var(--md-spacing-2) var(--md-spacing-4);
+    padding-inline: var(--md-spacing-1) var(--md-spacing-2);
   }
 }
