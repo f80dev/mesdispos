@@ -33,6 +33,7 @@ export function versDispo(id: string, data: Record<string, unknown>): Dispo | nu
     ...(login ? { login } : {}),
     ...(nom ? { nom } : {}),
     ...(prenom ? { prenom } : {}),
+    ...(data['fictif'] === true ? { fictif: true } : {}),
     updatedAt: typeof maj === 'number' && Number.isFinite(maj) ? maj : 0,
   };
 }

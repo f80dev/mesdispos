@@ -238,6 +238,70 @@
   }
 
   @if (verifie() && autorise()) {
+    <section class="zone-fictives" aria-labelledby="titre-fictives">
+      <h2 id="titre-fictives" class="titre-section">Générer des disponibilités fictives</h2>
+      <p class="aide">
+        Crée des disponibilités de démonstration pour <strong>tous les professeurs</strong> de la
+        liste <code>profs.xlsx</code> : chaque professeur reçoit
+        {{ nbFictifsMin }} ou {{ nbFictifsMax }} créneaux tirés au hasard parmi ceux qu’il n’a pas
+        encore retenus. Les documents écrits sont marqués <code>fictif: true</code> et peuvent être
+        supprimés en bloc via « Supprimer les disponibilités des professeurs ».
+      </p>
+
+      @if (erreurFictifs(); as texte) {
+        <p class="message-erreur" role="alert">{{ texte }}</p>
+      }
+
+      @if (confirmationFictives()) {
+        <p class="message-confirmation" role="alert">
+          Confirmez-vous la génération de disponibilités fictives pour tous les professeurs de la
+          liste ?
+        </p>
+        <div class="actions">
+          <button
+            matButton="outlined"
+            type="button"
+            class="bouton-importer"
+            [disabled]="generationFictivesEnCours()"
+            (click)="annulerGenerationFictives()"
+          >
+            Annuler
+          </button>
+          <button
+            matButton="filled"
+            type="button"
+            class="bouton-importer"
+            [disabled]="generationFictivesEnCours()"
+            (click)="genererFictives()"
+          >
+            @if (generationFictivesEnCours()) {
+              <mat-spinner diameter="18" />
+            } @else {
+              <mat-icon aria-hidden="true">auto_awesome</mat-icon>
+            }
+            Générer
+          </button>
+        </div>
+      } @else {
+        <button
+          matButton="outlined"
+          type="button"
+          class="bouton-importer"
+          [disabled]="generationFictivesEnCours()"
+          (click)="demanderGenerationFictives()"
+        >
+          @if (generationFictivesEnCours()) {
+            <mat-spinner diameter="18" />
+          } @else {
+            <mat-icon aria-hidden="true">auto_awesome</mat-icon>
+          }
+          Générer {{ nbFictifsMin }}–{{ nbFictifsMax }} disponibilités fictives par professeur
+        </button>
+      }
+    </section>
+  }
+
+  @if (verifie() && autorise()) {
     <section class="zone-danger" aria-labelledby="titre-suppression-dispos">
       <h2 id="titre-suppression-dispos" class="titre-section">
         Supprimer les disponibilités des professeurs

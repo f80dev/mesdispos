@@ -1,30 +1,50 @@
 // =============================================================================
-// MesDispos — Thème Material Design 3 sombre, palette ENSAD
+// MesDispos — Thème Material Design 3 clair / sombre, palette ENSAD
 // =============================================================================
 //
-// Thème sombre appliqué à l'ensemble du programme (pas de bascule
-// `prefers-color-scheme` : l'application est sombre en permanence).
+// L'application propose DEUX thèmes issus d'une seule et même palette ENSAD
+// (cf. `_palette.scss`) :
 //
-// `mat.theme()` génère tous les rôles `--mat-sys-*` et les tokens des
-// composants Material à partir des palettes ENSAD (cf. `_palette.scss`).
+//   • thème CLAIR  — fond clair, surfaces blanches/gris clair, texte anthracite
+//   • thème SOMBRE — fond anthracite, surfaces sombres, texte clair
+//
+// Mécanique : `mat.theme()` est appelé avec `theme-type: color-scheme`, ce qui
+// fait produire par Angular Material des tokens `--mat-sys-*` exprimés avec la
+// fonction CSS `light-dark(<clair>, <sombre>)`. Le rendu dépend alors de la
+// propriété `color-scheme` de l'élément racine :
+//
+//   :root                → `color-scheme: light dark` : le navigateur suit le
+//                          réglage du système (prefers-color-scheme)
+//   html.theme-clair     → `color-scheme: light`       : thème clair forcé
+//   html.theme-sombre    → `color-scheme: dark`        : thème sombre forcé
+//
+// Le choix de l'utilisateur est piloté par `ThemeService` (core/theme.service.ts)
+// et persisté dans `localStorage` (préférence d'affichage, exception admise).
 // =============================================================================
 
 @use '@angular/material' as mat;
 @use 'palette' as pal;
 
 :root {
-  color-scheme: dark;
+  // Par défaut : le navigateur tranche selon la préférence du système.
+  color-scheme: light dark;
 
   @include mat.theme(
     (
       color: (
         primary: pal.$ensad-red,
         tertiary: pal.$ensad-blue,
-        theme-type: dark,
+        theme-type: color-scheme,
       ),
       typography: (
-        plain-family: ('Outfit', sans-serif),
-        brand-family: ('Outfit', sans-serif),
+        plain-family: (
+          'Outfit',
+          sans-serif,
+        ),
+        brand-family: (
+          'Outfit',
+          sans-serif,
+        ),
         regular-weight: 400,
         medium-weight: 500,
         bold-weight: 700,
@@ -34,6 +54,17 @@
       ),
     )
   );
+}
+
+// -----------------------------------------------------------------------------
+// Thèmes forcés (choix explicite de l'utilisateur)
+// -----------------------------------------------------------------------------
+html.theme-clair {
+  color-scheme: light;
+}
+
+html.theme-sombre {
+  color-scheme: dark;
 }
 
 // -----------------------------------------------------------------------------

@@ -6,7 +6,23 @@
     <base href="/" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="description" content="Déclarez vos disponibilités sur les créneaux proposés." />
-    <meta name="theme-color" content="#0061a4" />
+    <meta name="theme-color" content="#151515" />
+    <!-- Thème clair / sombre : appliqué avant le premier rendu pour éviter
+         tout clignotement. La clé de préférence est celle de ThemeService. -->
+    <script>
+      (function () {
+        try {
+          var choix = localStorage.getItem('mesdispos_theme');
+          if (choix === 'clair') {
+            document.documentElement.classList.add('theme-clair');
+          } else if (choix === 'sombre') {
+            document.documentElement.classList.add('theme-sombre');
+          }
+        } catch (e) {
+          /* Stockage indisponible : on suit le thème du système. */
+        }
+      })();
+    </script>
     <link rel="icon" type="image/svg+xml" href="favicon.svg" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />

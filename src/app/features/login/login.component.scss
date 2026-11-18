@@ -9,6 +9,7 @@
 }
 
 .page-login {
+  position: relative;
   min-height: 100dvh;
   box-sizing: border-box;
   display: flex;
@@ -174,4 +175,11 @@
   .page-login {
     gap: var(--md-spacing-3);
   }
+}
+
+// Bascule de thème (clair / sombre) : ancrée en haut à droite de la page.
+.bascule-theme-page {
+  position: absolute;
+  top: var(--md-spacing-3);
+  right: var(--md-spacing-3);
 }

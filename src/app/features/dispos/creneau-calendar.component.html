@@ -1,7 +1,7 @@
 <!--
-  Mobile: calendrier sur une seule colonne (vue « jour » par défaut en dessous de
-            900 px), navigation compacte, cibles tactiles ≥ 48 px.
-  Desktop: vue « semaine » par défaut (7 colonnes), navigation complète.
+  Vue « semaine » uniquement (les vues « jour »/« semaine » ont été retirées).
+  Mobile: navigation compacte, cibles tactiles ≥ 48 px.
+  Desktop: 7 colonnes, navigation complète.
 -->
 <div class="calendrier">
   <div class="barre">
@@ -46,70 +46,28 @@
       {{ viewDate() | calendarDate: vue() + 'ViewTitle' : locale : weekStartsOn }}
     </h3>
 
-    <div class="vues" role="group" aria-label="Vue du calendrier">
-      <button
-        matButton="outlined"
-        type="button"
-        class="vue-bouton"
-        [class.actif]="vue() === CalendarView.Week"
-        [attr.aria-pressed]="vue() === CalendarView.Week"
-        (click)="changerVue(CalendarView.Week)"
-      >
-        Semaine
-      </button>
-      <button
-        matButton="outlined"
-        type="button"
-        class="vue-bouton"
-        [class.actif]="vue() === CalendarView.Day"
-        [attr.aria-pressed]="vue() === CalendarView.Day"
-        (click)="changerVue(CalendarView.Day)"
-      >
-        Jour
-      </button>
-    </div>
   </div>
 
   <div class="grille" #grille>
-    @if (vue() === CalendarView.Week) {
-      @if (semaineVide()) {
-        <p class="vide">Aucun créneau cette semaine.</p>
-      } @else {
-        <mwl-calendar-week-view
-          [viewDate]="viewDate()"
-          [events]="evenements()"
-          [excludeDays]="joursExclus()"
-          [locale]="locale"
-          [weekStartsOn]="weekStartsOn"
-          [dayStartHour]="heureDebut()"
-          [dayEndHour]="heureFin()"
-          [hourSegments]="2"
-          [hourSegmentHeight]="hauteurSegment()"
-          [minimumEventHeight]="28"
-          [eventTitleTemplate]="titreEvenement"
-          [headerTemplate]="enteteSemaine"
-          [tooltipAppendToBody]="true"
-          (eventClicked)="surClicEvenement($event.event)"
-        />
-      }
+    @if (semaineVide()) {
+      <p class="vide">Aucun créneau cette semaine.</p>
     } @else {
-      @if (jourCourantVide()) {
-        <p class="vide">Aucun créneau ce jour-là.</p>
-      } @else {
-        <mwl-calendar-day-view
-          [viewDate]="viewDate()"
-          [events]="evenements()"
-          [locale]="locale"
-          [dayStartHour]="heureDebut()"
-          [dayEndHour]="heureFin()"
-          [hourSegments]="2"
-          [hourSegmentHeight]="hauteurSegment()"
-          [minimumEventHeight]="28"
-          [eventTitleTemplate]="titreEvenement"
-          [tooltipAppendToBody]="true"
-          (eventClicked)="surClicEvenement($event.event)"
-        />
-      }
+      <mwl-calendar-week-view
+        [viewDate]="viewDate()"
+        [events]="evenements()"
+        [excludeDays]="joursExclus()"
+        [locale]="locale"
+        [weekStartsOn]="weekStartsOn"
+        [dayStartHour]="heureDebut()"
+        [dayEndHour]="heureFin()"
+        [hourSegments]="2"
+        [hourSegmentHeight]="hauteurSegment()"
+        [minimumEventHeight]="28"
+        [eventTitleTemplate]="titreEvenement"
+        [headerTemplate]="enteteSemaine"
+        [tooltipAppendToBody]="true"
+        (eventClicked)="surClicEvenement($event.event)"
+      />
     }
   </div>
 
@@ -153,8 +111,6 @@
       <span class="puce non-retenu" aria-hidden="true"></span>
       Vous n'êtes pas disponible (rouge)
     </span>
-    <span class="legende-aide">
-      Cliquez sur un créneau du calendrier pour modifier votre disponibilité.
-    </span>
+
   </p>
 </div>

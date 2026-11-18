@@ -4,6 +4,7 @@
   Desktop: carte centrée (max 420 px), sous-titre explicatif.
 -->
 <section class="page-login">
+  <app-theme-switcher class="bascule-theme-page" />
   <header class="marque">
     <mat-icon aria-hidden="true">event_available</mat-icon>
     <h1>MesDispos</h1>
@@ -103,10 +104,6 @@
 
   <mat-expansion-panel class="carte carte-admin">
     <mat-expansion-panel-header class="titre-admin">Espace administrateur</mat-expansion-panel-header>
-    <p class="aide">
-      Réservé à l'import des créneaux. Saisissez le mot de passe administrateur, ou connectez-vous
-      avec votre compte Google administrateur.
-    </p>
 
     @if (!listeProfetesComplete()) {
       <p class="aide" role="status">
@@ -120,7 +117,8 @@
       </p>
     }
 
-    @if (!chargementProfs()) {
+    @if (!chargementProfs() && settings.login_provider.password) {
+
       <form
         class="formulaire-admin"
         [formGroup]="formulaireAdmin"
@@ -157,20 +155,23 @@
 
     }
 
-    <button
-      class="bouton-admin"
-      matButton="outlined"
-      type="button"
-      [disabled]="enCoursAdmin() || !listeProfetesComplete()"
-      (click)="connecterAdmin()"
-    >
-      @if (enCoursAdmin()) {
-        <mat-spinner diameter="18" />
-      } @else {
-        <mat-icon aria-hidden="true">account_circle</mat-icon>
-      }
-      Connexion avec Google
-    </button>
+    @if (settings.login_provider.google) {
+      <button
+        class="bouton-admin"
+        matButton="outlined"
+        type="button"
+        [disabled]="enCoursAdmin() || !listeProfetesComplete()"
+        (click)="connecterAdmin()"
+      >
+        @if (enCoursAdmin()) {
+          <mat-spinner diameter="18" />
+        } @else {
+          <mat-icon aria-hidden="true">account_circle</mat-icon>
+        }
+        Connexion avec Google
+      </button>
+    }
+
 
     @if (erreurAdmin(); as message) {
       <p class="erreur" role="alert">{{ message }}</p>

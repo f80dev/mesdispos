@@ -6,7 +6,10 @@ import {
   AttributionService,
   MAX_CREENEAUX_PAR_PROF,
   MESSAGE_AUCUN_PROF,
+  NB_DISPO_FICTIVES_MAX,
+  NB_DISPO_FICTIVES_MIN,
   choisirCreneaux,
+  nombreAleatoire,
   parserLogins,
 } from './attribution.service';
 import { CreneauService } from './creneau.service';
@@ -149,6 +152,21 @@ describe('choisirCreneaux', () => {
   });
 });
 
+describe('nombreAleatoire', () => {
+  it('reste dans les bornes [min, max]', () => {
+    for (const alea of [0, 0.25, 0.5, 0.75, 0.999]) {
+      const nombre = nombreAleatoire(4, 5, () => alea);
+      expect(nombre).toBeGreaterThanOrEqual(4);
+      expect(nombre).toBeLessThanOrEqual(5);
+    }
+  });
+
+  it('tire 4 ou 5 pour les disponibilités fictives', () => {
+    expect(nombreAleatoire(NB_DISPO_FICTIVES_MIN, NB_DISPO_FICTIVES_MAX, () => 0)).toBe(4);
+    expect(nombreAleatoire(NB_DISPO_FICTIVES_MIN, NB_DISPO_FICTIVES_MAX, () => 0.999)).toBe(5);
+  });
+});
+
 describe('AttributionService', () => {
   let service: AttributionService;
   let backend: ReturnType<typeof creerFauxBackend>;
@@ -285,5 +303,38 @@ describe('AttributionService', () => {
     expect(ecrits).toBe(2);
     const items = backend.upsertDisposMock.mock.calls[0]?.[0] as Array<{ uid: string }>;
     expect(new Set(items.map((item) => item.uid)).size).toBe(2);
+  });
+
+  it('génère des disponibilités fictives pour tous les professeurs', async () => {
+    const ecrits = await service.genererFictifs();
+
+    // 2 professeurs × (4 ou 5 créneaux, mais 3 créneaux disponibles au total).
+    expect(ecrits).toBe(6);
+    const items = backend.upsertDisposMock.mock.calls[0]?.[0] as Array<{
+      uid: string;
+      data: Record<string, unknown>;
+    }>;
+    expect(items).toHaveLength(6);
+    expect(items.every((item) => item.data['fictif'] === true)).toBe(true);
+  });
+
+  it('n’écrit aucune disponibilité fictive sans configuration Firestore', async () => {
+    const backendNonConfigure = {
+      ...creerFauxBackend(),
+      configure: false,
+    } as unknown as FirestoreBackend;
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      providers: [
+        AttributionService,
+        { provide: ProfService, useValue: new FauxProfService() },
+        { provide: CreneauService, useValue: new FauxCreneauService() },
+        { provide: FIRESTORE_BACKEND, useValue: backendNonConfigure },
+      ],
+    });
+    const serviceNonConfigure = TestBed.inject(AttributionService);
+
+    expect(await serviceNonConfigure.genererFictifs()).toBe(0);
+    expect(serviceNonConfigure.erreur()).toBeTruthy();
   });
 });
