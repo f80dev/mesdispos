@@ -108,11 +108,11 @@ session, et `/admin/import` refuse toute autre session.
 
 **L'import des créneaux est réservé à l'administrateur** — trois barrières :
 
-| Niveau | Contrôle |
-|---|---|
-| Route | `adminGuard` : sans session Firebase inscrite dans `admins`, redirection (message « Accès réservé à un administrateur ») |
+| Niveau    | Contrôle                                                                                                                                      |
+| --------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| Route     | `adminGuard` : sans session Firebase inscrite dans `admins`, redirection (message « Accès réservé à un administrateur »)                      |
 | Interface | `AdminService` : le lien du header et la zone de dépôt ne sont affichés que pour un administrateur ; les actions d'import sont refusées sinon |
-| Données | `firestore.rules` : l'écriture dans `creneaux` exige `request.auth != null` **et** `admins/{uid}` existant |
+| Données   | `firestore.rules` : l'écriture dans `creneaux` exige `request.auth != null` **et** `admins/{uid}` existant                                    |
 
 La session « nom seul » (cookie `mesdispos_nom`) n'est **jamais** habilitée : un
 professeur, même sur un poste partagé, ne peut pas importer de créneaux.
@@ -153,7 +153,7 @@ le bundle JavaScript, ni dans le fichier `firestore.rules`.
 
 > ⚠️ Il s'agit d'un **secret partagé** : quiconque connaît le mot de passe
 > devient administrateur. Pour un accès réellement nominatif, préférez la
-> connexion Google (ci-dessus) ou des *custom claims* Firebase.
+> connexion Google (ci-dessus) ou des _custom claims_ Firebase.
 
 ## Liste des professeurs (API Oasis)
 
@@ -187,7 +187,7 @@ passer par l'annuaire.
   "login": "judith.abensour", // identifiant LDAP Oasis
   "nom": "ABENSOUR",
   "prenom": "Judith",
-  "updatedAt": 1764790800000
+  "updatedAt": 1764790800000,
 }
 ```
 
@@ -201,7 +201,7 @@ passer par l'annuaire.
   jointure ;
 - à l'ouverture d'une session existante, le profil est relu depuis
   `users/{uid}` (`ProfilService.charger()`) — le cookie ne porte que le nom ;
-- l'écriture du profil est *best effort* : un échec n'empêche jamais la
+- l'écriture du profil est _best effort_ : un échec n'empêche jamais la
   déclaration de disponibilités.
 
 Les règles Firestore (`firestore.rules`) accordent l'**écriture** de
@@ -323,7 +323,7 @@ Cette page assemble un **prompt prêt à coller dans une IA** :
    remplacés) ;
 2. `{{csv_liste_memoire}}` ← la liste des mémoires de `public/memoires.xlsx` ;
 3. `{{csv_liste_dispo}}` ← la liste des professeurs **avec leurs
-   disponibilités** (documents `users/{uid}/dispos` lus en *collection group*) ;
+   disponibilités** (documents `users/{uid}/dispos` lus en _collection group_) ;
 4. `{{csv_liste_salle}}` ← la liste des salles de `public/salles.xlsx`.
 
 Le bouton **« Copier dans le presse-papiers »** place le prompt assemblé dans
@@ -339,6 +339,22 @@ Format du CSV des disponibilités (une ligne par professeur) :
 login,nom,prenom,nb_creneaux,disponibilites
 judith.abensour,ABENSOUR,Judith,2,2026-01-12 08:45-09:30; 2026-01-13 10:00-11:00
 ```
+
+## Export Excel du planning (espace administrateur)
+
+Sur la page `/admin/dispos`, le bouton **« Exporter le planning (Excel) »**
+produit un classeur `planning-disponibilites.xlsx` (feuille « Planning ») :
+
+- une **ligne par professeur** (colonne « Professeur ») ;
+- une **colonne par créneau proposé** (étiquette `JJ/MM HH:mm–HH:mm`) ;
+- une cellule vaut **`X`** lorsque le professeur a retenu le créneau, et reste
+  vide sinon.
+
+Les créneaux sont ceux de la collection `creneaux` ; les créneaux **orphelins**
+(déclarés par un professeur mais supprimés de la collection) sont ajoutés en
+fin de matrice, pour qu'aucune disponibilité ne soit perdue. Le classeur est
+généré **dans le navigateur** (`write-excel-file`) : aucune donnée n'est
+envoyée à un serveur.
 
 ## Thème clair / sombre
 

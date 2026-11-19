@@ -451,28 +451,32 @@ Le refus portait **uniquement** sur le document de profil : les disponibilités 
 **Conséquences :** la page `/dispos` gagne une section « Calendrier des créneaux » au-dessus des deux listes (pleine largeur sur desktop). Le bundle initial grossit d'environ 19 kB ; les chunks `dispos-page-component` et `index-esm` embarquent le plug-in. Les tests unitaires du calendrier (`creneau-calendar.component.spec.ts`) et de `creneauVersIntervalle()` sont **écrits mais non exécutés**, conformément au contrat de vérification (§3).
 
 ## 2026-11-04 — Liste des disponibles au-dessus du calendrier, calendrier = mes disponibilités
+
 **Contexte :** la page `/dispos` affichait le calendrier (tous les créneaux) **au-dessus** des listes, puis les listes `Créneaux disponibles` et `Mes disponibilités`. Les disponibilités de l'utilisateur étaient donc montrées deux fois (liste + calendrier) et la liste des disponibles était reléguée sous le calendrier.
 **Décision :**
+
 - l'ordre de la page est inversé : `Créneaux disponibles` (liste groupée par jour) **puis** `Mes disponibilités` ;
 - le calendrier n'affiche **plus que les créneaux retenus** par l'utilisateur (source : `DispoService.retenus()`) : la sélection d'un créneau dans la liste fait apparaître l'événement dans le calendrier, et l'ensemble des disponibilités de l'utilisateur y est visible ;
 - la liste `Mes disponibilités` (doublon) est supprimée : le compteur `(N)` est conservé dans le titre de la section `Mes disponibilités` qui encadre le calendrier ;
 - dans le calendrier, un clic sur un événement **retire** la disponibilité (et non l'ajoute) ;
 - le calendrier se repositionne sur le jour d'un créneau nouvellement retenu (`effect` sur les identifiants connus), sans bouger lors d'une désélection.
-**Conséquences :** la lecture est plus directe (la liste propose, le calendrier récapitule). Le plug-in `angular-calendar` n'affiche plus les créneaux non retenus : la légende est simplifiée. Tests unitaires écrits mais non exécutés (contrat §3).
-
+  **Conséquences :** la lecture est plus directe (la liste propose, le calendrier récapitule). Le plug-in `angular-calendar` n'affiche plus les créneaux non retenus : la légende est simplifiée. Tests unitaires écrits mais non exécutés (contrat §3).
 
 ## 2026-11-04 — Correction de l'affichage des créneaux dans le calendrier
+
 **Contexte :** le calendrier n'affichait aucun créneau : seule une barre verte (le liseré des en-têtes de jours) était visible.
 **Diagnostic :** deux défauts cumulés.
+
 1. `creneauVersIntervalle()` (`shared/date.util.ts`) utilisait une regex **sans groupe capturant** (`/^\d{1,2}:\d{2}$/`) : `exec()[1]` valait `undefined`, `parseInt` renvoyait `NaN` et les `Date` d'événement étaient **invalides** (`Invalid Date`). Le plug-in `angular-calendar` ignorait alors tous les événements.
 2. Le plug-in applique `event.cssClass` sur le **conteneur** `.cal-event-container`, et non sur le `.cal-event` intérieur. Les sélecteurs CSS de l'application (`.cal-event.creneau-evenement`) ne correspondaient donc jamais : les créneaux seraient restés sans fond ni liseré.
-**Décision :** regex corrigée en `/^(\d{1,2}):(\d{2})$/` ; les styles d'événement (fond, liseré gauche, texte) sont désormais portés par `.cal-event-container.creneau-evenement` ; le fond transparent du plug-in est neutralisé sur `.cal-event`.
-**Conséquences :** les créneaux retenus s'affichent en bloc vert dans la colonne du jour. Un test de non-régression (`creneau-calendar.component.spec.ts`) vérifie qu'un `.cal-event-container` est bien rendu et que la `Date` d'événement est valide.
-
+   **Décision :** regex corrigée en `/^(\d{1,2}):(\d{2})$/` ; les styles d'événement (fond, liseré gauche, texte) sont désormais portés par `.cal-event-container.creneau-evenement` ; le fond transparent du plug-in est neutralisé sur `.cal-event`.
+   **Conséquences :** les créneaux retenus s'affichent en bloc vert dans la colonne du jour. Un test de non-régression (`creneau-calendar.component.spec.ts`) vérifie qu'un `.cal-event-container` est bien rendu et que la `Date` d'événement est valide.
 
 ## 2026-11-04 — Prompt IA (gabarit `template.md` + CSV) dans le menu administrateur
+
 **Contexte :** la constitution des jurys de soutenance demandait de fournir à une IA la liste des mémoires, la liste des professeurs avec leurs disponibilités et la liste des salles. Le gabarit `public/template.md` existe déjà, avec trois champs entre accolades (`{{csv_liste_memoire}}`, `{{csv_liste_dispo}}`, `{{csv_liste_salle}}`) ; les données (`public/memoires.xlsx`, `public/salles.xlsx`) et les disponibilités (Firestore) étaient dispersées.
 **Décision :**
+
 - une page **réservée à l'administrateur** (`/admin/prompt`, `adminGuard`) est ajoutée ; le header expose désormais un **menu « Admin »** (`mat-menu`) contenant « Importer des créneaux » et « Prompt IA » (le lien unique précédent devient un menu, pour rester lisible sur mobile) ;
 - le prompt est assemblé **dans le navigateur** : `public/template.md` est lu par `HttpClient`, `memoires.xlsx` et `salles.xlsx` par `read-excel-file` (via le contrat injectable `XLSX_BACKEND`), les disponibilités par Firestore — aucune donnée n'est envoyée à un serveur ;
 - `FirestoreBackend` gagne deux méthodes : `listerProfils()` (`users`) et `lireToutesDispos()` (`collectionGroup('dispos')`, déjà autorisé en lecture aux administrateurs par `firestore.rules`) ;
@@ -480,84 +484,114 @@ Le refus portait **uniquement** sur le document de profil : les disponibilités 
 - les classeurs exports portent **deux lignes d'en-tête** (noms techniques `[[ CODE ]]`, puis libellés humains) : l'indexation des colonnes détecte l'un ou l'autre format et se replie sur l'ordre positionnel ;
 - la copie utilise `navigator.clipboard.writeText`, avec repli sur `document.execCommand('copy')` (contexte non sécurisé) ;
 - le gabarit est injectable depuis l'URL publique : la mécanique est donc utilisable pour d'autres travaux de l'administration (toutefois §13 reste inchangé : pas d'export d'attribution, pas de Cloud Functions).
-**Conséquences :** l'administrateur obtient en un clic un prompt collable dans n'importe quelle IA. La lecture des disponibilités de tous les professeurs est réservée à l'administrateur (elle l'est déjà dans les règles). Les tests unitaires des fonctions pures (`prompt-ia.service.spec.ts`) sont **écrits mais non exécutés**, conformément au contrat de vérification (§3).
+  **Conséquences :** l'administrateur obtient en un clic un prompt collable dans n'importe quelle IA. La lecture des disponibilités de tous les professeurs est réservée à l'administrateur (elle l'est déjà dans les règles). Les tests unitaires des fonctions pures (`prompt-ia.service.spec.ts`) sont **écrits mais non exécutés**, conformément au contrat de vérification (§3).
 
 ## 2026-11-05 — Attribution des créneaux à l'ensemble des professeurs
+
 **Contexte :** l'espace administrateur (`/admin/import`) permettait d'attribuer des créneaux à une liste de `login` Oasis saisie au clavier. Le besoin récurrent est inverse : attribuer un ou plusieurs créneaux **à tous les professeurs** de l'établissement, sans saisie.
 **Décision :**
+
 - `AttributionService.preparer(saisie, nombre, tousLesProfs = false)` accepte un troisième argument : quand il vaut `true`, la cible est l'**ensemble** des professeurs de la liste Oasis (`ProfService`) et la saisie des logins est ignorée (aucun login n'est signalé « inconnu ») ;
 - l'interface (`AttributionComponent`) expose une case à cocher « Attribuer à tous les professeurs de la liste Oasis » ; le champ des logins est alors désactivé, et la prévisualisation + la confirmation restent obligatoires avant toute écriture ;
 - les lectures des créneaux déjà retenus sont désormais **parallélisées par lots de 20** (`TAILLE_LECTURE_PARALLELE`) : une attribution à toute la liste implique ~400 partitions, qu'une lecture séquentielle rendrait trop lente ;
 - les créneaux attribués sont les mêmes qu'un clic du professeur : `users/{uid}/dispos/{creneauId}`, donc visibles dans « Mes disponibilités » à la prochaine connexion.
-**Conséquences :** l'attribution de masse reste **idempotente** (`setDoc`) et exclut les créneaux déjà retenus par chaque professeur. La liste Oasis fait foi pour « l'ensemble des professeurs » : un professeur qui s'est identifié en saisie libre (nom arbitraire) ne peut pas être ciblé (cf. l'ADR sur l'attribution). Tests unitaires **écrits mais non exécutés** (contrat §3).
+  **Conséquences :** l'attribution de masse reste **idempotente** (`setDoc`) et exclut les créneaux déjà retenus par chaque professeur. La liste Oasis fait foi pour « l'ensemble des professeurs » : un professeur qui s'est identifié en saisie libre (nom arbitraire) ne peut pas être ciblé (cf. l'ADR sur l'attribution). Tests unitaires **écrits mais non exécutés** (contrat §3).
 
 ## 2026-11-05 — Tirage au hasard des créneaux attribués
+
 **Contexte :** l'attribution automatique prenait les `N` premiers créneaux **chronologiques** encore disponibles : tous les professeurs se retrouvaient avec les mêmes créneaux (les plus tôt), ce qui ne correspond pas à une répartition réaliste des disponibilités.
 **Decision :** le choix des créneaux est désormais **aléatoire** : pour chaque professeur, on tire au hasard (`melanger()`, Fisher–Yates) parmi les créneaux qu'il n'a pas encore retenus, **sans remise** (un créneau au plus une fois par professeur). La source d'aléa est injectée (`Alea = () => number`, paramètre `alea` de `AttributionService.preparer()` et de `choisirCreneaux()`), ce qui rend le comportement testable de façon déterministe.
 **Consequences :** deux attributions successives sur le même jeu de créneaux répartissent différemment les créneaux entre les professeurs ; les créneaux déjà retenus ne sont jamais ré-attribués (le tirage part des seuls créneaux disponibles pour le professeur). La prévisualisation affiche le tirage retenu, qui n'est écrit qu'après confirmation. Tests unitaires **écrits mais non exécutés** (contrat §3).
 
 ## 2026-11-05 — Calendrier agrégé des disponibilités des professeurs
+
 **Contexte :** l'espace administrateur permettait d'attribuer des créneaux et de produire un prompt IA, mais ne permettait pas de **voir** les disponibilités déclarées par les professeurs. Le besoin : « cocher des professeurs dans une liste située au-dessus, et voir dans un calendrier toutes leurs disponibilités ».
 **Décision :**
+
 - une page **réservée à l'administrateur** (`/admin/dispos`, `adminGuard`, entrée de menu « Disponibilités des professeurs ») présente, dans cet ordre, la **liste des professeurs** (cases à cocher, recherche nom/prénom/login) puis le **calendrier** ; le composant de calendrier (`ProfsCalendarComponent`) est distinct de la page (`DispoProfComponent`), qui porte la sélection ;
 - un **événement = une disponibilité d'un professeur** : les disponibilités des professeurs cochés sont superposées sur la même plage horaire (le plug-in `angular-calendar` affiche côte à côte les événements qui se chevauchent) ; le titre de la case porte l'horaire, la seconde ligne le nom du professeur ;
 - les données proviennent de `FirestoreBackend.listerProfils()` + `lireToutesDispos()` (déjà autorisés en lecture aux administrateurs par `firestore.rules`), regroupés par partition `users/{uid}` dans `DispoProfService` ; les noms proviennent du profil `users/{uid}`, à défaut des champs dénormalisés `login`/`nom`/`prenom` portés par les documents `dispos` ;
 - la couleur d'une case est **une variante de rôle M3 par professeur** (6 variantes recyclées), pas une couleur hors palette ; aucune écriture n'est possible depuis cet écran.
-**Conséquences :** la lecture est une lecture « administrateur » : elle échoue si les règles Firestore ne sont pas déployées (message dédié et bouton « Réessayer »). La vue « jour » est retenue par défaut sous 900 px (7 colonnes illisibles sur mobile). Tests unitaires des fonctions pures (`dispo-prof.service.spec.ts`) **écrits mais non exécutés** (contrat §3).
+  **Conséquences :** la lecture est une lecture « administrateur » : elle échoue si les règles Firestore ne sont pas déployées (message dédié et bouton « Réessayer »). La vue « jour » est retenue par défaut sous 900 px (7 colonnes illisibles sur mobile). Tests unitaires des fonctions pures (`dispo-prof.service.spec.ts`) **écrits mais non exécutés** (contrat §3).
 
 ## 2026-11-05 — Import d'une liste de mémoires dans le module « Prompt IA »
+
 **Contexte :** le prompt IA lisait la liste des mémoires dans le seul fichier `public/memoires.xlsx` (déployé avec l'application). L'administrateur devait donc redéployer l'hébergement pour changer de liste de mémoires, alors que le format du fichier est stable et connu.
 **Décision :** l'écran « Prompt IA » accepte un dépôt de classeur `.xlsx` **au même format que `memoires.xlsx`** (en-têtes techniques `[[ CODE ]]`… ou libellés humains). Le classeur est lu en mémoire (`XLSX_BACKEND.lire`), sa structure est vérifiée (`formatMemoiresReconnu()`), puis il **remplace** le fichier par défaut pour les générations de prompt suivantes ; un bouton « Retirer » rétablit le fichier `public/memoires.xlsx`. Le format non `.xlsx` est refusé explicitement (« Format non pris en charge : utilisez un fichier Excel .xlsx »).
 **Conséquences :** aucune donnée n'est écrite sur le disque ni envoyée à un serveur : le classeur vit dans le service (`PromptIaService.rangeesMemoires`) et disparaît au rechargement de la page. Le gabarit, les disponibilités et les salles continuent de provenir de leurs sources respectives. Tests unitaires **écrits mais non exécutés** (contrat §3).
 
 ## 2026-11-09 — Factorisation du socle (calendriers, administration, documents)
+
 **Contexte :** les deux calendriers (`creneau-calendar` enseignant et `profs-calendar` administrateur) dupliquaient providers, signaux de vue, plage horaire et pastille des jours ; les pages d'administration répétaient le contrôle « administrateur requis » ; les conversions Firestore (`creneau`/`dispo`) et les filtres de professeurs recopiaient les mêmes règles.
 **Décision :**
+
 - un socle commun est extrait dans `shared/calendrier.util.ts` (imports, type de vue, vue par défaut, extraction de méta, écart de jours) et `shared/calendrier-base.ts` (classe abstraite `CalendrierBase` : `vue`, `viewDate`, `joursAffiches`, `heureDebut`, `heureFin`, `aDesAffiches`, `changerVue`) ; les providers communs passent par `fournisseursCalendrier()` dans `calendrier.formatters.ts` ;
 - un socle `ComposantAdmin` (`core/composant-admin.ts`) centralise `autorise`/`verifie`/`messageAdminRequis` et le helper `exigerAdmin()` utilisé par l'import, l'attribution, le prompt IA et la page des disponibilités ;
 - les conversions de documents partagent `normaliserChampsCreneau()` et `champsCreneauDenormalises()` (`shared/date.util.ts`) ; les filtres partagent `filtrerParRecherche()` (`prof.service`) ; les lots Firestore partagent `parLots()` (`firestore.backend`) ; les ensembles immuables partagent `shared/collection.util.ts`.
-**Conséquences :** comportement inchangé (mêmes documents, mêmes messages, mêmes vues par défaut) pour un code plus court et sans duplication entre composants. `ng build --configuration=production` passe ; les tests restent écrits mais non exécutés (contrat §3).
+  **Conséquences :** comportement inchangé (mêmes documents, mêmes messages, mêmes vues par défaut) pour un code plus court et sans duplication entre composants. `ng build --configuration=production` passe ; les tests restent écrits mais non exécutés (contrat §3).
 
 ## 2026-11-09 — Repli sur le fichier `profs.xlsx` quand l'API Oasis est injoignable
+
 **Contexte :** la liste des professeurs de la page de connexion provient de l'API Oasis (`GET /api/v1/profs`). Hors réseau (ou API en panne), la connexion des professeurs était impossible alors qu'un classeur `public/profs.xlsx` est déjà déployé avec l'application.
 **Décision :** `ProfService.charger()` tente d'abord l'API ; en cas d'échec, il charge `public/profs.xlsx` (feuille `Enseignants`, 389 entrées) via `XLSX_BACKEND` et normalise les lignes avec `normaliserProfsExcel()` (colonnes reconnues par leur en-tête, repli sur l'ordre `login / nom / prénom / secteur`). Le signal `source` indique l'origine de la liste (`'api'` ou `'fichier'`). Si les deux sources échouent, le message d'erreur existant est affiché.
 **Conséquences :** la connexion reste utilisable hors ligne ; `XLSXBackend.lire()` accepte désormais un nom de feuille optionnel (les autres appelants sont inchangés). Tests unitaires **écrits mais non exécutés** (contrat §3).
 
 ## 2026-11-09 — Import du planning de soutenances et calendrier filtrable par salle
+
 **Contexte :** le module « Prompt IA » (`/admin/prompt`) produit un prompt destiné aux IA génératrices de planning de soutenances. Le gabarit `public/template.md` attend en retour un classeur Excel avec une feuille « Planning » (colonnes `Date`, `Heure`, `Titre du mémoire`, `Étudiant·e`, `Directeur·rice`, `Jury 2`, `Jury 3`, `Salle`). L'administrateur devait ensuite contrôler ce planning à l'œil, sans moyen de le visualiser ni de le trier par salle.
 **Décision :**
+
 - un bouton « Importer le planning » est ajouté dans le module « Prompt IA » : il lit le classeur `.xlsx` rendu par l'IA, dans le navigateur (`XLSX_BACKEND`, feuille « Planning » avec repli sur la première feuille) ;
 - la lecture est portée par `PlanningImportService` (`data/planning-import.service.ts`) : les en-têtes sont repérés par alias insensibles à la casse, aux accents et à la ponctuation (`indexerColonnesPlanning`, « Heure de fin » n'étant jamais confondu avec « Heure de début ») ; la colonne « Heure » contient une **plage** `'HH:mm-HH:mm'` (heure de début - heure de fin), analysée par `analyserPlageHeure` (espaces et tirets demi-cadratin/cadratin tolérés) ; à défaut de plage, l'heure de fin est déduite de l'heure de début (+ 1 h, règle 5 du gabarit) ; les lignes invalides (date ou heure illisibles) sont écartées et listées avec leur numéro et un message français, sans bloquer les lignes valides ;
 - le planning est affiché par un composant dédié `PlanningCalendarComponent` (`features/admin/`) basé sur `mwl-calendar-week-view` : une **soutenance = un événement d'une heure**, la case porte l'horaire, le titre du mémoire, l'étudiant·e et la salle ; le calendrier s'ouvre par défaut sur la **semaine de la première séance** (`linkedSignal` recalé à chaque nouveau planning) ; le **filtre par salle** est une **liste déroulante à cocher** (`mat-select` multiple, cases à cocher dans le panneau) : toutes les salles sont cochées par défaut, les décochées masquent leurs soutenances, et les boutons « Toutes » / « Aucune » réinitialisent la sélection ;
 - les soutenances restent exprimées en chaînes `'YYYY-MM-DD'` / `'HH:mm'` (cf. AGENTS.md §13) : la conversion en `Date` local n'a lieu qu'au rendu. Aucun `Date` n'est persisté et le fichier importé ne quitte pas le navigateur (il reste en mémoire).
-**Conséquences :** l'administrateur visualise le planning produit par l'IA dans un calendrier hebdomadaire filtrable par salle, sans réécriture ni déploiement. Les tests unitaires (`planning-import.service.spec.ts`) sont **écrits mais non exécutés** (contrat §3).
+  **Conséquences :** l'administrateur visualise le planning produit par l'IA dans un calendrier hebdomadaire filtrable par salle, sans réécriture ni déploiement. Les tests unitaires (`planning-import.service.spec.ts`) sont **écrits mais non exécutés** (contrat §3).
 
 ## 2026-11-12 — Accès à l'espace administrateur par mot de passe (sans e-mail)
+
 **Contexte :** l'espace administrateur (`/admin/import`, `/admin/prompt`, `/admin/dispos`) exigeait une connexion **Google** (compte tiers, e-mail, popup) et une inscription manuelle dans la collection `admins`. Sur poste partagé ou sur téléphone, la connexion Google est lourde, et il faut un compte pour chaque administrateur.
 **Décision :**
+
 - l'encart « Espace administrateur » de `/login` propose une seconde voie : un champ **mot de passe** et un bouton « Connexion par mot de passe » ;
 - cette voie ouvre une session Firebase **anonyme** (`signInAnonymously`, `AuthService.connecterAnonymeAdmin()`) : ni e-mail, ni compte tiers, ni popup ;
 - le mot de passe n'est **jamais** transmis ni stocké en clair : le client en calcule l'empreinte SHA-256 (`sha256Hex`) et écrit la fiche `admins/{uid}` de la session (`AdminService.autoriserParMotDePasse()`, `FirestoreBackend.creerAdmin()`) ;
 - `firestore.rules` compare **côté serveur** cette empreinte à celle stockée dans un document `config/admin` (champ `empreinte`, créé par l'humain, jamais lisible depuis l'application) : l'écriture n'est acceptée que si les deux correspondent. `config/admin` est donc la source de vérité unique du secret, absente du bundle **et** du fichier de règles ;
 - la session Google reste la voie recommandée : elle est nominative (`admins/{uid}` écrit depuis la console). La connexion par mot de passe est un **secret partagé** (documenté comme tel dans le README) ;
 - une session « nom seul » (cookie `mesdispos_nom`) reste **jamais** habilitée administrateur.
-**Conséquences :** l'accès administrateur ne dépend plus d'un compte Google ni d'un e-mail, mais exige deux réglages humains (fournisseur « Anonyme » activé dans la console, document `config/admin` créé) et le déploiement des règles. La connexion par mot de passe est journalisée dans `admins/{uid}` comme toute autre session admin. Tests unitaires **écrits mais non exécutés** (contrat §3).
+  **Conséquences :** l'accès administrateur ne dépend plus d'un compte Google ni d'un e-mail, mais exige deux réglages humains (fournisseur « Anonyme » activé dans la console, document `config/admin` créé) et le déploiement des règles. La connexion par mot de passe est journalisée dans `admins/{uid}` comme toute autre session admin. Tests unitaires **écrits mais non exécutés** (contrat §3).
 
 ## 2026-11-18 — Thème clair en complément du thème sombre (palette ENSAD)
+
 **Contexte :** l'application était figée sur un thème Material Design 3 **sombre** (`theme-type: dark`) construit sur la palette ENSAD. Aucun thème clair n'était proposé, alors que les couleurs de marque de l'ENSAD (rouge `#FE3E0D`, vert `#1C6333`, bleu `#2A84FF`, anthracite `#151515`, gris `#86868B`/`#C3C3C5`/`#E7EAE8`/`#F5F5F7`) sont exactement celles du site ensad.fr.
 **Décision :**
+
 - une seule palette tonale ENSAD (`src/styles/_palette.scss`) sert désormais les **deux** thèmes ; les tons neutres sont calibrés pour que le thème sombre utilise les tons 6 à 24 (surfaces sombres) et le thème clair les tons 90 à 100 (surfaces claires) ;
 - `mat.theme()` est appelé avec `theme-type: color-scheme` : Angular Material produit des tokens `--mat-sys-*` exprimés avec `light-dark(<clair>, <sombre>)`. Le rendu suit la propriété `color-scheme` de l'élément racine : `:root { color-scheme: light dark }` (suivi du réglage système), `html.theme-clair { color-scheme: light }`, `html.theme-sombre { color-scheme: dark }` ;
-- `ThemeService` (`src/app/core/theme.service.ts`) porte la préférence (`auto` / `clair` / `sombre`), l'applique sur `<html>` et la mémorise dans `localStorage` (`mesdispos_theme`) — *préférence d'affichage*, exception admise au §13. Un script inline dans `src/index.html` applique la classe **avant le premier rendu** (aucun clignotement) ;
+- `ThemeService` (`src/app/core/theme.service.ts`) porte la préférence (`auto` / `clair` / `sombre`), l'applique sur `<html>` et la mémorise dans `localStorage` (`mesdispos_theme`) — _préférence d'affichage_, exception admise au §13. Un script inline dans `src/index.html` applique la classe **avant le premier rendu** (aucun clignotement) ;
 - le sélecteur `ThemeSwitcherComponent` (`src/app/layout/theme-switcher.component.ts`) est présent dans le header et sur la page `/login` (cible tactile 48 px, menu « Clair / Sombre / Automatique ») ;
 - les composants ne consomment que des tokens sémantiques (`--app-*`) : aucun changement de feuille de style de composant n'a été nécessaire. Seul correctif : le mixin `bouton-appel` utilisait `color: black`, remplacé par `var(--app-on-primary)` pour rester lisible dans les deux thèmes.
-**Conséquences :** l'application s'affiche en clair ou en sombre avec la même identité de marque, sans duplication de CSS ni second jeu de tokens. `ng build --configuration=production` passe (exit 0 ; deux avertissements `NG8113` préexistants sur `dispos-page.component.ts`). Tests unitaires **écrits mais non exécutés** (contrat §3).
+  **Conséquences :** l'application s'affiche en clair ou en sombre avec la même identité de marque, sans duplication de CSS ni second jeu de tokens. `ng build --configuration=production` passe (exit 0 ; deux avertissements `NG8113` préexistants sur `dispos-page.component.ts`). Tests unitaires **écrits mais non exécutés** (contrat §3).
+
 ## 2026-11-18 — Génération de disponibilités fictives pour tous les professeurs
+
 **Contexte :** la plateforme devait être mise en situation (recette, démonstration, remplissage du calendrier `admin/dispos`) sans attendre que les ~390 professeurs de `public/profs.xlsx` déclarent eux-mêmes leurs disponibilités. L'attribution manuelle (`AttributionComponent`) exigeait une saisie par lot et un nombre fixe de créneaux, unsuitable pour un remplissage massif et réaliste.
 **Décision :**
+
 - un bouton « Générer 4–5 disponibilités fictives par professeur » est ajouté dans `/admin/import` (`ImportComponent`), avec confirmation préalable ;
 - la logique est portée par `AttributionService.genererFictifs()` → `preparerFictifs(min, max, alea)` : la liste des professeurs vient de `ProfService` (fichier `profs.xlsx` en priorité, repli API Oasis) ; chaque professeur reçoit un nombre **aléatoire** de créneaux dans `[4, 5]` (`nombreAleatoire()`, bornes `NB_DISPO_FICTIVES_MIN` / `NB_DISPO_FICTIVES_MAX`), tirés au hasard **parmi ceux qu'il n'a pas encore retenus** (`choisirCreneaux`) : les disponibilités réellement déclarées ne sont jamais écrasées ;
 - les documents écrits portent un champ supplémentaire `fictif: true` (ajouté au modèle `Dispo` et relu par `versDispo`) : ils se distinguent des déclarations réelles dans la console Firebase et dans `/admin/dispos`, et sont supprimables en bloc via l'action existante « Supprimer les disponibilités des professeurs » ;
 - le `uid` des partitions est recalculé comme dans l'attribution (`utilisateurAnonyme(prof.nomComplet)`) : un professeur qui se connecte plus tard retrouve ses créneaux fictifs dans « Mes disponibilités » ;
 - l'écriture réutilise `writeBatch` par lots de 500 (`upsertDispos`) et le document de profil `users/{uid}`, comme l'attribution manuelle.
-**Conséquences :** un clic remplit le calendrier de démonstration de tous les professeurs ; les données fictives sont identifiables (`fictif: true`) mais indistinguables pour le professeur (elles s'affichent comme ses disponibilités, ce qui est voulu : l'objectif est de remplir l'interface réelle).. Tests unitaires **écrits mais non exécutés** (contrat §3).
+  **Conséquences :** un clic remplit le calendrier de démonstration de tous les professeurs ; les données fictives sont identifiables (`fictif: true`) mais indistinguables pour le professeur (elles s'affichent comme ses disponibilités, ce qui est voulu : l'objectif est de remplir l'interface réelle).. Tests unitaires **écrits mais non exécutés** (contrat §3).
+
+## 2026-11-19 — Export Excel du planning des professeurs (matrice professeur × créneaux)
+
+**Contexte :** l'espace administrateur (`/admin/dispos`) affichait les disponibilités dans un calendrier et un tableau, mais ne permettait pas de les extraire pour les exploiter hors de l'application (planifier les soutenances, checker les disponibilités d'un jury). L'export demandé est une **matrice** : une ligne par professeur, une colonne par créneau, une marque lorsque le professeur est disponible.
+**Décision :**
+
+- un bouton « Exporter le planning (Excel) » est ajouté dans `/admin/dispos` (`DispoProfComponent`) ; il est réservé à l'administrateur (contrôle `exigerAdmin()`) et produit le classeur `planning-disponibilites.xlsx` (feuille « Planning », orientation paysage) ;
+- la construction de la matrice est une fonction **pure** `construireMatricePlanning(profs, creneaux)` (`data/planning-export.service.ts`) : les colonnes suivent l'ordre des créneaux de la collection `creneaux` (écoute temps réel via `CreneauService`), les **créneaux orphelins** (déclarés mais supprimés de la collection) sont ajoutés en fin de matrice pour ne perdre aucune disponibilité ;
+- la cellule porte la marque `X` (`MARQUE_DISPONIBLE`) si le professeur a retenu le créneau, et reste vide sinon ; la première colonne contient le nom affiché du professeur ;
+- l'écriture du `.xlsx` passe par **`write-excel-file`** (frère jumeau de `read-excel-file`, déjà utilisé pour l'import) : le classeur est généré **dans le navigateur** (`write-excel-file/browser`), le fichier n'est jamais transmis à un serveur, et les couleurs proviennent de la palette Material 3 (conteneur primaire pour l'en-tête, conteneur tertiaire pour les marques) ;
+- les dates restent des chaînes `'YYYY-MM-DD'` (§13) : l'étiquette de colonne est construite par découpage de chaîne (`JJ/MM HH:mm–HH:mm`), sans conversion de fuseau horaire.
+  **Conséquences :** une dépendance de plus (`write-excel-file`), l'export est disponible hors ligne après chargement de l'application, et la matrice exportée reflète l'état courant de la base (les disponibilités fictives y figurent, comme dans l'interface). Tests unitaires (`planning-export.service.spec.ts`) **écrits mais non exécutés** (contrat §3). `ng build --configuration=production` passe (exit 0 ; avertissements `NG8113` préexistants sur `dispos-page.component.ts`).

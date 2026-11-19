@@ -1,4 +1,4 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal, type OnDestroy } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -9,11 +9,17 @@ import type { CalendarEvent } from 'angular-calendar';
 
 import { ComposantAdmin } from '../../core/composant-admin';
 import { DispoProfService, filtrerProfsDispo, type ProfDispo } from '../../data/dispo-prof.service';
+import { CreneauService } from '../../data/creneau.service';
+import { PlanningExportService } from '../../data/planning-export.service';
 import { ProfService, type Prof } from '../../data/prof.service';
 import { creneauVersIntervalle } from '../../shared/date.util';
 import { avecValeurs, basculerValeur } from '../../shared/collection.util';
 import { ProfsCalendarComponent } from './profs-calendar.component';
-import { MatAccordion, MatExpansionPanel, MatExpansionPanelHeader } from '@angular/material/expansion';
+import {
+  MatAccordion,
+  MatExpansionPanel,
+  MatExpansionPanelHeader,
+} from '@angular/material/expansion';
 
 /** Colonnes triables du tableau des professeurs. */
 export type ColonneTri = 'planning' | 'prof' | 'nombre' | 'secteur' | 'mail';
@@ -41,15 +47,18 @@ export const PALETTE_PROFS = 6;
     MatInputModule,
     MatProgressBarModule,
     ProfsCalendarComponent,
+    MatAccordion,
     MatExpansionPanel,
     MatExpansionPanelHeader
   ],
   templateUrl: './dispo-prof.component.html',
   styleUrl: './dispo-prof.component.scss',
 })
-export class DispoProfComponent extends ComposantAdmin {
+export class DispoProfComponent extends ComposantAdmin implements OnDestroy {
   private readonly service = inject(DispoProfService);
   private readonly annuaireService = inject(ProfService);
+  private readonly creneauxService = inject(CreneauService);
+  private readonly exportService = inject(PlanningExportService);
 
   /** Tous les professeurs ayant déclaré au moins une disponibilité. */
   readonly profs = this.service.profs;
@@ -103,11 +112,7 @@ export class DispoProfComponent extends ComposantAdmin {
         if (!intervalle) {
           continue;
         }
-        const classes = [
-          'creneau-evenement',
-          'prof-evenement',
-          `prof-c${index % PALETTE_PROFS}`,
-        ];
+        const classes = ['creneau-evenement', 'prof-evenement', `prof-c${index % PALETTE_PROFS}`];
         classes.push('prof-selectionne');
         evenements.push({
           id: `${prof.uid}_${dispo.creneauId}`,
@@ -134,10 +139,45 @@ export class DispoProfComponent extends ComposantAdmin {
     () => new Map(this.annuaireService.profs().map((prof) => [prof.login, prof])),
   );
 
+  /** `true` pendant la génération du classeur Excel. */
+  readonly exportEnCours = signal<boolean>(false);
+
   constructor() {
     super();
     void this.service.charger();
     void this.annuaireService.charger();
+    // Les créneaux proposés sont chargés en temps réel : ils constituent les
+    // colonnes du planning exporté.
+    this.creneauxService.ecouter();
+  }
+
+  ngOnDestroy(): void {
+    this.creneauxService.arreter();
+  }
+
+  /**
+   * Exporte le planning des professeurs dans un classeur Excel : une ligne
+   * par professeur, une colonne par créneau (`X` = disponible).
+   */
+  async exporter(): Promise<void> {
+    if (!this.exigerAdmin()) {
+      return;
+    }
+    this.exportEnCours.set(true);
+    try {
+      const resultat = await this.exportService.exporter(
+        this.profs(),
+        this.creneauxService.creneaux(),
+      );
+      this.notif.succes(
+        `Planning exporté : ${resultat.professeurs} professeur(s), ${resultat.creneaux} créneau(x).`,
+      );
+    } catch (erreur) {
+      console.warn('[MesDispos] Export du planning impossible :', erreur);
+      this.notif.erreur(erreur instanceof Error ? erreur.message : "L'export a échoué. Réessayez.");
+    } finally {
+      this.exportEnCours.set(false);
+    }
   }
 
   /** Secteur de rattachement d'un professeur (`—` si inconnu). */

@@ -4,155 +4,137 @@
   Desktop : tableau pleine largeur (planning | professeur | créneaux | secteur
             | mail) au-dessus du calendrier, largeur max 1100 px.
 -->
+<section class="page">
+  <mat-accordion>
+    <mat-expansion-panel [expanded]="true">
+      <mat-expansion-panel-header class="entete"
+        >Disponibilités des professeurs</mat-expansion-panel-header
+      >
+      <p class="aide">
+        Tous les créneaux renseignés sont affichés dans le calendrier, superposés sur la même plage
+        horaire. Cochez des professeurs pour les mettre en évidence.
+      </p>
+      <div class="liste-profs">
+        <mat-form-field appearance="outline" class="champ-recherche">
+          <mat-label>Rechercher un professeur</mat-label>
+          <input
+            matInput
+            type="search"
+            autocomplete="off"
+            placeholder="Judith ABENSOUR"
+            [value]="recherche()"
+            (input)="surRecherche($event)"
+          />
+          <mat-hint>Nom, prénom ou login Oasis.</mat-hint>
+        </mat-form-field>
 
-<mat-expansion-panel [expanded]="true">
-  <mat-expansion-panel-header class="entete">Disponibilités des professeurs</mat-expansion-panel-header>
-  <div class="liste-profs">
+        <div class="actions-liste">
+          <button matButton="outlined" type="button" (click)="toutCocher()">
+            <mat-icon aria-hidden="true">done_all</mat-icon>
+            Cocher tout
+          </button>
+          <button matButton="outlined" type="button" (click)="toutDecocher()">
+            <mat-icon aria-hidden="true">clear_all</mat-icon>
+            Tout décocher
+          </button>
+          <button
+            matButton="outlined"
+            type="button"
+            (click)="exporter()"
+            [disabled]="exportEnCours() || profs().length === 0"
+          >
+            <mat-icon aria-hidden="true">download</mat-icon>
+            Exporter le planning (Excel)
+          </button>
+          <span class="compteur">
+            {{ nombreCoches() }} professeur(s) coché(s) — {{ nombreEvenements() }} disponibilité(s)
+          </span>
+        </div>
 
-    <div style="width: 100%;display: flex;justify-items: flex-end; justify-content: flex-start;">
-      <mat-form-field appearance="outline" class="champ-recherche">
-        <mat-label>Rechercher un professeur</mat-label>
-        <input
-          matInput
-          type="search"
-          autocomplete="off"
-          placeholder="Judith ABENSOUR"
-          [value]="recherche()"
-          (input)="surRecherche($event)"
-        />
-        <mat-hint>Nom, prénom, login Oasis ou secteur.</mat-hint>
-      </mat-form-field>
-
-
-      <button matButton="outlined" class="btn-ico" (click)="toutCocher()">
-        <mat-icon aria-hidden="true">done_all</mat-icon>
-        Cocher tout
-      </button>
-
-      <button matButton="outlined" class="btn-ico" (click)="toutDecocher()">
-        <mat-icon aria-hidden="true">clear_all</mat-icon>
-        Tout décocher
-      </button>
-
-    </div>
-
-
-
-    <span class="compteur">
-      {{ nombreCoches() }} professeur(s) coché(s) — {{ nombreEvenements() }} disponibilité(s)
-    </span>
-
-    @if (profsAffiches().length === 0 && !chargement()) {
-      <p class="vide">Aucun professeur n'a déclaré de disponibilité pour l'instant.</p>
-    } @else {
-      <div class="tableau-profs">
-        <table class="profs" id="tblProfs">
-          <thead>
-          <tr>
-            <th scope="col" class="col-planning" [attr.aria-sort]="ariaSort('planning')">
-              <button type="button" class="entete-tri" (click)="trier('planning')">
-                Planning
-                <mat-icon aria-hidden="true" class="icone-tri">{{ iconeTri('planning') }}</mat-icon>
-              </button>
-            </th>
-            <th scope="col" class="col-prof" [attr.aria-sort]="ariaSort('prof')">
-              <button type="button" class="entete-tri" (click)="trier('prof')">
-                Professeur
-                <mat-icon aria-hidden="true" class="icone-tri">{{ iconeTri('prof') }}</mat-icon>
-              </button>
-            </th>
-            <th scope="col" class="col-nombre" [attr.aria-sort]="ariaSort('nombre')">
-              <button type="button" class="entete-tri" (click)="trier('nombre')">
-                Plages disponibles
-                <mat-icon aria-hidden="true" class="icone-tri">{{ iconeTri('nombre') }}</mat-icon>
-              </button>
-            </th>
-            <th scope="col" class="col-secteur" [attr.aria-sort]="ariaSort('secteur')">
-              <button type="button" class="entete-tri" (click)="trier('secteur')">
-                Secteur
-                <mat-icon aria-hidden="true" class="icone-tri">{{ iconeTri('secteur') }}</mat-icon>
-              </button>
-            </th>
-            <th scope="col" class="col-mail" [attr.aria-sort]="ariaSort('mail')">
-              <button type="button" class="entete-tri" (click)="trier('mail')">
-                Mail
-                <mat-icon aria-hidden="true" class="icone-tri">{{ iconeTri('mail') }}</mat-icon>
-              </button>
-            </th>
-          </tr>
-          </thead>
-          <tbody>
-            @for (prof of profsAffiches(); track prof.uid) {
-              <tr [class.coche]="estCoche(prof.uid)">
-                <td class="col-planning">
-                  <mat-checkbox
-                    [checked]="estCoche(prof.uid)"
-                    (change)="basculer(prof.uid, $event.checked)"
-                    [attr.aria-label]="
-                        'Faire apparaître ' + prof.nomComplet + ' dans le planning'
-                      "
-                  />
-                </td>
-                <td class="col-prof">
-                  <span class="nom-prof">{{ prof.nomComplet }}</span>
-                  @if (prof.login) {
-                    <span class="login">{{ prof.login }}</span>
-                  }
-                </td>
-                <td class="col-nombre">
-                  <span class="detail">{{ nombreDispos(prof) }}</span>
-                </td>
-                <td class="col-secteur">{{ secteur(prof) }}</td>
-                <td class="col-mail">
-                  @if (lienMail(prof); as lien) {
-                    <a matButton="outlined" class="bouton-mail" [href]="lien">
-                      <mat-icon aria-hidden="true">mail</mat-icon>
-                      Écrire
-                    </a>
-                  } @else {
-                    <span class="sans-mail">—</span>
-                  }
-                </td>
-              </tr>
-            }
-          </tbody>
-        </table>
+        @if (profsAffiches().length === 0 && !chargement()) {
+          <p class="vide">Aucun professeur n'a déclaré de disponibilité pour l'instant.</p>
+        } @else {
+          <div class="tableau-profs">
+            <table class="profs">
+              <caption class="legende">
+                Tous les créneaux renseignés sont affichés dans le planning ; cochez un professeur
+                pour le mettre en évidence.
+              </caption>
+              <thead>
+                <tr>
+                  <th scope="col" class="col-planning">Planning</th>
+                  <th scope="col" class="col-prof">Professeur</th>
+                  <th scope="col" class="col-nombre">Créneaux plannifiés</th>
+                  <th scope="col" class="col-secteur">Secteur</th>
+                  <th scope="col" class="col-mail">Mail</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (prof of profsAffiches(); track prof.uid) {
+                  <tr [class.coche]="estCoche(prof.uid)">
+                    <td class="col-planning">
+                      <mat-checkbox
+                        [checked]="estCoche(prof.uid)"
+                        (change)="basculer(prof.uid, $event.checked)"
+                        [attr.aria-label]="
+                          'Faire apparaître ' + prof.nomComplet + ' dans le planning'
+                        "
+                      />
+                    </td>
+                    <td class="col-prof">
+                      <span class="nom-prof">{{ prof.nomComplet }}</span>
+                      @if (prof.login) {
+                        <span class="login">{{ prof.login }}</span>
+                      }
+                    </td>
+                    <td class="col-nombre">
+                      <span class="nombre">{{ nombreCreneauxPlannifies(prof) }}</span>
+                      <span class="detail">/ {{ nombreDispos(prof) }} déclaré(s)</span>
+                    </td>
+                    <td class="col-secteur">{{ secteur(prof) }}</td>
+                    <td class="col-mail">
+                      @if (lienMail(prof); as lien) {
+                        <a matButton="outlined" class="bouton-mail" [href]="lien">
+                          <mat-icon aria-hidden="true">mail</mat-icon>
+                          Écrire
+                        </a>
+                      } @else {
+                        <span class="sans-mail">—</span>
+                      }
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
       </div>
-    }
-  </div>
-</mat-expansion-panel>
+    </mat-expansion-panel>
 
-<mat-expansion-panel>
-  <mat-expansion-panel-header class="entete">Calendrier</mat-expansion-panel-header>
-  @if (!verifie()) {
-    <mat-progress-bar mode="indeterminate" aria-label="Vérification des droits" />
-  } @else if (!autorise()) {
-    <p class="message-erreur" role="alert">{{ messageAdminRequis }}</p>
-  } @else {
-    @if (chargement()) {
-      <mat-progress-bar mode="indeterminate" aria-label="Lecture des disponibilités" />
-    }
-
-    @if (erreur(); as texte) {
-      <div class="zone-erreur" role="alert">
-        <p>{{ texte }}</p>
-        <button matButton="outlined" type="button" (click)="recharger()">Réessayer</button>
-      </div>
-    }
-
-    @if (nombreEvenements() === 0) {
-      @if (nombreCoches() === 0) {
-        <p class="vide">
-          Cochez au moins un professeur dans le tableau pour afficher ses disponibilités dans le
-          calendrier.
-        </p>
+    <mat-expansion-panel>
+      <mat-expansion-panel-header class="entete">Calendrier</mat-expansion-panel-header>
+      @if (!verifie()) {
+        <mat-progress-bar mode="indeterminate" aria-label="Vérification des droits" />
+      } @else if (!autorise()) {
+        <p class="message-erreur" role="alert">{{ messageAdminRequis }}</p>
       } @else {
-        <p class="vide">Aucun créneau n'a été renseigné pour les professeurs cochés.</p>
+        @if (chargement()) {
+          <mat-progress-bar mode="indeterminate" aria-label="Lecture des disponibilités" />
+        }
+
+        @if (erreur(); as texte) {
+          <div class="zone-erreur" role="alert">
+            <p>{{ texte }}</p>
+            <button matButton="outlined" type="button" (click)="recharger()">Réessayer</button>
+          </div>
+        }
+
+        @if (nombreEvenements() === 0) {
+          <p class="vide">Aucun créneau n'a été renseigné pour le moment.</p>
+        } @else {
+          <app-profs-calendar [evenements]="evenements()" />
+        }
       }
-    } @else {
-      <app-profs-calendar [evenements]="evenements()" />
-    }
-  }
-</mat-expansion-panel>
-
-
+    </mat-expansion-panel>
+  </mat-accordion>
+</section>

@@ -1,6 +1,6 @@
 {
   "name": "mesdispos",
-  "version": "0.0.10",
+  "version": "0.0.11",
   "scripts": {
     "ng": "ng",
     "start": "ng serve",
@@ -37,7 +37,8 @@
     "read-excel-file": "^5.8.8",
     "rxjs": "~7.8.0",
     "temporal-polyfill": "^1.0.6",
-    "tslib": "^2.3.0"
+    "tslib": "^2.3.0",
+    "write-excel-file": "^4.1.1"
   },
   "devDependencies": {
     "@angular/build": "^22.2.3",
