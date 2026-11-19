@@ -39,6 +39,18 @@
   min-height: 0;
 }
 
+// Préférence « soutenances en anglais » : bloc compact au-dessus du planning.
+.section-preferences {
+  gap: var(--md-spacing-2);
+}
+
+// La case à cocher reste une cible tactile confortable (≥ 48 px).
+.case-anglais {
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+}
+
 .titre-section {
   @include mx.titre-section;
 }

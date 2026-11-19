@@ -89,7 +89,12 @@ export interface FirestoreBackend {
    */
   upsertDispos(items: ReadonlyArray<{ uid: string; id: string; data: unknown }>): Promise<number>;
 
-  /** `setDoc(users/{uid}, …)` — profil du professeur (login, nom, prénom). */
+  /**
+   * `setDoc(users/{uid}, …)` — profil du professeur (login, nom, prénom).
+   *
+   * Écriture **incrémentale** (`merge: true`) : les champs fournis sont mis à
+   * jour, les autres sont conservés.
+   */
   setProfil(uid: string, data: unknown): Promise<void>;
 
   /** `getDoc(users/{uid})` — profil du professeur, `null` si absent. */
@@ -261,7 +266,10 @@ export class FirestoreReelBackend implements FirestoreBackend {
 
   async setProfil(uid: string, data: unknown): Promise<void> {
     const [db, fs] = await this.pair();
-    await fs.setDoc(fs.doc(db, 'users', uid), data as Record<string, unknown>);
+    // `merge: true` : l'écriture est **incrémentale** — écrire la seule
+    // préférence « soutenance en anglais » n'efface pas l'identité
+    // (`login`, `nom`, `prénom`) déjà enregistrée.
+    await fs.setDoc(fs.doc(db, 'users', uid), data as Record<string, unknown>, { merge: true });
   }
 
   async lireProfil(uid: string): Promise<Record<string, unknown> | null> {

@@ -1,50 +1,70 @@
 <!--
-  Mobile: liste des « Créneaux disponibles » en tête, puis le calendrier des
+  Mobile: case « soutenances en anglais » en tête, puis la liste des
+            « Créneaux disponibles » et le calendrier des
             « Mes disponibilités (N) » — une colonne, lignes ≥ 48 px.
-  Desktop: liste des créneaux disponibles au-dessus du calendrier de vos
-            disponibilités, largeur max 1100 px.
+  Desktop: case en haut, puis liste des créneaux disponibles au-dessus du
+            calendrier de vos disponibilités, largeur max 1100 px.
 -->
 @if (chargement()) {
   <mat-progress-bar mode="indeterminate" aria-label="Chargement des créneaux" />
 }
 
 <div class="page">
-<!--  <section class="section section-disponibles" aria-labelledby="titre-disponibles">-->
-<!--    <h2 id="titre-disponibles" class="titre-section">-->
-<!--      <mat-icon aria-hidden="true">event</mat-icon>-->
-<!--      Créneaux disponibles-->
-<!--      <span class="compteur">({{ nombreDisponibles() }})</span>-->
-<!--    </h2>-->
+  <!--  <section class="section section-disponibles" aria-labelledby="titre-disponibles">-->
+  <!--    <h2 id="titre-disponibles" class="titre-section">-->
+  <!--      <mat-icon aria-hidden="true">event</mat-icon>-->
+  <!--      Créneaux disponibles-->
+  <!--      <span class="compteur">({{ nombreDisponibles() }})</span>-->
+  <!--    </h2>-->
 
-<!--    @if (erreur(); as message) {-->
-<!--      <div class="etat-erreur" role="alert">-->
-<!--        <p>{{ message }}</p>-->
-<!--        <button matButton="outlined" type="button" (click)="reessayerLecture()">Réessayer</button>-->
-<!--      </div>-->
-<!--    } @else if (!chargement() && groupesDisponibles().length === 0) {-->
-<!--      <p class="vide">Aucun créneau proposé pour le moment.</p>-->
-<!--    } @else {-->
-<!--      <div class="planning">-->
-<!--        @for (groupe of groupesDisponibles(); track groupe.date) {-->
-<!--          <section class="jour" [attr.aria-label]="groupe.date | dateGroup">-->
-<!--            <h3 class="jour-titre">{{ groupe.date | dateGroup }}</h3>-->
-<!--            <ul class="liste">-->
-<!--              @for (creneau of groupe.creneaux; track creneau.id) {-->
-<!--                <li>-->
-<!--                  <app-creneau-card-->
-<!--                    [creneau]="creneau"-->
-<!--                    [selectionne]="false"-->
-<!--                    [enCours]="estEnCours(creneau.id)"-->
-<!--                    (basculer)="basculer($event)"-->
-<!--                  />-->
-<!--                </li>-->
-<!--              }-->
-<!--            </ul>-->
-<!--          </section>-->
-<!--        }-->
-<!--      </div>-->
-<!--    }-->
-<!--  </section>-->
+  <!--    @if (erreur(); as message) {-->
+  <!--      <div class="etat-erreur" role="alert">-->
+  <!--        <p>{{ message }}</p>-->
+  <!--        <button matButton="outlined" type="button" (click)="reessayerLecture()">Réessayer</button>-->
+  <!--      </div>-->
+  <!--    } @else if (!chargement() && groupesDisponibles().length === 0) {-->
+  <!--      <p class="vide">Aucun créneau proposé pour le moment.</p>-->
+  <!--    } @else {-->
+  <!--      <div class="planning">-->
+  <!--        @for (groupe of groupesDisponibles(); track groupe.date) {-->
+  <!--          <section class="jour" [attr.aria-label]="groupe.date | dateGroup">-->
+  <!--            <h3 class="jour-titre">{{ groupe.date | dateGroup }}</h3>-->
+  <!--            <ul class="liste">-->
+  <!--              @for (creneau of groupe.creneaux; track creneau.id) {-->
+  <!--                <li>-->
+  <!--                  <app-creneau-card-->
+  <!--                    [creneau]="creneau"-->
+  <!--                    [selectionne]="false"-->
+  <!--                    [enCours]="estEnCours(creneau.id)"-->
+  <!--                    (basculer)="basculer($event)"-->
+  <!--                  />-->
+  <!--                </li>-->
+  <!--              }-->
+  <!--            </ul>-->
+  <!--          </section>-->
+  <!--        }-->
+  <!--      </div>-->
+  <!--    }-->
+  <!--  </section>-->
+
+  <section class="section section-preferences" aria-labelledby="titre-preferences">
+    <h2 id="titre-preferences" class="titre-section">
+      <mat-icon aria-hidden="true">translate</mat-icon>
+      Langue des soutenances
+    </h2>
+    <mat-checkbox
+      class="case-anglais"
+      [checked]="soutenanceAnglais()"
+      [disabled]="enregistrementAnglais()"
+      (change)="definirSoutenanceAnglais($event.checked)"
+    >
+      Je peux suivre des soutenances en anglais
+    </mat-checkbox>
+    <p class="aide">
+      Répondez « oui » si vous pouvez assurer une soutenance en anglais, « non » si vous suivez
+      uniquement des soutenances en français. L'information est enregistrée automatiquement.
+    </p>
+  </section>
 
   <section class="section section-calendrier" aria-labelledby="titre-retenus">
     <h2 id="titre-retenus" class="titre-section">
@@ -52,9 +72,7 @@
       Calendrier des créneaux
       <span class="compteur">({{ nombreRetenus() }} / {{ creneauxDuCalendrier().length }})</span>
     </h2>
-    <p class="aide">
-      Un clic permet de basculer de disponible à non disponible
-    </p>
+    <p class="aide">Un clic permet de basculer de disponible à non disponible</p>
 
     @if (erreur(); as message) {
       <div class="etat-erreur" role="alert">

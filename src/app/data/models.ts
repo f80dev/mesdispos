@@ -23,6 +23,11 @@ export interface ProfilProf {
   nom: string;
   /** Prénom d'usage, ex. `Judith`. */
   prenom: string;
+  /**
+   * `true` lorsque le professeur peut suivre des soutenances **en anglais**.
+   * Case à cocher de la page `/dispos` ; `false` = uniquement en français.
+   */
+  soutenanceAnglais?: boolean;
   /** Date.now() — horodatage de la dernière écriture du profil. */
   updatedAt: number;
 }

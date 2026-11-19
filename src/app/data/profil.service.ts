@@ -64,7 +64,7 @@ export function versProfil(data: Record<string, unknown> | null | undefined): Pr
   const login = typeof data['login'] === 'string' ? data['login'].trim() : '';
   const nom = typeof data['nom'] === 'string' ? data['nom'].trim() : '';
   const prenom = typeof data['prenom'] === 'string' ? data['prenom'].trim() : '';
-  if (!login && !nom && !prenom) {
+  if (!login && !nom && !prenom && data['soutenanceAnglais'] !== true) {
     return null;
   }
   const maj = data['updatedAt'];
@@ -72,6 +72,7 @@ export function versProfil(data: Record<string, unknown> | null | undefined): Pr
     login,
     nom,
     prenom,
+    ...(data['soutenanceAnglais'] === true ? { soutenanceAnglais: true } : {}),
     updatedAt: typeof maj === 'number' && Number.isFinite(maj) ? maj : 0,
   };
 }
@@ -132,6 +133,43 @@ export class ProfilService {
       console.warn('[MesDispos] Lecture du profil impossible :', e);
       this.erreur.set('Profil du professeur illisible.');
       return null;
+    }
+  }
+
+  /**
+   * Case « peut suivre des soutenances en anglais » (page `/dispos`).
+   *
+   * Écrit `users/{uid}.soutenanceAnglais` — l'écriture est **incrémentale**
+   * (`setDoc` en mode `merge`) : les champs d'identité (`login`, `nom`,
+   * `prénom`) ne sont pas effacés.
+   *
+   * @returns `true` si l'écriture a abouti, `false` sinon (l'appelant
+   *          applique alors le rollback optimiste).
+   */
+  async definirSoutenanceAnglais(uid: string, valeur: boolean): Promise<boolean> {
+    this.erreur.set(null);
+    if (!this.backend.configure) {
+      return false;
+    }
+    try {
+      await this.backend.setProfil(uid, {
+        soutenanceAnglais: valeur,
+        updatedAt: Date.now(),
+      });
+      const courant = this.profil();
+      this.profil.set(
+        courant
+          ? { ...courant, soutenanceAnglais: valeur, updatedAt: Date.now() }
+          : { login: '', nom: '', prenom: '', soutenanceAnglais: valeur, updatedAt: Date.now() },
+      );
+      return true;
+    } catch (e) {
+      console.warn(
+        '[MesDispos] Écriture de la préférence « soutenance en anglais » impossible :',
+        e,
+      );
+      this.erreur.set('Préférence non enregistrée.');
+      return false;
     }
   }
 }

@@ -1,12 +1,16 @@
-import { Component, OnDestroy, computed, inject } from '@angular/core';
+import { Component, OnDestroy, computed, inject, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
+import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 
 import { CreneauCardComponent } from './creneau-card.component';
 import { CreneauCalendarComponent } from './creneau-calendar.component';
+import { AuthService } from '../../core/auth.service';
+import { NotifService } from '../../core/notif.service';
 import { CreneauService } from '../../data/creneau.service';
 import { DispoService } from '../../data/dispo.service';
+import { ProfilService } from '../../data/profil.service';
 import { DateGroupPipe } from '../../layout/date-group.pipe';
 import { grouperParJour } from '../../shared/date.util';
 import type { Creneau } from '../../data/models';
@@ -21,6 +25,7 @@ import type { Creneau } from '../../data/models';
   imports: [
     CreneauCalendarComponent,
     MatButtonModule,
+    MatCheckboxModule,
     MatIconModule,
     MatProgressBarModule,
   ],
@@ -30,6 +35,22 @@ import type { Creneau } from '../../data/models';
 export class DisposPageComponent implements OnDestroy {
   private readonly creneauxService = inject(CreneauService);
   private readonly dispoService = inject(DispoService);
+  private readonly auth = inject(AuthService);
+  private readonly notif = inject(NotifService);
+
+  /** Profil du professeur (identité + préférence « soutenance en anglais »). */
+  private readonly profilService = inject(ProfilService);
+
+  /**
+   * Préférence « peut suivre des soutenances en anglais » : lue dans
+   * `users/{uid}.soutenanceAnglais` (document de profil).
+   */
+  readonly soutenanceAnglais = computed(
+    () => this.profilService.profil()?.soutenanceAnglais === true,
+  );
+
+  /** `true` pendant l'écriture de la préférence (case désactivée). */
+  readonly enregistrementAnglais = signal<boolean>(false);
 
   /** Identifiants des créneaux retenus (coloration du calendrier). */
   readonly idsSelectionnes = this.dispoService.idsSelectionnes;
@@ -84,5 +105,31 @@ export class DisposPageComponent implements OnDestroy {
   reessayerLecture(): void {
     this.creneauxService.reecouter();
     this.dispoService.reecouter();
+  }
+
+  /**
+   * Case à cocher « je peux suivre des soutenances en anglais ».
+   *
+   * L'écriture est **immédiate** (comme le clic sur un créneau) : mise à jour
+   * optimiste, puis `users/{uid}.soutenanceAnglais`. En cas d'échec, l'état
+   * est remis à sa valeur précédente et un message « Réessayer » s'affiche.
+   */
+  async definirSoutenanceAnglais(valeur: boolean): Promise<void> {
+    const uid = this.auth.uidEcriture();
+    if (!uid) {
+      this.notif.info('Session expirée : reconnectez-vous pour enregistrer cette préférence.');
+      return;
+    }
+    this.enregistrementAnglais.set(true);
+    try {
+      const ok = await this.profilService.definirSoutenanceAnglais(uid, valeur);
+      if (!ok) {
+        this.notif.reessayer('Enregistrement impossible. Réessayer', () => {
+          void this.definirSoutenanceAnglais(valeur);
+        });
+      }
+    } finally {
+      this.enregistrementAnglais.set(false);
+    }
   }
 }
