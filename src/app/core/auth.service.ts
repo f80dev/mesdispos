@@ -176,6 +176,10 @@ export class AuthService {
     }
     const utilisateur = utilisateurAnonyme(resultat.valeur, identite);
     this.user.set(utilisateur);
+    // Le profil (`users/{uid}`) est relu : identité complète **et** préférence
+    // « peut suivre des soutenances en anglais » — la case à cocher doit
+    // refléter la valeur déjà enregistrée dans Firebase.
+    void this.restaurerProfil(utilisateur.uid);
     if (identite) {
       // Best effort : l'échec d'écriture du profil ne bloque pas la session.
       void this.profils.enregistrer(utilisateur.uid, {

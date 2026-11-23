@@ -63,10 +63,38 @@
               <thead>
                 <tr>
                   <th scope="col" class="col-planning">Planning</th>
-                  <th scope="col" class="col-prof">Professeur</th>
-                  <th scope="col" class="col-nombre">Créneaux plannifiés</th>
-                  <th scope="col" class="col-secteur">Secteur</th>
-                  <th scope="col" class="col-mail">Mail</th>
+                  <th scope="col" class="col-prof" [attr.aria-sort]="ariaSort('prof')">
+                    <button type="button" class="entete-tri" (click)="trier('prof')">
+                      Professeur
+                      <mat-icon class="icone-tri" aria-hidden="true">{{
+                        iconeTri('prof')
+                      }}</mat-icon>
+                    </button>
+                  </th>
+                  <th scope="col" class="col-nombre" [attr.aria-sort]="ariaSort('nombre')">
+                    <button type="button" class="entete-tri" (click)="trier('nombre')">
+                      Créneaux plannifiés
+                      <mat-icon class="icone-tri" aria-hidden="true">{{
+                        iconeTri('nombre')
+                      }}</mat-icon>
+                    </button>
+                  </th>
+                  <th scope="col" class="col-secteur" [attr.aria-sort]="ariaSort('secteur')">
+                    <button type="button" class="entete-tri" (click)="trier('secteur')">
+                      Secteur
+                      <mat-icon class="icone-tri" aria-hidden="true">{{
+                        iconeTri('secteur')
+                      }}</mat-icon>
+                    </button>
+                  </th>
+                  <th scope="col" class="col-mail" [attr.aria-sort]="ariaSort('mail')">
+                    <button type="button" class="entete-tri" (click)="trier('mail')">
+                      Mail
+                      <mat-icon class="icone-tri" aria-hidden="true">{{
+                        iconeTri('mail')
+                      }}</mat-icon>
+                    </button>
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -86,10 +114,17 @@
                       @if (prof.login) {
                         <span class="login">{{ prof.login }}</span>
                       }
+                      @if (prof.soutenanceAnglais) {
+                        <span
+                          class="badge-anglais"
+                          matTooltip="Peut suivre des soutenances en anglais"
+                          >EN</span
+                        >
+                      }
                     </td>
                     <td class="col-nombre">
                       <span class="nombre">{{ nombreCreneauxPlannifies(prof) }}</span>
-                      <span class="detail">/ {{ nombreDispos(prof) }} déclaré(s)</span>
+                      <span class="detail">créneau(x) déclaré(s)</span>
                     </td>
                     <td class="col-secteur">{{ secteur(prof) }}</td>
                     <td class="col-mail">

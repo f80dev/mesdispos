@@ -44,6 +44,11 @@ export interface ProfDispo {
   readonly prenom: string;
   /** Nom affiché (« Judith ABENSOUR »). */
   readonly nomComplet: string;
+  /**
+   * `true` lorsque le professeur a déclaré **pouvoir suivre des soutenances
+   * en anglais** (préférence enregistrée dans `users/{uid}.soutenanceAnglais`).
+   */
+  readonly soutenanceAnglais?: boolean;
   /** Disponibilités déclarées, triées date puis heure. */
   readonly dispos: readonly Dispo[];
 }
@@ -95,6 +100,7 @@ export function regrouperDisposParProf(
       nom,
       prenom,
       nomComplet,
+      soutenanceAnglais: data['soutenanceAnglais'] === true,
       dispos: trierCreneaux(liste),
     });
   }

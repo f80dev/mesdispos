@@ -71,6 +71,35 @@ describe('regrouperDisposParProf (disponibilités par professeur)', () => {
     expect(resultat[0]?.nomComplet).toBe('Paul DUPONT');
     expect(resultat[0]?.login).toBe('paul.dupont');
   });
+
+  it('reporte la capacité « soutenance en anglais » lue dans users/{uid}', () => {
+    const resultat = regrouperDisposParProf(
+      [
+        profil('uid-a', {
+          login: 'ana.alla',
+          nom: 'ALLA',
+          prenom: 'Ana',
+          soutenanceAnglais: true,
+        }),
+        profil('uid-b', { login: 'zoe.bart', nom: 'BART', prenom: 'Zoé' }),
+      ],
+      [
+        dispo('uid-a', '2026-01-12_0845_0930', {
+          date: '2026-01-12',
+          heureDebut: '08:45',
+          heureFin: '09:30',
+        }),
+        dispo('uid-b', '2026-01-12_0900_1000', {
+          date: '2026-01-12',
+          heureDebut: '09:00',
+          heureFin: '10:00',
+        }),
+      ],
+    );
+
+    expect(resultat[0]?.soutenanceAnglais).toBe(true);
+    expect(resultat[1]?.soutenanceAnglais).toBe(false);
+  });
 });
 
 describe('filtrerProfsDispo (recherche dans la liste)', () => {

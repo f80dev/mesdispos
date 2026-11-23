@@ -143,31 +143,36 @@ export class ProfilService {
    * (`setDoc` en mode `merge`) : les champs d'identité (`login`, `nom`,
    * `prénom`) ne sont pas effacés.
    *
-   * @returns `true` si l'écriture a abouti, `false` sinon (l'appelant
-   *          applique alors le rollback optimiste).
+   * La mise à jour est **optimiste** : le signal `profil` reflects
+   * immédiatement la nouvelle valeur ; en cas d'échec, l'état précédent est
+   * restauré (rollback) afin que la case à cocher retrouve son état.
+   *
+   * @returns `true` si l'écriture a abouti, `false` sinon (après rollback).
    */
   async definirSoutenanceAnglais(uid: string, valeur: boolean): Promise<boolean> {
     this.erreur.set(null);
     if (!this.backend.configure) {
       return false;
     }
+    const precedent = this.profil();
+    const maintenant = Date.now();
+    this.profil.set(
+      precedent
+        ? { ...precedent, soutenanceAnglais: valeur, updatedAt: maintenant }
+        : { login: '', nom: '', prenom: '', soutenanceAnglais: valeur, updatedAt: maintenant },
+    );
     try {
       await this.backend.setProfil(uid, {
         soutenanceAnglais: valeur,
-        updatedAt: Date.now(),
+        updatedAt: maintenant,
       });
-      const courant = this.profil();
-      this.profil.set(
-        courant
-          ? { ...courant, soutenanceAnglais: valeur, updatedAt: Date.now() }
-          : { login: '', nom: '', prenom: '', soutenanceAnglais: valeur, updatedAt: Date.now() },
-      );
       return true;
     } catch (e) {
       console.warn(
         '[MesDispos] Écriture de la préférence « soutenance en anglais » impossible :',
         e,
       );
+      this.profil.set(precedent);
       this.erreur.set('Préférence non enregistrée.');
       return false;
     }

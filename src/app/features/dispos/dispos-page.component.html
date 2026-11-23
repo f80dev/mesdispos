@@ -47,11 +47,14 @@
   <!--    }-->
   <!--  </section>-->
 
-  <section class="section section-preferences" aria-labelledby="titre-preferences">
-    <h2 id="titre-preferences" class="titre-section">
-      <mat-icon aria-hidden="true">translate</mat-icon>
-      Langue des soutenances
+
+  <section class="section section-calendrier" aria-labelledby="titre-retenus">
+    <h2 id="titre-retenus" class="titre-section">
+      <mat-icon aria-hidden="true">calendar_month</mat-icon>
+      Calendrier des disponibilités de soutenance
+      <span class="compteur">({{ nombreRetenus() }} / {{ creneauxDuCalendrier().length }})</span>
     </h2>
+
     <mat-checkbox
       class="case-anglais"
       [checked]="soutenanceAnglais()"
@@ -60,19 +63,6 @@
     >
       Je peux suivre des soutenances en anglais
     </mat-checkbox>
-    <p class="aide">
-      Répondez « oui » si vous pouvez assurer une soutenance en anglais, « non » si vous suivez
-      uniquement des soutenances en français. L'information est enregistrée automatiquement.
-    </p>
-  </section>
-
-  <section class="section section-calendrier" aria-labelledby="titre-retenus">
-    <h2 id="titre-retenus" class="titre-section">
-      <mat-icon aria-hidden="true">calendar_month</mat-icon>
-      Calendrier des créneaux
-      <span class="compteur">({{ nombreRetenus() }} / {{ creneauxDuCalendrier().length }})</span>
-    </h2>
-    <p class="aide">Un clic permet de basculer de disponible à non disponible</p>
 
     @if (erreur(); as message) {
       <div class="etat-erreur" role="alert">

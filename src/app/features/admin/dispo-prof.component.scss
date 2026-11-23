@@ -81,6 +81,26 @@
   background: var(--app-surface-container-lowest);
 }
 
+// En-tête de colonne triable : bouton accessible au clavier et tactile.
+.entete-tri {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--md-spacing-1);
+  min-height: 48px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.entete-tri:hover,
+.entete-tri:focus-visible {
+  color: var(--app-on-surface);
+}
+
 .col-planning {
   width: 96px;
 }
@@ -111,6 +131,16 @@
   display: block;
   color: var(--app-on-surface-variant);
   font: var(--app-type-body-small);
+}
+
+.badge-anglais {
+  display: inline-block;
+  margin-top: 4px;
+  padding: 0 6px;
+  border-radius: 8px;
+  background: var(--app-tertiary-container);
+  color: var(--app-on-tertiary-container);
+  font: var(--app-type-label-small);
 }
 
 .nombre {
@@ -154,26 +184,6 @@
   @include mx.vide;
 }
 
-// Desktop : colonnes plus larges et lignes plus aérées.
-@media (min-width: 900px) {
-.entete-tri {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--md-spacing-1);
-  min-height: 48px;
-  padding: 0;
-  border: 0;
-  background: none;
-  color: inherit;
-  font: inherit;
-  cursor: pointer;
-  text-align: left;
-}
-
-.entete-tri:hover {
-  color: var(--app-on-surface);
-}
-
 .icone-tri {
   width: 18px;
   height: 18px;
@@ -181,7 +191,9 @@
   opacity: 0.6;
 }
 
-.profs tbody td {
+// Desktop : colonnes plus larges et lignes plus aérées.
+@media (min-width: 900px) {
+  .profs tbody td {
     padding: var(--md-spacing-2) var(--md-spacing-3);
   }
 

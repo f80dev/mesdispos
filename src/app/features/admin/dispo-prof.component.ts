@@ -5,6 +5,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import type { CalendarEvent } from 'angular-calendar';
 
 import { ComposantAdmin } from '../../core/composant-admin';
@@ -22,7 +23,7 @@ import {
 } from '@angular/material/expansion';
 
 /** Colonnes triables du tableau des professeurs. */
-export type ColonneTri = 'planning' | 'prof' | 'nombre' | 'secteur' | 'mail';
+export type ColonneTri = 'prof' | 'nombre' | 'secteur' | 'mail';
 
 /** Sens de tri. */
 export type SensTri = 'asc' | 'desc';
@@ -46,10 +47,11 @@ export const PALETTE_PROFS = 6;
     MatIconModule,
     MatInputModule,
     MatProgressBarModule,
+    MatTooltipModule,
     ProfsCalendarComponent,
     MatAccordion,
     MatExpansionPanel,
-    MatExpansionPanelHeader
+    MatExpansionPanelHeader,
   ],
   templateUrl: './dispo-prof.component.html',
   styleUrl: './dispo-prof.component.scss',
@@ -193,16 +195,12 @@ export class DispoProfComponent extends ComposantAdmin implements OnDestroy {
   }
 
   /**
-   * Nombre de créneaux **plannifiés** pour un professeur : les créneaux
-   * déclarés qui figurent effectivement dans le planning, c'est-à-dire ceux
-   * du professeur **coché** dans le tableau. Un professeur non coché n'a
-   * aucun créneau planifié.
+   * Nombre de créneaux **déclarés** par un professeur : tous les créneaux
+   * qu'il a rendus disponibles, cochés ou non. La case à cocher ne modifie
+   * que la mise en évidence dans le calendrier, pas le décompte.
    */
   nombreCreneauxPlannifies(prof: ProfDispo): number {
-    if (!this.estCoche(prof.uid)) {
-      return 0;
-    }
-    return prof.dispos.filter((dispo) => creneauVersIntervalle(dispo) !== null).length;
+    return prof.dispos.length;
   }
 
   /**
@@ -225,8 +223,6 @@ export class DispoProfComponent extends ComposantAdmin implements OnDestroy {
    */
   private compareColonne(a: ProfDispo, b: ProfDispo, colonne: ColonneTri): number {
     switch (colonne) {
-      case 'planning':
-        return this.nombreDispos(a) - this.nombreDispos(b);
       case 'nombre':
         return this.nombreCreneauxPlannifies(a) - this.nombreCreneauxPlannifies(b);
       case 'secteur':
@@ -307,10 +303,5 @@ export class DispoProfComponent extends ComposantAdmin implements OnDestroy {
   /** Bouton « Réessayer ». */
   recharger(): void {
     void this.service.charger();
-  }
-
-  /** Nombre de disponibilités d'un professeur (affiché dans la liste). */
-  nombreDispos(prof: ProfDispo): number {
-    return prof.dispos.length;
   }
 }
