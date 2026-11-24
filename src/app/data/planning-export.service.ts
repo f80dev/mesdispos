@@ -31,11 +31,20 @@ export const NOM_FEUILLE_PLANNING = 'Planning';
 /** En-tête de la première colonne. */
 export const ENTETE_PROFESSEUR = 'Professeur';
 
+/** En-tête de la colonne « capacité à suivre des soutenances en anglais ». */
+export const ENTETE_ANGLAIS = 'Anglais';
+
+/** Valeur écrite quand le professeur peut suivre des soutenances en anglais. */
+export const MARQUE_ANGLAIS = 'Oui';
+
+/** Valeur écrite quand le professeur ne peut pas suivre des soutenances en anglais. */
+export const MARQUE_ANGLAIS_NON = 'Non';
+
 /** Couleurs du classeur (palette Material 3 : conteneur primaire / tertiaire). */
 const COULEUR_ENTETE_FOND = '#EADDFF';
 const COULEUR_ENTETE_TEXTE = '#21005D';
-const COULEUR_MARQUE_FOND = '#FFD8E4';
-const COULEUR_MARQUE_TEXTE = '#31111D';
+const COULEUR_MARQUE_FOND = '#8aff4f';
+const COULEUR_MARQUE_TEXTE = '#000000';
 
 /** Une colonne du planning : un créneau et son étiquette lisible. */
 export interface ColonneCreneau {
@@ -49,8 +58,30 @@ export interface ColonneCreneau {
 export interface LignePlanning {
   /** Nom affiché du professeur. */
   readonly nom: string;
+  /**
+   * Capacité du professeur à **comprendre l'anglais** (peut suivre des
+   * soutenances en anglais). `undefined` : la préférence n'a pas été
+   * renseignée par le professeur.
+   */
+  readonly anglais?: boolean;
   /** Identifiants des créneaux retenus par le professeur. */
   readonly creneauxIds: ReadonlySet<string>;
+}
+
+/**
+ * Valeur de la colonne « Anglais » pour un professeur.
+ *
+ * `Oui` / `Non` selon la préférence déclarée, chaîne vide si le professeur
+ * n'a pas répondu (donnée absente, non assimilée à un refus).
+ */
+export function valeurAnglais(anglais: boolean | undefined): string {
+  if (anglais === true) {
+    return MARQUE_ANGLAIS;
+  }
+  if (anglais === false) {
+    return MARQUE_ANGLAIS_NON;
+  }
+  return '';
 }
 
 /** Matrice complète du planning (colonnes + lignes). */
@@ -116,6 +147,7 @@ export function construireMatricePlanning(
 
   const lignes: LignePlanning[] = profs.map((prof) => ({
     nom: prof.nomComplet,
+    anglais: prof.soutenanceAnglais,
     creneauxIds: new Set(prof.dispos.map((dispo) => dispo.creneauId)),
   }));
 
@@ -130,6 +162,9 @@ export function construireMatricePlanning(
 export class PlanningExportService {
   /**
    * Exporte le planning.
+   *
+   * Le classeur comporte une colonne « Anglais » (`Oui` / `Non` / vide) qui
+   * indique si le professeur peut suivre des soutenances en anglais.
    *
    * @param profs les professeurs et leurs disponibilités
    * @param creneaux les créneaux proposés (colonnes du planning)
@@ -150,6 +185,16 @@ export class PlanningExportService {
         textColor: COULEUR_ENTETE_TEXTE,
         alignVertical: 'center',
       },
+      {
+        value: ENTETE_ANGLAIS,
+        type: String,
+        fontWeight: 'bold',
+        backgroundColor: COULEUR_ENTETE_FOND,
+        textColor: COULEUR_ENTETE_TEXTE,
+        align: 'center',
+        alignVertical: 'center',
+        wrap: true,
+      },
       ...colonnes.map((colonne): Cell => ({
         value: colonne.etiquette,
         type: String,
@@ -164,6 +209,18 @@ export class PlanningExportService {
 
     const corps: Cell[][] = lignes.map((ligne) => [
       { value: ligne.nom, type: String },
+      {
+        value: valeurAnglais(ligne.anglais),
+        type: String,
+        align: 'center',
+        ...(ligne.anglais === true
+          ? {
+              fontWeight: 'bold' as const,
+              backgroundColor: COULEUR_MARQUE_FOND,
+              textColor: COULEUR_MARQUE_TEXTE,
+            }
+          : {}),
+      },
       ...colonnes.map((colonne): Cell =>
         ligne.creneauxIds.has(colonne.creneauId)
           ? {
@@ -181,7 +238,7 @@ export class PlanningExportService {
     const classeur = await writeXlsxFile([entete, ...corps], {
       sheet: NOM_FEUILLE_PLANNING,
       orientation: 'landscape',
-      columns: [{ width: 28 }, ...colonnes.map(() => ({ width: 16 }))],
+      columns: [{ width: 28 }, { width: 10 }, ...colonnes.map(() => ({ width: 16 }))],
     });
     await classeur.toFile(NOM_FICHIER_PLANNING);
 

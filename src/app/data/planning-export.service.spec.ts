@@ -3,7 +3,10 @@ import { describe, expect, it } from 'vitest';
 import {
   construireMatricePlanning,
   etiquetteCreneau,
+  MARQUE_ANGLAIS,
+  MARQUE_ANGLAIS_NON,
   MARQUE_DISPONIBLE,
+  valeurAnglais,
 } from './planning-export.service';
 import type { ProfDispo } from './dispo-prof.service';
 import type { Creneau, Dispo } from './models';
@@ -84,5 +87,21 @@ describe('construireMatricePlanning', () => {
 
   it('expose la marque de disponibilité', () => {
     expect(MARQUE_DISPONIBLE).toBe('X');
+  });
+
+  it('reporte la capacité à comprendre l’anglais de chaque professeur', () => {
+    const matrice = construireMatricePlanning(
+      [
+        { ...prof('Ana ALLA', []), soutenanceAnglais: true },
+        { ...prof('Zoé BART', []), soutenanceAnglais: false },
+        prof('Paul DUPONT', []),
+      ],
+      [],
+    );
+
+    expect(matrice.lignes.map((ligne) => ligne.anglais)).toEqual([true, false, undefined]);
+    expect(valeurAnglais(matrice.lignes[0]?.anglais)).toBe(MARQUE_ANGLAIS);
+    expect(valeurAnglais(matrice.lignes[1]?.anglais)).toBe(MARQUE_ANGLAIS_NON);
+    expect(valeurAnglais(matrice.lignes[2]?.anglais)).toBe('');
   });
 });

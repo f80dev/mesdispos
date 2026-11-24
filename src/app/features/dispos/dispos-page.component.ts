@@ -1,8 +1,10 @@
-import { Component, OnDestroy, computed, inject, signal } from '@angular/core';
+import { Component, OnDestroy, computed, effect, inject, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
-import { MatCheckboxModule } from '@angular/material/checkbox';
+import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
+import { MatOptionModule } from '@angular/material/core';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
+import { MatSelectModule } from '@angular/material/select';
 
 import { CreneauCardComponent } from './creneau-card.component';
 import { CreneauCalendarComponent } from './creneau-calendar.component';
@@ -25,9 +27,11 @@ import type { Creneau } from '../../data/models';
   imports: [
     CreneauCalendarComponent,
     MatButtonModule,
-    MatCheckboxModule,
+    MatFormFieldModule,
     MatIconModule,
+    MatOptionModule,
     MatProgressBarModule,
+    MatSelectModule,
   ],
   templateUrl: './dispos-page.component.html',
   styleUrl: './dispos-page.component.scss',
@@ -49,7 +53,14 @@ export class DisposPageComponent implements OnDestroy {
     () => this.profilService.profil()?.soutenanceAnglais === true,
   );
 
-  /** `true` pendant l'écriture de la préférence (case désactivée). */
+  /**
+   * Valeur de la liste déroulante « Peut-il suivre des soutenances en
+   * anglais ? » : `''` (aucune réponse, valeur par défaut), `'oui'` ou
+   * `'non'`.
+   */
+  readonly choixAnglais = signal<'' | 'oui' | 'non'>('');
+
+  /** `true` pendant l'écriture de la préférence (champ désactivé). */
   readonly enregistrementAnglais = signal<boolean>(false);
 
   /** Identifiants des créneaux retenus (coloration du calendrier). */
@@ -85,6 +96,10 @@ export class DisposPageComponent implements OnDestroy {
   constructor() {
     this.creneauxService.ecouter();
     this.dispoService.ecouter();
+    effect(() => {
+      const preference = this.profilService.profil()?.soutenanceAnglais;
+      this.choixAnglais.set(preference === true ? 'oui' : preference === false ? 'non' : '');
+    });
   }
 
   ngOnDestroy(): void {
@@ -108,17 +123,38 @@ export class DisposPageComponent implements OnDestroy {
   }
 
   /**
+   * Sélection dans la liste déroulante « Oui / Non ».
+   *
+   * L'écriture est **immédiate** (comme le clic sur un créneau) : la valeur
+   * choisie est appliquée localement puis `users/{uid}.soutenanceAnglais` est
+   * écrit. En cas d'échec, la valeur est remise à sa valeur précédente et un
+   * message « Réessayer » s'affiche.
+   */
+  async choisirAnglais(valeur: string): Promise<void> {
+    const nouveau: '' | 'oui' | 'non' = valeur === 'oui' || valeur === 'non' ? valeur : '';
+    const precedent = this.choixAnglais();
+    this.choixAnglais.set(nouveau);
+    if (nouveau === '') {
+      return;
+    }
+    const ok = await this.definirSoutenanceAnglais(nouveau === 'oui');
+    if (!ok) {
+      this.choixAnglais.set(precedent);
+    }
+  }
+
+  /**
    * Case à cocher « je peux suivre des soutenances en anglais ».
    *
    * L'écriture est **immédiate** (comme le clic sur un créneau) : mise à jour
    * optimiste, puis `users/{uid}.soutenanceAnglais`. En cas d'échec, l'état
    * est remis à sa valeur précédente et un message « Réessayer » s'affiche.
    */
-  async definirSoutenanceAnglais(valeur: boolean): Promise<void> {
+  async definirSoutenanceAnglais(valeur: boolean): Promise<boolean> {
     const uid = this.auth.uidEcriture();
     if (!uid) {
       this.notif.info('Session expirée : reconnectez-vous pour enregistrer cette préférence.');
-      return;
+      return false;
     }
     this.enregistrementAnglais.set(true);
     try {
@@ -128,6 +164,7 @@ export class DisposPageComponent implements OnDestroy {
           void this.definirSoutenanceAnglais(valeur);
         });
       }
+      return ok;
     } finally {
       this.enregistrementAnglais.set(false);
     }

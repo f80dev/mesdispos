@@ -29,7 +29,9 @@
 .section {
   display: flex;
   flex-direction: column;
+  margin-top:-30px;
   gap: var(--md-spacing-3);
+  width: 100%;
   min-width: 0;
 }
 
@@ -41,14 +43,15 @@
 
 // Préférence « soutenances en anglais » : bloc compact au-dessus du planning.
 .section-preferences {
+  flex: 1 1 auto;
   gap: var(--md-spacing-2);
 }
 
-// La case à cocher reste une cible tactile confortable (≥ 48 px).
-.case-anglais {
+// La liste déroulante reste une cible tactile confortable (≥ 48 px).
+.champ-anglais {
+  width: 100%;
+  max-width: 430px;
   min-height: 48px;
-  display: flex;
-  align-items: center;
 }
 
 .titre-section {

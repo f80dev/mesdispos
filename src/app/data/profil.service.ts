@@ -64,7 +64,9 @@ export function versProfil(data: Record<string, unknown> | null | undefined): Pr
   const login = typeof data['login'] === 'string' ? data['login'].trim() : '';
   const nom = typeof data['nom'] === 'string' ? data['nom'].trim() : '';
   const prenom = typeof data['prenom'] === 'string' ? data['prenom'].trim() : '';
-  if (!login && !nom && !prenom && data['soutenanceAnglais'] !== true) {
+  const ang = data['soutenanceAnglais'];
+  const angConnu = typeof ang === 'boolean';
+  if (!login && !nom && !prenom && !angConnu) {
     return null;
   }
   const maj = data['updatedAt'];
@@ -72,7 +74,7 @@ export function versProfil(data: Record<string, unknown> | null | undefined): Pr
     login,
     nom,
     prenom,
-    ...(data['soutenanceAnglais'] === true ? { soutenanceAnglais: true } : {}),
+    ...(angConnu ? { soutenanceAnglais: ang } : {}),
     updatedAt: typeof maj === 'number' && Number.isFinite(maj) ? maj : 0,
   };
 }

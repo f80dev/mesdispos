@@ -159,7 +159,8 @@ export class DispoProfComponent extends ComposantAdmin implements OnDestroy {
 
   /**
    * Exporte le planning des professeurs dans un classeur Excel : une ligne
-   * par professeur, une colonne par créneau (`X` = disponible).
+   * par professeur, une colonne « Anglais » (capacité à comprendre l’anglais)
+   * puis une colonne par créneau (`X` = disponible).
    */
   async exporter(): Promise<void> {
     if (!this.exigerAdmin()) {

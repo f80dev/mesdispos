@@ -7,9 +7,9 @@
 <section class="page">
   <mat-accordion>
     <mat-expansion-panel [expanded]="true">
-      <mat-expansion-panel-header class="entete"
-        >Disponibilités des professeurs</mat-expansion-panel-header
-      >
+      <mat-expansion-panel-header class="entete">
+        Disponibilités des professeurs
+      </mat-expansion-panel-header>
       <p class="aide">
         Tous les créneaux renseignés sont affichés dans le calendrier, superposés sur la même plage
         horaire. Cochez des professeurs pour les mettre en évidence.
@@ -73,7 +73,7 @@
                   </th>
                   <th scope="col" class="col-nombre" [attr.aria-sort]="ariaSort('nombre')">
                     <button type="button" class="entete-tri" (click)="trier('nombre')">
-                      Créneaux plannifiés
+                      Disponibilités
                       <mat-icon class="icone-tri" aria-hidden="true">{{
                         iconeTri('nombre')
                       }}</mat-icon>
@@ -111,9 +111,6 @@
                     </td>
                     <td class="col-prof">
                       <span class="nom-prof">{{ prof.nomComplet }}</span>
-                      @if (prof.login) {
-                        <span class="login">{{ prof.login }}</span>
-                      }
                       @if (prof.soutenanceAnglais) {
                         <span
                           class="badge-anglais"
@@ -124,7 +121,6 @@
                     </td>
                     <td class="col-nombre">
                       <span class="nombre">{{ nombreCreneauxPlannifies(prof) }}</span>
-                      <span class="detail">créneau(x) déclaré(s)</span>
                     </td>
                     <td class="col-secteur">{{ secteur(prof) }}</td>
                     <td class="col-mail">

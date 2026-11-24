@@ -1,8 +1,8 @@
 <!--
-  Mobile: case « soutenances en anglais » en tête, puis la liste des
+  Mobile: liste déroulante « Oui / Non » en tête, puis la liste des
             « Créneaux disponibles » et le calendrier des
             « Mes disponibilités (N) » — une colonne, lignes ≥ 48 px.
-  Desktop: case en haut, puis liste des créneaux disponibles au-dessus du
+  Desktop: liste déroulante en haut, puis liste des créneaux disponibles au-dessus du
             calendrier de vos disponibilités, largeur max 1100 px.
 -->
 @if (chargement()) {
@@ -47,22 +47,26 @@
   <!--    }-->
   <!--  </section>-->
 
+  <section class="section section-preferences" aria-labelledby="titre-preferences">
+    <mat-form-field class="champ-anglais" appearance="outline">
+      <mat-label>Pouvez vous suivre des soutenances en anglais ?</mat-label>
+      <mat-select
+        id="chkAnglophone"
+        [value]="choixAnglais()"
+        [disabled]="enregistrementAnglais()"
+        (selectionChange)="choisirAnglais($event.value)">
+        <mat-option value="oui">Oui</mat-option>
+        <mat-option value="non">Non</mat-option>
+      </mat-select>
+    </mat-form-field>
+  </section>
 
   <section class="section section-calendrier" aria-labelledby="titre-retenus">
     <h2 id="titre-retenus" class="titre-section">
       <mat-icon aria-hidden="true">calendar_month</mat-icon>
-      Calendrier des disponibilités de soutenance
+      Calendrier des créneaux
       <span class="compteur">({{ nombreRetenus() }} / {{ creneauxDuCalendrier().length }})</span>
     </h2>
-
-    <mat-checkbox
-      class="case-anglais"
-      [checked]="soutenanceAnglais()"
-      [disabled]="enregistrementAnglais()"
-      (change)="definirSoutenanceAnglais($event.checked)"
-    >
-      Je peux suivre des soutenances en anglais
-    </mat-checkbox>
 
     @if (erreur(); as message) {
       <div class="etat-erreur" role="alert">
