@@ -12,6 +12,7 @@
   @include mx.page-centree;
 }
 
+
 .entete h1 {
   @include mx.titre-page;
 }
@@ -181,6 +182,40 @@
 
 .vide {
   @include mx.vide;
+}
+
+// Légende des couleurs du planning.
+.legende-couleurs {
+  margin-top: var(--md-spacing-3);
+  padding: var(--md-spacing-2) var(--md-spacing-3);
+  border: 1px solid var(--app-outline-variant);
+  border-radius: var(--app-corner-medium);
+}
+
+.titre-legende {
+  margin: 0 0 var(--md-spacing-2);
+  font: var(--app-type-title-small);
+}
+
+.liste-couleurs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--md-spacing-2) var(--md-spacing-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.item-couleur {
+  display: flex;
+  align-items: center;
+  gap: var(--md-spacing-2);
+  min-height: 32px;
+  font: var(--app-type-body-medium);
+}
+
+.nom-couleur {
+  color: var(--app-on-surface);
 }
 
 .icone-tri {

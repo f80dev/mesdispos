@@ -49,10 +49,11 @@ export class HeaderComponent {
    */
   private readonly deadlineDate = parseDeadline(settings.deadline);
 
+
   readonly joursRestants = computed(() => {
     const deadline = this.deadlineDate;
     if (!deadline) {
-      return null;
+      return 0
     }
     const aujourdhui = new Date();
     const minuit = new Date(aujourdhui.getFullYear(), aujourdhui.getMonth(), aujourdhui.getDate());

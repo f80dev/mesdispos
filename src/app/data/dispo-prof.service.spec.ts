@@ -45,6 +45,26 @@ describe('regrouperDisposParProf (disponibilités par professeur)', () => {
     expect(resultat[1]?.dispos[0]?.heureDebut).toBe('08:45');
   });
 
+  it('inclut les professeurs connectés n’ayant renseigné aucun créneau', () => {
+    const resultat = regrouperDisposParProf(
+      [
+        profil('uid-a', { login: 'ana.alla', nom: 'ALLA', prenom: 'Ana' }),
+        profil('uid-b', { login: 'zoe.bart', nom: 'BART', prenom: 'Zoé' }),
+      ],
+      [
+        dispo('uid-a', '2026-01-12_0845_0930', {
+          date: '2026-01-12',
+          heureDebut: '08:45',
+          heureFin: '09:30',
+        }),
+      ],
+    );
+
+    expect(resultat.map((prof) => prof.nomComplet)).toEqual(['Ana ALLA', 'Zoé BART']);
+    expect(resultat[0]?.dispos).toHaveLength(1);
+    expect(resultat[1]?.dispos).toHaveLength(0);
+  });
+
   it('ignore les disponibilités mal formées', () => {
     const resultat = regrouperDisposParProf(
       [],
@@ -98,7 +118,7 @@ describe('regrouperDisposParProf (disponibilités par professeur)', () => {
     );
 
     expect(resultat[0]?.soutenanceAnglais).toBe(true);
-    expect(resultat[1]?.soutenanceAnglais).toBe(false);
+    expect(resultat[1]?.soutenanceAnglais).toBeUndefined();
   });
 });
 

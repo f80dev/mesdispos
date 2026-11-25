@@ -62,6 +62,14 @@ export interface DispoAdmin {
   readonly data: Record<string, unknown>;
 }
 
+/** Un créneau proposé, avec son identifiant (sauvegarde complète). */
+export interface CreneauAdmin {
+  /** Identifiant du créneau (`creneaux/{id}`). */
+  readonly id: string;
+  /** Champs bruts du créneau. */
+  readonly data: Record<string, unknown>;
+}
+
 export interface FirestoreBackend {
   /** `true` quand la configuration Firebase a été remplacée par l'humain. */
   readonly configure: boolean;
@@ -144,6 +152,27 @@ export interface FirestoreBackend {
    * `admins/{uid}`).
    */
   lireToutesDispos(): Promise<readonly DispoAdmin[]>;
+
+  /**
+   * `getDocs(collection(db, 'creneaux'))` — **contenu complet** des créneaux
+   * (sauvegarde intégrale de la base).
+   *
+   * Optionnel : les implémentations de test qui n'exercent pas la sauvegarde
+   * peuvent l'omettre.
+   */
+  lireTousCreneaux?(): Promise<readonly CreneauAdmin[]>;
+
+  /**
+   * `writeBatch.delete(users/{uid})` — supprime **tous les profils** de
+   * professeurs (la collection `users`), par lots de 500.
+   *
+   * Les disponibilités (`users/{uid}/dispos`) sont des sous-collections :
+   * supprimer le document parent **ne** les supprime pas — l'appelant doit
+   * les effacer séparément (cf. `supprimerToutesDispos`).
+   *
+   * @param `uidExclu` `uid` à préserver (partition de l'administrateur).
+   */
+  supprimerTousProfils?(uidExclu?: string): Promise<number>;
 }
 
 export const FIRESTORE_BACKEND = new InjectionToken<FirestoreBackend>('FirestoreBackend');
@@ -364,6 +393,22 @@ export class FirestoreReelBackend implements FirestoreBackend {
       id: doc.id,
       data: doc.data() as Record<string, unknown>,
     }));
+  }
+
+  async lireTousCreneaux(): Promise<readonly CreneauAdmin[]> {
+    const [db, fs] = await this.pair();
+    const snap = await fs.getDocs(fs.collection(db, 'creneaux'));
+    return snap.docs.map((doc) => ({
+      id: doc.id,
+      data: doc.data() as Record<string, unknown>,
+    }));
+  }
+
+  async supprimerTousProfils(uidExclu?: string): Promise<number> {
+    const [db, fs] = await this.pair();
+    const snap = await fs.getDocs(fs.collection(db, 'users'));
+    const refs = snap.docs.filter((doc) => doc.id !== uidExclu).map((doc) => doc.ref);
+    return this.supprimerReferences(refs);
   }
 
   /**

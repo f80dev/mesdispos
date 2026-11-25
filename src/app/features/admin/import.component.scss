@@ -1,6 +1,10 @@
 // -----------------------------------------------------------------------------
 // MesDispos — Console d'administration (import des disponibilités)
 // -----------------------------------------------------------------------------
+// Interface volontairement compacte : le parcours principal (dépôt + aperçu +
+// import) reste visible, les sections secondaires (planning, sauvegarde, actions
+// destructrices) sont repliées dans des blocs `<details>` d'une seule ligne.
+// -----------------------------------------------------------------------------
 
 @use '../../../styles/mixins' as mx;
 
@@ -9,7 +13,7 @@
 }
 
 .page-import {
-  @include mx.page;
+  @include mx.page(var(--md-spacing-3));
 }
 
 .entete h1 {
@@ -20,14 +24,16 @@
   @include mx.aide;
 }
 
+// --- Zone de dépôt (compacte) -------------------------------------------------
+
 .zone-depot {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: var(--md-spacing-1);
-  min-height: 128px;
-  padding: var(--md-spacing-5) var(--md-spacing-4);
+  min-height: 72px;
+  padding: var(--md-spacing-3) var(--md-spacing-4);
   box-sizing: border-box;
   border: 2px dashed var(--app-outline-variant);
   border-radius: var(--app-corner-large);
@@ -48,16 +54,16 @@
   }
 
   mat-icon {
-    font-size: 32px;
-    width: 32px;
-    height: 32px;
+    font-size: 24px;
+    width: 24px;
+    height: 24px;
     color: var(--app-primary);
   }
 }
 
 .zone-texte {
   margin: 0;
-  font: var(--app-type-title-medium);
+  font: var(--app-type-title-small);
   color: var(--app-on-surface);
 }
 
@@ -72,7 +78,7 @@
 
 .nom-fichier {
   margin: 0;
-  font: var(--app-type-body-medium);
+  font: var(--app-type-body-small);
   color: var(--app-on-surface-variant);
 }
 
@@ -116,13 +122,6 @@
   @include mx.vide;
 }
 
-.zone-planning {
-  display: flex;
-  flex-direction: column;
-  gap: var(--md-spacing-3);
-  @include mx.carte;
-}
-
 .champ-filtres {
   @include mx.champ-plein(420px);
 }
@@ -138,20 +137,6 @@
   font-size: 12px;
   white-space: pre-wrap;
   word-break: break-word;
-}
-
-.zone-danger {
-  display: flex;
-  flex-direction: column;
-  gap: var(--md-spacing-3);
-  @include mx.zone-erreur;
-}
-
-.zone-fictives {
-  display: flex;
-  flex-direction: column;
-  gap: var(--md-spacing-3);
-  @include mx.carte;
 }
 
 .message-confirmation {
@@ -183,7 +168,63 @@
   background: var(--app-error);
 }
 
-// Mobile ≤ 600 px : le tableau devient une liste de cartes (F7).
+// --- Sections repliées (compactes) -------------------------------------------
+
+.zone-repliable {
+  border: 1px solid var(--app-outline-variant);
+  border-radius: var(--app-corner-medium);
+  background: var(--app-surface-container-lowest);
+
+  > details > summary {
+    display: flex;
+    align-items: center;
+    gap: var(--md-spacing-2);
+    min-height: 40px;
+    padding: 0 var(--md-spacing-3);
+    cursor: pointer;
+    list-style: none;
+    font: var(--app-type-label-large);
+    color: var(--app-on-surface);
+
+    &::-webkit-details-marker {
+      display: none;
+    }
+
+    mat-icon {
+      font-size: 20px;
+      width: 20px;
+      height: 20px;
+      color: var(--app-primary);
+    }
+
+    &:hover {
+      background: color-mix(in srgb, var(--app-primary) 6%, var(--app-surface-container-lowest));
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--app-primary);
+      outline-offset: -2px;
+    }
+  }
+
+  .corps {
+    display: flex;
+    flex-direction: column;
+    gap: var(--md-spacing-2);
+    padding: 0 var(--md-spacing-3) var(--md-spacing-3);
+  }
+}
+
+// Les blocs destructeurs sont signalés par leur icône et leur titre rougis.
+.zone-repliable-danger > details > summary {
+  color: var(--app-error);
+
+  mat-icon {
+    color: var(--app-error);
+  }
+}
+
+// Mobile ≤ 600 px : les actions passent en pleine largeur.
 @media (max-width: 600px) {
   .bouton-importer,
   .danger {

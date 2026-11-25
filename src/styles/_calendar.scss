@@ -252,6 +252,44 @@
   opacity: 1;
 }
 
+// Pastille de la légende des couleurs : mêmes teintes que les créneaux
+// d'un professeur dans le planning (cf. `.prof-cN` ci-dessus).
+.pastille {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border-radius: var(--mat-sys-corner-small);
+  border: 1px solid var(--mat-sys-outline-variant);
+  background-color: var(--app-primary-container);
+  border-left: 3px solid var(--app-primary);
+  flex: 0 0 auto;
+}
+
+.pastille.prof-c1 {
+  background-color: var(--app-secondary-container);
+  border-left-color: var(--app-secondary);
+}
+
+.pastille.prof-c2 {
+  background-color: var(--app-tertiary-container);
+  border-left-color: var(--app-tertiary);
+}
+
+.pastille.prof-c3 {
+  background-color: var(--app-success-container);
+  border-left-color: var(--app-success);
+}
+
+.pastille.prof-c4 {
+  background-color: var(--app-surface-container-high);
+  border-left-color: var(--app-primary);
+}
+
+.pastille.prof-c5 {
+  background-color: var(--app-error-container);
+  border-left-color: var(--app-error);
+}
+
 // Infobulle : fond « inverse surface » M3 plutôt que le noir du plug-in.
 .cal-tooltip-inner {
   background-color: var(--mat-sys-inverse-surface);

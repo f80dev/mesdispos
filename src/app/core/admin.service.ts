@@ -126,4 +126,28 @@ export class AdminService {
     }
     return this.backend.supprimerToutesDispos();
   }
+
+  /**
+   * Efface **l'ensemble des professeurs** de la base : tous les profils
+   * (`users/{uid}`) et toutes leurs disponibilités (`users/{uid}/dispos`).
+   *
+   * Les disponibilités sont supprimées **d'abord** : ce sont des
+   * sous-collections, la suppression du document parent ne les efface pas.
+   *
+   * La partition de l'administrateur courant (`sessionAdmin`) est préservée :
+   * l'effacement ne doit pas éjecter l'administrateur en cours d'action.
+   *
+   * @returns le nombre de profils et de disponibilités effacés.
+   */
+  async supprimerTousLesProfils(): Promise<{ profils: number; dispos: number }> {
+    if (!this.autorise()) {
+      throw new Error(MESSAGE_ADMIN_REQUIS);
+    }
+    if (!this.backend.supprimerTousProfils) {
+      throw new Error('Suppression des profils indisponible.');
+    }
+    const dispos = await this.backend.supprimerToutesDispos();
+    const profils = await this.backend.supprimerTousProfils(this.uid() ?? undefined);
+    return { profils, dispos };
+  }
 }

@@ -10,42 +10,7 @@
 }
 
 <div class="page">
-  <!--  <section class="section section-disponibles" aria-labelledby="titre-disponibles">-->
-  <!--    <h2 id="titre-disponibles" class="titre-section">-->
-  <!--      <mat-icon aria-hidden="true">event</mat-icon>-->
-  <!--      Créneaux disponibles-->
-  <!--      <span class="compteur">({{ nombreDisponibles() }})</span>-->
-  <!--    </h2>-->
 
-  <!--    @if (erreur(); as message) {-->
-  <!--      <div class="etat-erreur" role="alert">-->
-  <!--        <p>{{ message }}</p>-->
-  <!--        <button matButton="outlined" type="button" (click)="reessayerLecture()">Réessayer</button>-->
-  <!--      </div>-->
-  <!--    } @else if (!chargement() && groupesDisponibles().length === 0) {-->
-  <!--      <p class="vide">Aucun créneau proposé pour le moment.</p>-->
-  <!--    } @else {-->
-  <!--      <div class="planning">-->
-  <!--        @for (groupe of groupesDisponibles(); track groupe.date) {-->
-  <!--          <section class="jour" [attr.aria-label]="groupe.date | dateGroup">-->
-  <!--            <h3 class="jour-titre">{{ groupe.date | dateGroup }}</h3>-->
-  <!--            <ul class="liste">-->
-  <!--              @for (creneau of groupe.creneaux; track creneau.id) {-->
-  <!--                <li>-->
-  <!--                  <app-creneau-card-->
-  <!--                    [creneau]="creneau"-->
-  <!--                    [selectionne]="false"-->
-  <!--                    [enCours]="estEnCours(creneau.id)"-->
-  <!--                    (basculer)="basculer($event)"-->
-  <!--                  />-->
-  <!--                </li>-->
-  <!--              }-->
-  <!--            </ul>-->
-  <!--          </section>-->
-  <!--        }-->
-  <!--      </div>-->
-  <!--    }-->
-  <!--  </section>-->
 
   <section class="section section-preferences" aria-labelledby="titre-preferences">
     <mat-form-field class="champ-anglais" appearance="outline">

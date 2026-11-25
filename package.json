@@ -1,6 +1,6 @@
 {
   "name": "mesdispos",
-  "version": "0.0.13",
+  "version": "0.0.19",
   "scripts": {
     "ng": "ng",
     "start": "ng serve",
@@ -31,6 +31,7 @@
     "angular-draggable-droppable": "^9.0.1",
     "angular-resizable-element": "^8.0.3",
     "date-fns": "^4.4.0",
+    "fflate": "^0.8.3",
     "firebase": "^13.1.0",
     "firebase-tools": "^15.34.2",
     "fullcalendar": "^7.1.3",

@@ -30,9 +30,9 @@ export const routes: Routes = [
       import('./features/dispos/dispos-page.component').then((m) => m.DisposPageComponent),
   },
   {
-    // Écran admin par défaut : le prompt IA.
+    // Écran admin par défaut : les disponibilités des professeurs.
     path: 'admin',
-    redirectTo: 'admin/prompt',
+    redirectTo: '/admin/dispos',
     pathMatch: 'full',
   },
   {

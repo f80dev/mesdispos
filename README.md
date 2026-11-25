@@ -22,6 +22,8 @@ journal des décisions techniques est dans [`docs/decisions.md`](./docs/decision
 - [Liste des professeurs (API Oasis)](#liste-des-professeurs-api-oasis)
 - [Format du fichier Excel](#format-du-fichier-excel)
 - [Attribution automatique de créneaux (espace administrateur)](#attribution-automatique-de-créneaux-espace-administrateur)
+- [Sauvegarde complète de la base (espace administrateur)](#sauvegarde-complète-de-la-base-espace-administrateur)
+- [Effacer tous les professeurs (espace administrateur)](#effacer-tous-les-professeurs-espace-administrateur)
 - [Thème clair / sombre](#thème-clair--sombre)
 - [Commandes](#commandes)
 - [Déploiement](#déploiement)
@@ -356,6 +358,44 @@ fin de matrice, pour qu'aucune disponibilité ne soit perdue. Le classeur est
 généré **dans le navigateur** (`write-excel-file`) : aucune donnée n'est
 envoyée à un serveur.
 
+## Sauvegarde complète de la base (espace administrateur)
+
+Sur la page `/admin/import`, le bouton **« Télécharger la sauvegarde (.zip) »**
+produit une archive `mesdispos-sauvegarde-AAAA-MM-JJ_HHMM.zip` contenant
+l'intégralité des données lisibles de la base :
+
+| Fichier du ZIP  | Contenu                                                         |
+| --------------- | --------------------------------------------------------------- |
+| `lisez-moi.txt` | description du contenu et de la date de sauvegarde              |
+| `meta.json`     | horodatage, version de l'application, volumétrie                |
+| `creneaux.json` | tous les créneaux proposés (`creneaux/{id}`)                    |
+| `creneaux.csv`  | idem, au format CSV (séparateur `;`, ouvrable dans Excel)       |
+| `profils.json`  | tous les profils de professeurs (`users/{uid}`)                 |
+| `dispos.json`   | toutes les disponibilités déclarées (`users/{uid}/dispos/{id}`) |
+| `dispos.csv`    | idem, au format CSV                                             |
+
+L'archive est assemblée **dans le navigateur** (`fflate`) puis téléchargée
+directement : aucune donnée n'est envoyée à un serveur. La collection
+`admins` n'est **pas** exportée (elle porte les accès administrateurs,
+lisibles par leur seul titulaire).
+
+## Effacer tous les professeurs (espace administrateur)
+
+La zone **« Effacer tous les professeurs »** de `/admin/import` supprime
+définitivement **tous les professeurs** de la base :
+
+- leurs **profils** (`users/{uid}` : identité, préférences) ;
+- toutes leurs **disponibilités** (`users/{uid}/dispos/{id}`).
+
+Les **créneaux proposés** (`creneaux`) ne sont pas modifiés. L'action est
+encadrée par une confirmation explicite (« Cette action est irréversible ») et
+réservée à l'administrateur (`firestore.rules` : l'écriture dans `users` et la
+suppression en _collection group_ des disponibilités exigent le document
+`admins/{uid}`). La partition de l'administrateur courant est préservée.
+
+> Les disponibilités sont des **sous-collections** : la suppression du document
+> `users/{uid}` ne les efface pas — elles sont donc supprimées d'abord.
+
 ## Thème clair / sombre
 
 L'application propose deux thèmes construits sur la **palette ENSAD** (celle du site ensad.fr : rouge `#FE3E0D`, vert `#1C6333`, bleu `#2A84FF`, anthracite `#151515`, gris `#86868B` / `#C3C3C5` / `#E7EAE8` / `#F5F5F7`) :
@@ -419,11 +459,11 @@ s'affiche sans styles.
 
 Trois garde-fous sont en place :
 
-| Garde-fou | Fichier | Effet |
-|---|---|---|
-| Cache HTTP | `public/_headers` | `index.html` en `no-store` ; bundles en `immutable` (1 an) |
+| Garde-fou                | Fichier                    | Effet                                                                                                                            |
+| ------------------------ | -------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| Cache HTTP               | `public/_headers`          | `index.html` en `no-store` ; bundles en `immutable` (1 an)                                                                       |
 | Conservation des bundles | `scripts/merge-assets.mjs` | les bundles des déploiements précédents (`/.deploy-assets`) sont republiés : un ancien `index.html` retrouve toujours ses assets |
-| Contrôle d'intégrité | `scripts/verif-dist.mjs` | le déploiement est **annulé** si `index.html` référence une ressource absente du dossier publié |
+| Contrôle d'intégrité     | `scripts/verif-dist.mjs`   | le déploiement est **annulé** si `index.html` référence une ressource absente du dossier publié                                  |
 
 Commandes utiles :
 

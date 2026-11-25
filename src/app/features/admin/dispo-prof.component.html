@@ -8,7 +8,7 @@
   <mat-accordion>
     <mat-expansion-panel [expanded]="true">
       <mat-expansion-panel-header class="entete">
-        Disponibilités des professeurs
+        Disponibilités
       </mat-expansion-panel-header>
       <p class="aide">
         Tous les créneaux renseignés sont affichés dans le calendrier, superposés sur la même plage
@@ -41,7 +41,7 @@
             matButton="outlined"
             type="button"
             (click)="exporter()"
-            [disabled]="exportEnCours() || profs().length === 0"
+            [disabled]="exportEnCours() || profsExport().length === 0"
           >
             <mat-icon aria-hidden="true">download</mat-icon>
             Exporter le planning (Excel)
@@ -164,6 +164,28 @@
           <p class="vide">Aucun créneau n'a été renseigné pour le moment.</p>
         } @else {
           <app-profs-calendar [evenements]="evenements()" />
+
+          <section class="legende-couleurs" aria-label="Légende des couleurs">
+            <h4 class="titre-legende">Légende des couleurs</h4>
+            @if (legendes().length === 0) {
+              <p class="aide">Cochez un professeur pour le voir apparaître dans le planning.</p>
+            } @else {
+              <ul class="liste-couleurs">
+                @for (entree of legendes(); track entree.prof.uid) {
+                  <li class="item-couleur">
+                    <span class="pastille" [class]="'pastille prof-c' + entree.couleur"></span>
+                    <span class="nom-couleur">{{ entree.prof.nomComplet }}</span>
+                  </li>
+                }
+              </ul>
+              @if (legendes().length > paletteProfesseurs) {
+                <p class="aide">
+                  Au-delà de six professeurs, les couleurs sont recyclées : le nom affiché dans le
+                  planning permet de les distinguer.
+                </p>
+              }
+            }
+          </section>
         }
       }
     </mat-expansion-panel>

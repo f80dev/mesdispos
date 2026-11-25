@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  completerAvecAnnuaire,
   construireMatricePlanning,
   etiquetteCreneau,
   MARQUE_ANGLAIS,
@@ -9,6 +10,7 @@ import {
   valeurAnglais,
 } from './planning-export.service';
 import type { ProfDispo } from './dispo-prof.service';
+import type { Prof } from './prof.service';
 import type { Creneau, Dispo } from './models';
 
 function creneau(id: string, date: string, heureDebut: string, heureFin: string): Creneau {
@@ -29,6 +31,54 @@ function prof(nomComplet: string, dispos: Dispo[]): ProfDispo {
     dispos,
   };
 }
+
+describe('completerAvecAnnuaire (tous les professeurs, y compris sans créneau)', () => {
+  function annuaire(login: string, nomComplet: string): Prof {
+    const [prenom, ...reste] = nomComplet.split(' ');
+    return {
+      login,
+      prenom,
+      nom: reste.join(' '),
+      nomComplet,
+      subjects: [],
+    };
+  }
+
+  it('ajoute les enseignants de l’annuaire sans disponibilité, avec une ligne vide', () => {
+    const resultat = completerAvecAnnuaire(
+      [
+        {
+          ...prof('Ana ALLA', [dispo('c1', '2026-01-12', '08:45', '09:30')]),
+          login: 'ana.alla',
+        },
+      ],
+      [annuaire('ana.alla', 'Ana ALLA'), annuaire('paul.dupont', 'Paul DUPONT')],
+    );
+
+    expect(resultat).toHaveLength(2);
+    const dupont = resultat.find((p) => p.nomComplet === 'Paul DUPONT');
+    expect(dupont?.dispos).toHaveLength(0);
+    expect(dupont?.soutenanceAnglais).toBeUndefined();
+  });
+
+  it('ne duplique pas un professeur déjà connu (rapprochement par login)', () => {
+    const resultat = completerAvecAnnuaire(
+      [{ ...prof('Ana ALLA', []), login: 'ana.alla' }],
+      [annuaire('ana.alla', 'Ana ALLA')],
+    );
+
+    expect(resultat).toHaveLength(1);
+  });
+
+  it('rapproche par nom complet les professeurs saisis sans login', () => {
+    const resultat = completerAvecAnnuaire(
+      [prof('Ana ALLA', [])],
+      [annuaire('ana.alla', 'Ana ALLA')],
+    );
+
+    expect(resultat).toHaveLength(1);
+  });
+});
 
 describe('etiquetteCreneau', () => {
   it('formate la date et la plage horaire sans conversion de fuseau', () => {

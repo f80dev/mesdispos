@@ -104,7 +104,9 @@
 
   <!-- Contenu d'une case : l'horaire en ligne 1, le professeur en ligne 2. -->
   <ng-template #titreEvenement let-event="event">
-    <span class="case-heure">{{ event.title }}</span>
+    <span class="case-heure"
+      >{{ event.meta?.dispo?.heureDebut }} – {{ event.meta?.dispo?.heureFin }}</span
+    >
     <span class="case-prof">{{ event.meta?.prof?.nomComplet }}</span>
   </ng-template>
 
@@ -135,7 +137,8 @@
     </span>
     <span class="legende-aide">
       Les disponibilités des professeurs cochés sont superposées : plusieurs sur le même créneau
-      apparaissent côte à côte.
+      apparaissent côte à côte. Chaque professeur a sa propre couleur (voir la légende des couleurs
+      sous le planning).
     </span>
   </p>
 </div>

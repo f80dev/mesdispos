@@ -24,16 +24,15 @@
   @include mx.barre-actions;
 }
 
-.import-memoires {
-  display: flex;
-  flex-direction: column;
-  gap: var(--md-spacing-3);
+.etapes {
+  background: transparent;
 }
 
-.import-planning {
+.etape-contenu {
   display: flex;
   flex-direction: column;
   gap: var(--md-spacing-3);
+  padding-block: var(--md-spacing-2);
 }
 
 .liste-anomalies {
@@ -102,7 +101,8 @@
     flex-direction: column;
   }
 
-  .bouton {
+  .bouton,
+  .bouton-import {
     align-self: stretch;
     justify-content: center;
   }

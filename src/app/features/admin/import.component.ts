@@ -16,6 +16,7 @@ import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 
 import { ErreurImport, ExcelImportService, MESSAGE_FORMAT } from '../../data/excel-import.service';
+import { BackupService, MESSAGE_BACKUP_ECHEC } from '../../core/backup.service';
 import { ComposantAdmin } from '../../core/composant-admin';
 import { PlanningApiService } from '../../core/planning-api.service';
 import { CreneauService } from '../../data/creneau.service';
@@ -54,6 +55,7 @@ export class ImportComponent extends ComposantAdmin implements OnDestroy {
   private readonly creneaux = inject(CreneauService);
   private readonly planningApi = inject(PlanningApiService);
   private readonly attribution = inject(AttributionService);
+  private readonly backup = inject(BackupService);
 
   /**
    * Accès à l'API locale de planning (`AutoPlanning/api.py`) : disponible
@@ -112,6 +114,21 @@ export class ImportComponent extends ComposantAdmin implements OnDestroy {
 
   /** Message d'erreur de la génération fictive (`null` si tout va bien). */
   readonly erreurFictifs = signal<string | null>(null);
+
+  /** `true` pendant la fabrication/téléchargement de l'archive de sauvegarde. */
+  readonly backupEnCours = signal<boolean>(false);
+
+  /** Message d'erreur de la sauvegarde (`null` si tout va bien). */
+  readonly backupErreur = signal<string | null>(null);
+
+  /** `true` quand la confirmation d'effacement des professeurs est affichée. */
+  readonly confirmationSuppressionProfs = signal<boolean>(false);
+
+  /** `true` pendant l'effacement des professeurs. */
+  readonly suppressionProfsEnCours = signal<boolean>(false);
+
+  /** Message d'erreur de l'effacement des professeurs (`null` si tout va bien). */
+  readonly erreurProfs = signal<string | null>(null);
 
   /**
    * L'import est **réservé à l'administrateur** : tant que la session
@@ -321,6 +338,69 @@ export class ImportComponent extends ComposantAdmin implements OnDestroy {
     } finally {
       this.suppressionDisposEnCours.set(false);
       this.confirmationSuppressionDispos.set(false);
+    }
+  }
+
+  /**
+   * Produit l'archive ZIP de sauvegarde complète de la base et déclenche son
+   * téléchargement (créneaux, profils de professeurs, disponibilités).
+   */
+  async sauvegarder(): Promise<void> {
+    if (!this.exigerAdmin()) {
+      return;
+    }
+    this.backupEnCours.set(true);
+    this.backupErreur.set(null);
+    try {
+      const resume = await this.backup.telecharger();
+      this.notif.succes(
+        `Sauvegarde téléchargée : ${resume.creneaux} créneau(x), ${resume.profils} professeur(s), ${resume.dispos} disponibilité(s).`,
+      );
+    } catch (erreur) {
+      this.backupErreur.set(erreur instanceof Error ? erreur.message : MESSAGE_BACKUP_ECHEC);
+      this.notif.erreur(erreur instanceof Error ? erreur.message : MESSAGE_BACKUP_ECHEC);
+    } finally {
+      this.backupEnCours.set(false);
+    }
+  }
+
+  /** Affiche la confirmation avant l'effacement de tous les professeurs. */
+  demanderSuppressionProfs(): void {
+    if (!this.exigerAdmin()) {
+      return;
+    }
+    this.erreurProfs.set(null);
+    this.confirmationSuppressionProfs.set(true);
+  }
+
+  /** Referme la confirmation sans rien supprimer. */
+  annulerSuppressionProfs(): void {
+    this.confirmationSuppressionProfs.set(false);
+  }
+
+  /**
+   * Efface **tous les professeurs** de la base : profils (`users/{uid}`) et
+   * disponibilités (`users/{uid}/dispos`). Action irréversible.
+   */
+  async supprimerProfs(): Promise<void> {
+    if (!this.exigerAdmin()) {
+      return;
+    }
+    this.suppressionProfsEnCours.set(true);
+    this.erreurProfs.set(null);
+    try {
+      const { profils, dispos } = await this.admin.supprimerTousLesProfils();
+      this.notif.succes(`${profils} professeur(s) et ${dispos} disponibilité(s) effacés.`);
+      this.confirmationSuppressionProfs.set(false);
+    } catch (erreur) {
+      this.erreurProfs.set(
+        erreur instanceof Error ? erreur.message : 'La suppression a échoué. Réessayez.',
+      );
+      this.notif.erreur(
+        erreur instanceof Error ? erreur.message : 'La suppression a échoué. Réessayez.',
+      );
+    } finally {
+      this.suppressionProfsEnCours.set(false);
     }
   }
 }

@@ -61,6 +61,11 @@ function texte(brut: unknown): string {
 /**
  * Regroupe les disponibilités par professeur.
  *
+ * Les professeurs **connectés mais n'ayant renseigné aucun créneau** figurent
+ * dans le résultat avec une liste de disponibilités vide : l'export du planning
+ * doit pouvoir les faire apparaître (§ F3/F4 — l'export liste tous les
+ * professeurs, pas seulement ceux qui ont répondu).
+ *
  * Fonction **pure** : testable sans Angular ni réseau.
  *
  * @param profils inventaire `users/{uid}` (peut être vide).
@@ -87,6 +92,7 @@ export function regrouperDisposParProf(
   const infos = new Map(profils.map((profil) => [profil.uid, profil.data]));
   const resultat: ProfDispo[] = [];
 
+  // Professeurs ayant déclaré au moins une disponibilité…
   for (const [uid, liste] of parUid) {
     const data = infos.get(uid) ?? {};
     const premier = liste[0];
@@ -100,8 +106,33 @@ export function regrouperDisposParProf(
       nom,
       prenom,
       nomComplet,
-      soutenanceAnglais: data['soutenanceAnglais'] === true,
+      ...(typeof data['soutenanceAnglais'] === 'boolean'
+        ? { soutenanceAnglais: data['soutenanceAnglais'] }
+        : {}),
       dispos: trierCreneaux(liste),
+    });
+  }
+
+  // …et professeurs connectés n'ayant renseigné **aucun** créneau : ils
+  // figurent dans l'export avec une ligne vide.
+  for (const [uid, data] of infos) {
+    if (parUid.has(uid)) {
+      continue;
+    }
+    const login = texte(data['login']);
+    const nom = texte(data['nom']);
+    const prenom = texte(data['prenom']);
+    const nomComplet = [prenom, nom].filter(Boolean).join(' ') || login || 'Professeur';
+    resultat.push({
+      uid,
+      login,
+      nom,
+      prenom,
+      nomComplet,
+      ...(typeof data['soutenanceAnglais'] === 'boolean'
+        ? { soutenanceAnglais: data['soutenanceAnglais'] }
+        : {}),
+      dispos: [],
     });
   }
 
@@ -136,7 +167,11 @@ export function filtrerProfsDispo(
 export class DispoProfService {
   private readonly backend = inject(FIRESTORE_BACKEND);
 
-  /** Professeurs ayant déclaré au moins une disponibilité. */
+  /**
+   * Professeurs connus de l'application : ceux qui ont déclaré au moins une
+   * disponibilité **et** ceux qui se sont connectés sans renseigner de
+   * créneau (liste vide).
+   */
   readonly profs = signal<ProfDispo[]>([]);
 
   /** Vrai pendant la lecture. */

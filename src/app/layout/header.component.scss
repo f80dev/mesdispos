@@ -44,7 +44,11 @@
 
 .session {
   display: flex;
+  width: 100vw;
+  justify-content: space-between;
   align-items: center;
+
+
   gap: var(--md-spacing-2);
   min-width: 0;
 }

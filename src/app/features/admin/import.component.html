@@ -1,66 +1,17 @@
 <!--
-  Mobile  : zone de dépôt pleine largeur (≥ 48 px), aperçu en cartes groupées
-            par jour, détail des lignes invalides replié, bouton 48 px.
-  Desktop : aperçu en tableau à 4 colonnes, zone de dépôt centrée.
+  Mobile  : zone de dépôt compacte (≥ 48 px), sections secondaires repliées,
+            aperçu en cartes.
+  Desktop : aperçu en tableau, sections secondaires repliées.
 -->
 <section class="page-import">
   <header class="entete">
-    <h1>Importer les créneaux de soutenance</h1>
+    <h1>Importer les créneaux</h1>
     <p class="aide">
       Fichier Excel <code>.xlsx</code> — colonnes <code>date</code>, <code>heure_debut</code>,
-      <code>heure_fin</code> et <code>libelle</code> (facultatif). La lecture se fait dans votre
-      navigateur : le fichier n'est jamais envoyé sur un serveur.
+      <code>heure_fin</code> et <code>libelle</code> (facultatif). Lecture dans le navigateur : le
+      fichier n'est jamais envoyé sur un serveur.
     </p>
   </header>
-
-  @if (planningApiActif) {
-    <section class="zone-planning" aria-labelledby="titre-planning">
-      <h2 id="titre-planning" class="titre-section">API planning locale (développement)</h2>
-      <p class="aide">
-        Appelle la route <code>/calendar/json</code> (méthode <code>get_filtered_json</code>) du
-        serveur Flask <code>AutoPlanning</code> sur <code>localhost</code>. Disponible uniquement en
-        développement.
-      </p>
-
-      <mat-form-field appearance="outline" class="champ-filtres">
-        <mat-label>Filtres (tags, séparés par des virgules)</mat-label>
-        <input
-          matInput
-          type="text"
-          autocomplete="off"
-          [value]="filtresTags()"
-          (input)="surFiltres($event)"
-        />
-      </mat-form-field>
-
-      <button
-        matButton="outlined"
-        type="button"
-        class="bouton-importer"
-        [disabled]="planningChargement()"
-        (click)="chargerPlanning()"
-      >
-        @if (planningChargement()) {
-          <mat-spinner diameter="18" />
-        } @else {
-          <mat-icon aria-hidden="true">cloud_download</mat-icon>
-        }
-        Charger le planning
-      </button>
-
-      @if (planningErreur(); as texte) {
-        <p class="message-erreur" role="alert">{{ texte }}</p>
-      }
-
-      @if (planningEntrees().length > 0) {
-        <p class="nom-fichier">{{ planningEntrees().length }} entrée(s) reçue(s).</p>
-        <details class="invalides">
-          <summary>Voir le JSON reçu</summary>
-          <pre class="json-planning">{{ planningEntrees() | json }}</pre>
-        </details>
-      }
-    </section>
-  }
 
   @if (!verifie()) {
     <mat-progress-bar mode="indeterminate" aria-label="Vérification des droits" />
@@ -81,8 +32,8 @@
       (drop)="surDepot($event)"
     >
       <mat-icon aria-hidden="true">upload_file</mat-icon>
-      <p class="zone-texte">Déposez votre fichier .xlsx ici</p>
-      <p class="zone-sous-texte">ou cliquez pour le choisir</p>
+      <span class="zone-texte">Déposez votre fichier .xlsx ici</span>
+      <span class="zone-sous-texte">ou cliquez pour le choisir</span>
       <input
         #fichier
         type="file"
@@ -163,7 +114,8 @@
           {{ analyse.invalides.length }} ligne{{
             analyse.invalides.length > 1 ? 's' : ''
           }}
-          invalide{{ analyse.invalides.length > 1 ? 's' : '' }} (détail)
+          invalide{{ analyse.invalides.length > 1 ? 's' : '' }}
+          (détail)
         </summary>
         <ul class="liste-invalides">
           @for (ligne of invalides(); track ligne.ligne) {
@@ -186,173 +138,344 @@
   }
 
   @if (verifie() && autorise()) {
-    <section class="zone-danger" aria-labelledby="titre-suppression">
-      <h2 id="titre-suppression" class="titre-section">Supprimer tous les créneaux</h2>
-      <p class="aide">
-        Cette action supprime <strong>définitivement</strong> tous les créneaux proposés. Les
-        disponibilités déjà déclarées par les professeurs ne sont pas modifiées.
-      </p>
+    <section class="zone-repliable" aria-labelledby="titre-planning">
+      <details>
+        <summary>
+          <mat-icon aria-hidden="true">cloud_download</mat-icon>
+          <span id="titre-planning">API planning locale (développement)</span>
+        </summary>
+        <div class="corps">
+          <p class="aide">
+            Route <code>/calendar/json</code> (méthode <code>get_filtered_json</code>) du serveur
+            Flask <code>AutoPlanning</code> sur <code>localhost</code>. Développement uniquement.
+          </p>
 
-      @if (confirmationSuppression()) {
-        <p class="message-erreur" role="alert">
-          Confirmez-vous la suppression de tous les créneaux ? Cette action est irréversible.
-        </p>
-        <div class="actions-danger">
+          <mat-form-field appearance="outline" class="champ-filtres">
+            <mat-label>Filtres (tags, séparés par des virgules)</mat-label>
+            <input
+              matInput
+              type="text"
+              autocomplete="off"
+              [value]="filtresTags()"
+              (input)="surFiltres($event)"
+            />
+          </mat-form-field>
+
           <button
             matButton="outlined"
             type="button"
             class="bouton-importer"
-            [disabled]="suppressionEnCours()"
-            (click)="annulerSuppression()"
+            [disabled]="planningChargement()"
+            (click)="chargerPlanning()"
           >
-            Annuler
-          </button>
-          <button
-            matButton="filled"
-            type="button"
-            class="danger"
-            [disabled]="suppressionEnCours()"
-            (click)="supprimerTous()"
-          >
-            @if (suppressionEnCours()) {
+            @if (planningChargement()) {
               <mat-spinner diameter="18" />
             } @else {
-              <mat-icon aria-hidden="true">delete_forever</mat-icon>
+              <mat-icon aria-hidden="true">cloud_download</mat-icon>
             }
-            Supprimer définitivement
+            Charger le planning
           </button>
-        </div>
-      } @else {
-        <button
-          matButton="outlined"
-          type="button"
-          class="danger bouton-supprimer-tout"
-          [disabled]="suppressionEnCours()"
-          (click)="demanderSuppression()"
-        >
-          <mat-icon aria-hidden="true">delete_forever</mat-icon>
-          Supprimer tous les créneaux
-        </button>
-      }
-    </section>
-  }
 
-  @if (verifie() && autorise()) {
-    <section class="zone-fictives" aria-labelledby="titre-fictives">
-      <h2 id="titre-fictives" class="titre-section">Générer des disponibilités fictives</h2>
-      <p class="aide">
-        Crée des disponibilités de démonstration pour <strong>tous les professeurs</strong> de la
-        liste <code>profs.xlsx</code> : chaque professeur reçoit
-        {{ nbFictifsMin }} ou {{ nbFictifsMax }} créneaux tirés au hasard parmi ceux qu’il n’a pas
-        encore retenus. Les documents écrits sont marqués <code>fictif: true</code> et peuvent être
-        supprimés en bloc via « Supprimer les disponibilités des professeurs ».
-      </p>
-
-      @if (erreurFictifs(); as texte) {
-        <p class="message-erreur" role="alert">{{ texte }}</p>
-      }
-
-      @if (confirmationFictives()) {
-        <p class="message-confirmation" role="alert">
-          Confirmez-vous la génération de disponibilités fictives pour tous les professeurs de la
-          liste ?
-        </p>
-        <div class="actions">
-          <button
-            matButton="outlined"
-            type="button"
-            class="bouton-importer"
-            [disabled]="generationFictivesEnCours()"
-            (click)="annulerGenerationFictives()"
-          >
-            Annuler
-          </button>
-          <button
-            matButton="filled"
-            type="button"
-            class="bouton-importer"
-            [disabled]="generationFictivesEnCours()"
-            (click)="genererFictives()"
-          >
-            @if (generationFictivesEnCours()) {
-              <mat-spinner diameter="18" />
-            } @else {
-              <mat-icon aria-hidden="true">auto_awesome</mat-icon>
-            }
-            Générer
-          </button>
-        </div>
-      } @else {
-        <button
-          matButton="outlined"
-          type="button"
-          class="bouton-importer"
-          [disabled]="generationFictivesEnCours()"
-          (click)="demanderGenerationFictives()"
-        >
-          @if (generationFictivesEnCours()) {
-            <mat-spinner diameter="18" />
-          } @else {
-            <mat-icon aria-hidden="true">auto_awesome</mat-icon>
+          @if (planningErreur(); as texte) {
+            <p class="message-erreur" role="alert">{{ texte }}</p>
           }
-          Générer {{ nbFictifsMin }}–{{ nbFictifsMax }} disponibilités fictives par professeur
-        </button>
-      }
+
+          @if (planningEntrees().length > 0) {
+            <p class="nom-fichier">{{ planningEntrees().length }} entrée(s) reçue(s).</p>
+            <details class="invalides">
+              <summary>Voir le JSON reçu</summary>
+              <pre class="json-planning">{{ planningEntrees() | json }}</pre>
+            </details>
+          }
+        </div>
+      </details>
     </section>
   }
 
   @if (verifie() && autorise()) {
-    <section class="zone-danger" aria-labelledby="titre-suppression-dispos">
-      <h2 id="titre-suppression-dispos" class="titre-section">
-        Supprimer les disponibilités des professeurs
-      </h2>
-      <p class="aide">
-        Cette action supprime <strong>définitivement</strong> tous les créneaux retenus par les
-        professeurs. Les créneaux proposés ne sont pas modifiés.
-      </p>
+    <section class="zone-repliable" aria-labelledby="titre-sauvegarde">
+      <details>
+        <summary>
+          <mat-icon aria-hidden="true">archive</mat-icon>
+          <span id="titre-sauvegarde">Sauvegarde complète de la base</span>
+        </summary>
+        <div class="corps">
+          <p class="aide">
+            Archive ZIP complète : <strong>créneaux</strong>, <strong>profils</strong> et
+            <strong>disponibilités</strong> (JSON et CSV). La collection des accès administrateurs
+            n'y figure pas.
+          </p>
 
-      @if (confirmationSuppressionDispos()) {
-        <p class="message-erreur" role="alert">
-          Confirmez-vous la suppression de toutes les disponibilités déclarées ? Cette action est
-          irréversible.
-        </p>
-        <div class="actions-danger">
+          @if (backupErreur(); as texte) {
+            <p class="message-erreur" role="alert">{{ texte }}</p>
+          }
+
           <button
             matButton="outlined"
             type="button"
             class="bouton-importer"
-            [disabled]="suppressionDisposEnCours()"
-            (click)="annulerSuppressionDispos()"
+            [disabled]="backupEnCours()"
+            (click)="sauvegarder()"
           >
-            Annuler
-          </button>
-          <button
-            matButton="filled"
-            type="button"
-            class="danger"
-            [disabled]="suppressionDisposEnCours()"
-            (click)="supprimerDispos()"
-          >
-            @if (suppressionDisposEnCours()) {
+            @if (backupEnCours()) {
               <mat-spinner diameter="18" />
             } @else {
-              <mat-icon aria-hidden="true">person_remove</mat-icon>
+              <mat-icon aria-hidden="true">archive</mat-icon>
             }
-            Supprimer définitivement
+            Télécharger la sauvegarde (.zip)
           </button>
         </div>
-      } @else {
-        <button
-          matButton="outlined"
-          type="button"
-          class="danger bouton-supprimer-tout"
-          [disabled]="suppressionDisposEnCours()"
-          (click)="demanderSuppressionDispos()"
-        >
+      </details>
+    </section>
+  }
+
+  @if (verifie() && autorise()) {
+    <section class="zone-repliable zone-repliable-danger" aria-labelledby="titre-fictives">
+      <details>
+        <summary>
+          <mat-icon aria-hidden="true">auto_awesome</mat-icon>
+          <span id="titre-fictives">Générer des disponibilités fictives</span>
+        </summary>
+        <div class="corps">
+          <p class="aide">
+            {{ nbFictifsMin }}–{{ nbFictifsMax }} créneaux tirés au hasard pour chaque professeur de
+            <code>profs.xlsx</code>, marqués <code>fictif: true</code> (supprimables en bloc).
+          </p>
+
+          @if (erreurFictifs(); as texte) {
+            <p class="message-erreur" role="alert">{{ texte }}</p>
+          }
+
+          @if (confirmationFictives()) {
+            <p class="message-confirmation" role="alert">
+              Confirmez-vous la génération de disponibilités fictives pour tous les professeurs de
+              la liste ?
+            </p>
+            <div class="actions">
+              <button
+                matButton="outlined"
+                type="button"
+                class="bouton-importer"
+                [disabled]="generationFictivesEnCours()"
+                (click)="annulerGenerationFictives()"
+              >
+                Annuler
+              </button>
+              <button
+                matButton="filled"
+                type="button"
+                class="bouton-importer"
+                [disabled]="generationFictivesEnCours()"
+                (click)="genererFictives()"
+              >
+                @if (generationFictivesEnCours()) {
+                  <mat-spinner diameter="18" />
+                } @else {
+                  <mat-icon aria-hidden="true">auto_awesome</mat-icon>
+                }
+                Générer
+              </button>
+            </div>
+          } @else {
+            <button
+              matButton="outlined"
+              type="button"
+              class="bouton-importer"
+              [disabled]="generationFictivesEnCours()"
+              (click)="demanderGenerationFictives()"
+            >
+              <mat-icon aria-hidden="true">auto_awesome</mat-icon>
+              Générer {{ nbFictifsMin }}–{{ nbFictifsMax }} disponibilités fictives par professeur
+            </button>
+          }
+        </div>
+      </details>
+    </section>
+  }
+
+  @if (verifie() && autorise()) {
+    <section class="zone-repliable zone-repliable-danger" aria-labelledby="titre-suppression">
+      <details>
+        <summary>
+          <mat-icon aria-hidden="true">delete_forever</mat-icon>
+          <span id="titre-suppression">Supprimer tous les créneaux</span>
+        </summary>
+        <div class="corps">
+          <p class="aide">
+            Supprime <strong>définitivement</strong> tous les créneaux proposés. Les disponibilités
+            déclarées ne sont pas modifiées.
+          </p>
+
+          @if (confirmationSuppression()) {
+            <p class="message-erreur" role="alert">
+              Confirmez-vous la suppression de tous les créneaux ? Cette action est irréversible.
+            </p>
+            <div class="actions-danger">
+              <button
+                matButton="outlined"
+                type="button"
+                class="bouton-importer"
+                [disabled]="suppressionEnCours()"
+                (click)="annulerSuppression()"
+              >
+                Annuler
+              </button>
+              <button
+                matButton="filled"
+                type="button"
+                class="danger"
+                [disabled]="suppressionEnCours()"
+                (click)="supprimerTous()"
+              >
+                @if (suppressionEnCours()) {
+                  <mat-spinner diameter="18" />
+                } @else {
+                  <mat-icon aria-hidden="true">delete_forever</mat-icon>
+                }
+                Supprimer définitivement
+              </button>
+            </div>
+          } @else {
+            <button
+              matButton="outlined"
+              type="button"
+              class="danger bouton-supprimer-tout"
+              [disabled]="suppressionEnCours()"
+              (click)="demanderSuppression()"
+            >
+              <mat-icon aria-hidden="true">delete_forever</mat-icon>
+              Supprimer tous les créneaux
+            </button>
+          }
+        </div>
+      </details>
+    </section>
+  }
+
+  @if (verifie() && autorise()) {
+    <section
+      class="zone-repliable zone-repliable-danger"
+      aria-labelledby="titre-suppression-dispos"
+    >
+      <details>
+        <summary>
           <mat-icon aria-hidden="true">person_remove</mat-icon>
-          Supprimer les disponibilités des professeurs
-        </button>
-      }
+          <span id="titre-suppression-dispos">Supprimer les disponibilités des professeurs</span>
+        </summary>
+        <div class="corps">
+          <p class="aide">
+            Supprime <strong>définitivement</strong> tous les créneaux retenus par les professeurs.
+            Les créneaux proposés ne sont pas modifiés.
+          </p>
+
+          @if (confirmationSuppressionDispos()) {
+            <p class="message-erreur" role="alert">
+              Confirmez-vous la suppression de toutes les disponibilités déclarées ? Cette action
+              est irréversible.
+            </p>
+            <div class="actions-danger">
+              <button
+                matButton="outlined"
+                type="button"
+                class="bouton-importer"
+                [disabled]="suppressionDisposEnCours()"
+                (click)="annulerSuppressionDispos()"
+              >
+                Annuler
+              </button>
+              <button
+                matButton="filled"
+                type="button"
+                class="danger"
+                [disabled]="suppressionDisposEnCours()"
+                (click)="supprimerDispos()"
+              >
+                @if (suppressionDisposEnCours()) {
+                  <mat-spinner diameter="18" />
+                } @else {
+                  <mat-icon aria-hidden="true">person_remove</mat-icon>
+                }
+                Supprimer définitivement
+              </button>
+            </div>
+          } @else {
+            <button
+              matButton="outlined"
+              type="button"
+              class="danger bouton-supprimer-tout"
+              [disabled]="suppressionDisposEnCours()"
+              (click)="demanderSuppressionDispos()"
+            >
+              <mat-icon aria-hidden="true">person_remove</mat-icon>
+              Supprimer les disponibilités des professeurs
+            </button>
+          }
+        </div>
+      </details>
+    </section>
+  }
+
+  @if (verifie() && autorise()) {
+    <section class="zone-repliable zone-repliable-danger" aria-labelledby="titre-suppression-profs">
+      <details>
+        <summary>
+          <mat-icon aria-hidden="true">person_off</mat-icon>
+          <span id="titre-suppression-profs">Effacer tous les professeurs</span>
+        </summary>
+        <div class="corps">
+          <p class="aide">
+            Efface <strong>définitivement</strong> les professeurs (profil et disponibilités). Les
+            créneaux proposés ne sont pas modifiés. Téléchargez une sauvegarde avant.
+          </p>
+
+          @if (erreurProfs(); as texte) {
+            <p class="message-erreur" role="alert">{{ texte }}</p>
+          }
+
+          @if (confirmationSuppressionProfs()) {
+            <p class="message-erreur" role="alert">
+              Confirmez-vous l'effacement de tous les professeurs et de toutes leurs disponibilités
+              ? Cette action est irréversible.
+            </p>
+            <div class="actions-danger">
+              <button
+                matButton="outlined"
+                type="button"
+                class="bouton-importer"
+                [disabled]="suppressionProfsEnCours()"
+                (click)="annulerSuppressionProfs()"
+              >
+                Annuler
+              </button>
+              <button
+                matButton="filled"
+                type="button"
+                class="danger"
+                [disabled]="suppressionProfsEnCours()"
+                (click)="supprimerProfs()"
+              >
+                @if (suppressionProfsEnCours()) {
+                  <mat-spinner diameter="18" />
+                } @else {
+                  <mat-icon aria-hidden="true">person_off</mat-icon>
+                }
+                Effacer définitivement
+              </button>
+            </div>
+          } @else {
+            <button
+              matButton="outlined"
+              type="button"
+              class="danger bouton-supprimer-tout"
+              [disabled]="suppressionProfsEnCours()"
+              (click)="demanderSuppressionProfs()"
+            >
+              <mat-icon aria-hidden="true">person_off</mat-icon>
+              Effacer tous les professeurs
+            </button>
+          }
+        </div>
+      </details>
     </section>
   }
 </section>

@@ -1,0 +1,36 @@
+// -----------------------------------------------------------------------------
+// Espace administrateur — bandeau d'onglets sous le header
+// -----------------------------------------------------------------------------
+
+.barre-admin {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  background: var(--app-surface, #fff);
+  border-bottom: 1px solid var(--md-sys-outline-variant, #ddd);
+}
+
+.onglets {
+  width: 100%;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding-inline: var(--md-spacing-2, 16px);
+
+  ::ng-deep {
+    .mat-mdc-tab-header {
+      border-bottom: none;
+    }
+
+    .mdc-tab {
+      min-height: 48px;
+    }
+  }
+}
+
+// Mobile ≤ 700 px : les onglets défilent horizontalement, aucun débordement
+// de la page à 375 px.
+@media (max-width: 700px) {
+  .onglets {
+    padding-inline: var(--md-spacing-1, 8px);
+  }
+}

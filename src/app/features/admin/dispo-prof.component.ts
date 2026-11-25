@@ -11,7 +11,7 @@ import type { CalendarEvent } from 'angular-calendar';
 import { ComposantAdmin } from '../../core/composant-admin';
 import { DispoProfService, filtrerProfsDispo, type ProfDispo } from '../../data/dispo-prof.service';
 import { CreneauService } from '../../data/creneau.service';
-import { PlanningExportService } from '../../data/planning-export.service';
+import { PlanningExportService, completerAvecAnnuaire } from '../../data/planning-export.service';
 import { ProfService, type Prof } from '../../data/prof.service';
 import { creneauVersIntervalle } from '../../shared/date.util';
 import { avecValeurs, basculerValeur } from '../../shared/collection.util';
@@ -64,6 +64,9 @@ export class DispoProfComponent extends ComposantAdmin implements OnDestroy {
 
   /** Tous les professeurs ayant déclaré au moins une disponibilité. */
   readonly profs = this.service.profs;
+
+  /** Nombre de variantes de couleur de la légende. */
+  readonly paletteProfesseurs = PALETTE_PROFS;
 
   /** Vrai pendant la lecture des disponibilités. */
   readonly chargement = this.service.chargement;
@@ -118,7 +121,9 @@ export class DispoProfComponent extends ComposantAdmin implements OnDestroy {
         classes.push('prof-selectionne');
         evenements.push({
           id: `${prof.uid}_${dispo.creneauId}`,
-          title: `${dispo.heureDebut} – ${dispo.heureFin}`,
+          // Le nom du professeur est porté par l'événement : il apparaît dans
+          // l'infobulle et dans toute vue « agenda » (titre de l'événement).
+          title: `${prof.nomComplet} — ${dispo.heureDebut} – ${dispo.heureFin}`,
           start: intervalle.debut,
           end: intervalle.fin,
           cssClass: classes.join(' '),
@@ -133,12 +138,33 @@ export class DispoProfComponent extends ComposantAdmin implements OnDestroy {
   readonly nombreEvenements = computed(() => this.evenements().length);
 
   /**
+   * Légende des couleurs : pour chaque professeur coché, la couleur de ses
+   * créneaux dans le planning. La couleur est celle du professeur dans la
+   * liste (index stable), pas celle de sa position dans la sélection.
+   */
+  readonly legendes = computed(() => {
+    const selection = this.selection();
+    return this.profs()
+      .map((prof, index) => ({ prof, couleur: index % PALETTE_PROFS }))
+      .filter((entree) => selection.has(entree.prof.uid));
+  });
+
+  /**
    * Annuaire des enseignants (API Oasis) indexé par `login` : il apporte le
    * secteur de rattachement et l'adresse professionnelle, absents des
    * documents de disponibilité.
    */
   readonly annuaire = computed<ReadonlyMap<string, Prof>>(
     () => new Map(this.annuaireService.profs().map((prof) => [prof.login, prof])),
+  );
+
+  /**
+   * Professeurs exportés : tous les professeurs connus (ceux qui ont déclaré
+   * des disponibilités **et** ceux qui n'ont renseigné aucun créneau),
+   * complétés par l'annuaire des enseignants.
+   */
+  readonly profsExport = computed(() =>
+    completerAvecAnnuaire(this.profs(), this.annuaireService.profs()),
   );
 
   /** `true` pendant la génération du classeur Excel. */
@@ -161,6 +187,10 @@ export class DispoProfComponent extends ComposantAdmin implements OnDestroy {
    * Exporte le planning des professeurs dans un classeur Excel : une ligne
    * par professeur, une colonne « Anglais » (capacité à comprendre l’anglais)
    * puis une colonne par créneau (`X` = disponible).
+   *
+   * L'export reprend **tous** les professeurs : ceux qui ont déclaré des
+   * disponibilités, ceux qui se sont connectés sans renseigner de créneau et
+   * les enseignants de l'annuaire qui n'ont pas répondu.
    */
   async exporter(): Promise<void> {
     if (!this.exigerAdmin()) {
@@ -169,7 +199,7 @@ export class DispoProfComponent extends ComposantAdmin implements OnDestroy {
     this.exportEnCours.set(true);
     try {
       const resultat = await this.exportService.exporter(
-        this.profs(),
+        this.profsExport(),
         this.creneauxService.creneaux(),
       );
       this.notif.succes(

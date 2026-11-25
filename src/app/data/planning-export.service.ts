@@ -18,6 +18,7 @@ import writeXlsxFile, { type Cell } from 'write-excel-file/browser';
 
 import type { Creneau } from './models';
 import type { ProfDispo } from './dispo-prof.service';
+import type { Prof } from './prof.service';
 
 /** Valeur écrite dans une cellule lorsque le professeur est disponible. */
 export const MARQUE_DISPONIBLE = 'X';
@@ -155,6 +156,72 @@ export function construireMatricePlanning(
 }
 
 /**
+ * Nom normalisé (minuscules, sans accents ni ponctuation) : sert au
+ * rapprochement entre une fiche de disponibilité et une fiche d'annuaire.
+ */
+export function nomNormalise(nomComplet: string): string {
+  return nomComplet
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+}
+
+/**
+ * Complète la liste des professeurs ayant déclaré des disponibilités par
+ * **tous les enseignants de l'annuaire** : l'export du planning doit
+ * présenter l'ensemble des professeurs, y compris ceux qui n'ont renseigné
+ * aucun créneau (ligne vide).
+ *
+ * Le rapprochement se fait sur le `login` Oasis, puis à défaut sur le nom
+ * complet : un professeur déjà connu (avec ses disponibilités) n'est pas
+ * dupliqué, et ses créneaux sont conservés.
+ *
+ * Fonction **pure** : testable sans Angular ni réseau.
+ */
+export function completerAvecAnnuaire(
+  profs: readonly ProfDispo[],
+  annuaire: readonly Prof[],
+): ProfDispo[] {
+  // Deux clés de rapprochement : le `login` et le nom complet normalisé.
+  // Un professeur saisi en « nom libre » (sans `login`) est ainsi rapproché
+  // de sa fiche d'annuaire par son nom.
+  const logins = new Set<string>();
+  const noms = new Set<string>();
+  for (const prof of profs) {
+    const login = (prof.login ?? '').trim().toLowerCase();
+    if (login) {
+      logins.add(login);
+    }
+    noms.add(nomNormalise(prof.nomComplet));
+  }
+
+  const resultat: ProfDispo[] = [...profs];
+  for (const prof of annuaire) {
+    const login = prof.login.trim().toLowerCase();
+    const nom = nomNormalise(prof.nomComplet);
+    if ((login && logins.has(login)) || noms.has(nom)) {
+      continue;
+    }
+    if (login) {
+      logins.add(login);
+    }
+    noms.add(nom);
+    resultat.push({
+      uid: `annuaire:${prof.login}`,
+      login: prof.login,
+      nom: prof.nom,
+      prenom: prof.prenom,
+      nomComplet: prof.nomComplet,
+      dispos: [],
+    });
+  }
+
+  return resultat;
+}
+
+/**
  * `PlanningExportService` — écrit le classeur Excel du planning et déclenche
  * son téléchargement.
  */
@@ -166,6 +233,8 @@ export class PlanningExportService {
    * Le classeur comporte une colonne « Anglais » (`Oui` / `Non` / vide) qui
    * indique si le professeur peut suivre des soutenances en anglais.
    *
+   * Les professeurs sont triés par ordre alphabétique (locale `fr`).
+   *
    * @param profs les professeurs et leurs disponibilités
    * @param creneaux les créneaux proposés (colonnes du planning)
    * @returns le nombre de professeurs et de créneaux exportés
@@ -174,7 +243,8 @@ export class PlanningExportService {
     profs: readonly ProfDispo[],
     creneaux: readonly Creneau[],
   ): Promise<{ professeurs: number; creneaux: number }> {
-    const { colonnes, lignes } = construireMatricePlanning(profs, creneaux);
+    const { colonnes, lignes: lignesNonTries } = construireMatricePlanning(profs, creneaux);
+    const lignes = [...lignesNonTries].sort((a, b) => a.nom.localeCompare(b.nom, 'fr'));
 
     const entete: Cell[] = [
       {
@@ -209,18 +279,20 @@ export class PlanningExportService {
 
     const corps: Cell[][] = lignes.map((ligne) => [
       { value: ligne.nom, type: String },
-      {
-        value: valeurAnglais(ligne.anglais),
-        type: String,
-        align: 'center',
-        ...(ligne.anglais === true
-          ? {
-              fontWeight: 'bold' as const,
-              backgroundColor: COULEUR_MARQUE_FOND,
-              textColor: COULEUR_MARQUE_TEXTE,
-            }
-          : {}),
-      },
+      ligne.anglais === undefined
+        ? { type: String, align: 'center' }
+        : {
+            value: valeurAnglais(ligne.anglais),
+            type: String,
+            align: 'center',
+            ...(ligne.anglais === true
+              ? {
+                  fontWeight: 'bold' as const,
+                  backgroundColor: COULEUR_MARQUE_FOND,
+                  textColor: COULEUR_MARQUE_TEXTE,
+                }
+              : {}),
+          },
       ...colonnes.map((colonne): Cell =>
         ligne.creneauxIds.has(colonne.creneauId)
           ? {

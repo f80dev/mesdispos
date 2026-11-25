@@ -1,0 +1,16 @@
+<!--
+  Mobile : bandeau d'onglets défilable, cibles tactiles ≥ 48 px.
+  Desktop : bandeau d'onglets aligné à gauche sous le header.
+-->
+<nav class="barre-admin" aria-label="Espace administrateur">
+  <mat-tab-group
+    class="onglets"
+    [selectedIndex]="indexActif()"
+    (selectedIndexChange)="allerA($event)"
+    animationDuration="0ms"
+  >
+    @for (onglet of onglets; track onglet.route) {
+      <mat-tab [label]="onglet.label" />
+    }
+  </mat-tab-group>
+</nav>

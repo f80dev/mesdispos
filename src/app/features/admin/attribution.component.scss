@@ -1,6 +1,9 @@
 // -----------------------------------------------------------------------------
 // MesDispos — Attribution manuelle des créneaux (espace admin)
 // -----------------------------------------------------------------------------
+// Bloc replié par défaut : la page d'import reste compacte, le détail
+// (tableau des professeurs, confirmation) s'ouvre au besoin.
+// -----------------------------------------------------------------------------
 
 @use '../../../styles/mixins' as mx;
 
@@ -11,7 +14,7 @@
 .zone-attribution {
   display: flex;
   flex-direction: column;
-  gap: var(--md-spacing-3);
+  gap: var(--md-spacing-2);
   @include mx.carte;
 }
 
@@ -45,6 +48,58 @@
 .bouton-attribution {
   align-self: flex-start;
   @include mx.bouton-materiel;
+}
+
+// Bloc replié d'une ligne.
+.repliable {
+  border: 1px solid var(--app-outline-variant);
+  border-radius: var(--app-corner-medium);
+  background: var(--app-surface-container-lowest);
+
+  > summary {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--md-spacing-2);
+    min-height: 40px;
+    padding: 0 var(--md-spacing-3);
+    cursor: pointer;
+    list-style: none;
+    font: var(--app-type-label-large);
+    color: var(--app-on-surface);
+
+    &::-webkit-details-marker {
+      display: none;
+    }
+
+    mat-icon {
+      font-size: 20px;
+      width: 20px;
+      height: 20px;
+      color: var(--app-primary);
+    }
+
+    &:hover {
+      background: color-mix(in srgb, var(--app-primary) 6%, var(--app-surface-container-lowest));
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--app-primary);
+      outline-offset: -2px;
+    }
+  }
+
+  .corps {
+    display: flex;
+    flex-direction: column;
+    gap: var(--md-spacing-2);
+    padding: var(--md-spacing-2) var(--md-spacing-3) var(--md-spacing-3);
+  }
+}
+
+.compteur {
+  color: var(--app-on-surface-variant);
+  font: var(--app-type-body-small);
 }
 
 .table-wrapper {

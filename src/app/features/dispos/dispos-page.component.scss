@@ -29,7 +29,6 @@
 .section {
   display: flex;
   flex-direction: column;
-  margin-top:-30px;
   gap: var(--md-spacing-3);
   width: 100%;
   min-width: 0;
@@ -38,6 +37,7 @@
 // Section du calendrier : elle occupe la hauteur restante de la page.
 .section-calendrier {
   flex: 1 1 auto;
+  margin-top:-40px;
   min-height: 0;
 }
 

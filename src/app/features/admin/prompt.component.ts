@@ -3,6 +3,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatStepperModule } from '@angular/material/stepper';
 
 import { ComposantAdmin } from '../../core/composant-admin';
 import {
@@ -29,6 +30,7 @@ import { PlanningCalendarComponent } from './planning-calendar.component';
     MatIconModule,
     MatProgressBarModule,
     MatProgressSpinnerModule,
+    MatStepperModule,
     PlanningCalendarComponent,
   ],
   templateUrl: './prompt.component.html',
@@ -156,7 +158,7 @@ export class PromptIaComponent extends ComposantAdmin {
     } catch (erreur) {
       this.notif.erreur(erreur instanceof Error ? erreur.message : 'Génération impossible.');
     }
-    this.copier()
+    this.copier();
   }
 
   /** Assemble (au besoin) le prompt et le copie dans le presse-papiers. */
