@@ -1,6 +1,6 @@
 {
   "name": "mesdispos",
-  "version": "0.0.19",
+  "version": "0.0.22",
   "scripts": {
     "ng": "ng",
     "start": "ng serve",

@@ -3,7 +3,7 @@ export const settings={
   appname:"Mes Dispos",
   splash_screen:"wood.jpg",
   color:"white",
-  version:"0.0.19",
+  version:"0.0.22",
   login_provider: {
     password:true,
     google: false

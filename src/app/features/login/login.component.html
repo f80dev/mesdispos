@@ -10,7 +10,10 @@
     <h1>{{settings.appname}}</h1>
   </header>
 
-  <p class="sous-titre">Pour déclarer vos disponibilités, choisissez votre nom dans la liste.</p>
+  <p class="sous-titre">
+    Déclarer vos disponibilités pour la planification des soutenances de fin d'année,
+    choisissez votre nom dans la liste.
+  </p>
 
   <form class="carte" [formGroup]="formulaire" (ngSubmit)="continuer()" novalidate>
     @if (erreurProfs(); as message) {

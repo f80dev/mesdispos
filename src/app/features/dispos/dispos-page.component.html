@@ -1,8 +1,8 @@
 <!--
-  Mobile: liste déroulante « Oui / Non » en tête, puis la liste des
+  Mobile: groupe de boutons radio « Oui / Non » en tête, puis la liste des
             « Créneaux disponibles » et le calendrier des
             « Mes disponibilités (N) » — une colonne, lignes ≥ 48 px.
-  Desktop: liste déroulante en haut, puis liste des créneaux disponibles au-dessus du
+  Desktop: groupe de boutons radio en haut, puis liste des créneaux disponibles au-dessus du
             calendrier de vos disponibilités, largeur max 1100 px.
 -->
 @if (chargement()) {
@@ -12,23 +12,27 @@
 <div class="page">
 
   <section class="section section-preferences" aria-labelledby="titre-preferences">
-    <mat-form-field class="champ-anglais" appearance="outline">
-      <mat-label>Pouvez vous suivre des soutenances en anglais ?</mat-label>
-      <mat-select
-        id="chkAnglophone"
-        [value]="choixAnglais()"
-        [disabled]="enregistrementAnglais()"
-        (selectionChange)="choisirAnglais($event.value)">
-        <mat-option value="oui">Oui</mat-option>
-        <mat-option value="non">Non</mat-option>
-      </mat-select>
-    </mat-form-field>
+    <h2 id="titre-retenus" class="titre-section">
+      <mat-icon aria-hidden="true">record_voice_over</mat-icon>
+      Pouvez vous suivre des soutenances en anglais ?
+    </h2>
+
+    <mat-radio-group
+      id="chkAnglophone"
+      class="champ-anglais"
+      aria-labelledby="label-anglais"
+      [value]="choixAnglais()"
+      [disabled]="enregistrementAnglais()"
+      (change)="choisirAnglais($event.value)">
+      <mat-radio-button value="oui">Oui</mat-radio-button>
+      <mat-radio-button value="non">Non</mat-radio-button>
+    </mat-radio-group>
   </section>
 
   <section class="section section-calendrier" aria-labelledby="titre-retenus">
     <h2 id="titre-retenus" class="titre-section">
       <mat-icon aria-hidden="true">calendar_month</mat-icon>
-      Calendrier des créneaux
+      Calendrier de vos disponibilités
       <span class="compteur">({{ nombreRetenus() }} / {{ creneauxDuCalendrier().length }})</span>
     </h2>
 

@@ -1,10 +1,8 @@
 import { Component, OnDestroy, computed, effect, inject, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
-import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
-import { MatOptionModule } from '@angular/material/core';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
-import { MatSelectModule } from '@angular/material/select';
+import { MatRadioChange, MatRadioModule } from '@angular/material/radio';
 
 import { CreneauCardComponent } from './creneau-card.component';
 import { CreneauCalendarComponent } from './creneau-calendar.component';
@@ -27,11 +25,9 @@ import type { Creneau } from '../../data/models';
   imports: [
     CreneauCalendarComponent,
     MatButtonModule,
-    MatFormFieldModule,
     MatIconModule,
-    MatOptionModule,
     MatProgressBarModule,
-    MatSelectModule,
+    MatRadioModule,
   ],
   templateUrl: './dispos-page.component.html',
   styleUrl: './dispos-page.component.scss',
@@ -130,8 +126,10 @@ export class DisposPageComponent implements OnDestroy {
    * écrit. En cas d'échec, la valeur est remise à sa valeur précédente et un
    * message « Réessayer » s'affiche.
    */
-  async choisirAnglais(valeur: string): Promise<void> {
-    const nouveau: '' | 'oui' | 'non' = valeur === 'oui' || valeur === 'non' ? valeur : '';
+  async choisirAnglais(evenement: MatRadioChange): Promise<void> {
+    const valeur: unknown = evenement.value;
+    const nouveau: '' | 'oui' | 'non' =
+      valeur === 'oui' || valeur === 'non' ? (valeur as 'oui' | 'non') : '';
     const precedent = this.choixAnglais();
     this.choixAnglais.set(nouveau);
     if (nouveau === '') {

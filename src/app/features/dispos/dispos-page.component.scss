@@ -47,11 +47,22 @@
   gap: var(--md-spacing-2);
 }
 
-// La liste déroulante reste une cible tactile confortable (≥ 48 px).
+// Groupe de boutons radio : cible tactile confortable (≥ 48 px).
 .champ-anglais {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--md-spacing-2);
   width: 100%;
   max-width: 430px;
-  min-height: 48px;
+
+  mat-radio-button {
+    min-height: 48px;
+  }
+}
+
+.label-anglais {
+  font: var(--app-type-body-medium);
+  color: var(--app-on-surface);
 }
 
 .titre-section {
