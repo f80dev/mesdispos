@@ -41,6 +41,7 @@ function creerFauxBackend(admin: boolean): FirestoreBackend {
     estAdmin: vi.fn(async () => admin),
     creerAdmin: vi.fn(async () => undefined),
     listerProfils: vi.fn(async () => []),
+    upsertProfils: vi.fn(async () => 0),
     lireToutesDispos: vi.fn(async () => []),
   };
 }
@@ -112,5 +113,18 @@ describe('AdminService', () => {
 
     await expect(service.autoriserParMotDePasse(ADMIN.uid, 'mauvaise')).rejects.toThrow();
     expect(service.autorise()).toBe(false);
+  });
+
+  it('ouvre l’accès malgré l’échec d’écriture si la fiche admins existe déjà', async () => {
+    preparer(true);
+    auth.sessionAdmin.set(ADMIN);
+    const backend = TestBed.inject(FIRESTORE_BACKEND);
+    vi.mocked(backend.creerAdmin).mockRejectedValueOnce(new Error('permission-denied'));
+    const service = TestBed.inject(AdminService);
+
+    await service.autoriserParMotDePasse(ADMIN.uid, 'abc123');
+
+    expect(service.autorise()).toBe(true);
+    expect(service.verifie()).toBe(true);
   });
 });

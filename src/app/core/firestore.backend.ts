@@ -126,6 +126,27 @@ export interface FirestoreBackend {
    */
   supprimerToutesDispos(): Promise<number>;
 
+  /**
+   * `onSnapshot(doc(db, 'config', id))` — document de configuration lu en
+   * temps réel (`config/app` : date limite de réponse).
+   *
+   * `suivant` reçoit `null` quand le document n'existe pas encore.
+   *
+   * Optionnel : les implémentations de test qui n'exercent pas la lecture de
+   * la configuration peuvent l'omettre.
+   */
+  ecouterConfig?(
+    id: string,
+    suivant: (doc: SnapshotDoc | null) => void,
+    erreur: CallbackErreur,
+  ): Abonnement;
+
+  /**
+   * `setDoc(doc(db, 'config', id), …, { merge: true })` — mise à jour de la
+   * configuration applicative (écriture administrateur).
+   */
+  ecrireConfig?(id: string, data: unknown): Promise<void>;
+
   /** `getDoc(admins/{uid}).exists` — pour `adminGuard`. */
   estAdmin(uid: string): Promise<boolean>;
 
@@ -144,6 +165,16 @@ export interface FirestoreBackend {
    * (login, nom, prénom) et de leur partition `uid`.
    */
   listerProfils(): Promise<readonly ProfilAdmin[]>;
+
+  /**
+   * `writeBatch.set(users/{uid}, …, { merge: true })` par lots de 500 —
+   * peuplement initial de la collection `users` depuis `profs.xlsx`
+   * (ou import administrateur de la liste des professeurs).
+   *
+   * `merge` préserve les champs déjà présents (ex. `soutenanceAnglais`) :
+   * le rechargement de la liste n'efface pas les préférences déclarées.
+   */
+  upsertProfils(items: ReadonlyArray<{ uid: string; data: unknown }>): Promise<number>;
 
   /**
    * `getDocs(collectionGroup(db, 'dispos'))` — **toutes** les disponibilités
@@ -360,6 +391,28 @@ export class FirestoreReelBackend implements FirestoreBackend {
     return supprimes;
   }
 
+  ecouterConfig(
+    id: string,
+    suivant: (doc: SnapshotDoc | null) => void,
+    erreur: CallbackErreur,
+  ): Abonnement {
+    return this.suivre(
+      (fs, db) =>
+        fs.onSnapshot(
+          fs.doc(db, 'config', id),
+          (instantane) =>
+            suivant(instantane.exists() ? (instantane as unknown as SnapshotDoc) : null),
+          (e) => erreur(this.raisonner(e)),
+        ),
+      erreur,
+    );
+  }
+
+  async ecrireConfig(id: string, data: unknown): Promise<void> {
+    const [db, fs] = await this.pair();
+    await fs.setDoc(fs.doc(db, 'config', id), data as Record<string, unknown>, { merge: true });
+  }
+
   async estAdmin(uid: string): Promise<boolean> {
     try {
       const [db, fs] = await this.pair();
@@ -372,7 +425,11 @@ export class FirestoreReelBackend implements FirestoreBackend {
 
   async creerAdmin(uid: string, data: unknown): Promise<void> {
     const [db, fs] = await this.pair();
-    await fs.setDoc(fs.doc(db, 'admins', uid), data as Record<string, unknown>);
+    // `merge: true` : la session anonyme étant persistée, une seconde
+    // connexion par mot de passe réécrit un document **existant** (donc un
+    // `update`) — la fusion évite d'écraser d'éventuels champs ajoutés à la
+    // main depuis la console.
+    await fs.setDoc(fs.doc(db, 'admins', uid), data as Record<string, unknown>, { merge: true });
   }
 
   async listerProfils(): Promise<readonly ProfilAdmin[]> {
@@ -382,6 +439,23 @@ export class FirestoreReelBackend implements FirestoreBackend {
       uid: doc.id,
       data: doc.data() as Record<string, unknown>,
     }));
+  }
+
+  async upsertProfils(items: ReadonlyArray<{ uid: string; data: unknown }>): Promise<number> {
+    if (items.length === 0) {
+      return 0;
+    }
+    const [db, fs] = await this.pair();
+    let ecrits = 0;
+    for (const lot of parLots(items)) {
+      const batch = fs.writeBatch(db);
+      for (const { uid, data } of lot) {
+        batch.set(fs.doc(db, 'users', uid), data as Record<string, unknown>, { merge: true });
+      }
+      await batch.commit();
+      ecrits += lot.length;
+    }
+    return ecrits;
   }
 
   async lireToutesDispos(): Promise<readonly DispoAdmin[]> {

@@ -4,6 +4,7 @@ import { firstValueFrom } from 'rxjs';
 
 import { CoursServices, type ProfOasis, type SujetOasis } from '../core/cours.services';
 import { XLSX_BACKEND } from '../core/xlsx.backend';
+import type { ProfilAdmin } from '../core/firestore.backend';
 
 /** Fichier de repli servi par l'hébergement (`public/profs.xlsx`). */
 export const URL_PROFS = '/profs.xlsx';
@@ -38,6 +39,11 @@ export interface Prof {
   readonly service?: string;
   /** Statut dans l'établissement (`C`, `T`, `V`, …). */
   readonly statutEtab?: string;
+  /**
+   * Statut fonctionnel issu du fichier `profs.xlsx` (colonne « Statut » :
+   * `TP` — temps plein, `MI-T` — mi-temps).
+   */
+  readonly statut?: string;
   /** Matières / domaines enseignés (ex. `['DESSIN']`). */
   readonly subjects: readonly string[];
 }
@@ -207,23 +213,22 @@ function texteCellule(cellule: unknown): string {
   return typeof cellule === 'string' ? cellule.trim() : cellule == null ? '' : String(cellule).trim();
 }
 
-/**
- * Normalise la feuille `Enseignants` du classeur `profs.xlsx`.
- *
- * Le classeur est la **source primaire** de la liste : mêmes notions, colonnes
- * libellées « Identité / Identifiant Oasis », « Identité / Nom usuel »,
- * « Identité / Prénom usuel » et « Secteur ». Les colonnes sont reconnues par
- * leur en-tête ; en cas d'en-tête inconnu, l'ordre des colonnes du fichier
- * (`login`, `nom`, `prénom`, `secteur`) est utilisé.
- *
- * Fonction **pure** : testable sans Angular ni réseau.
- */
-export function normaliserProfsExcel(rangees: readonly unknown[][]): Prof[] {
-  if (!rangees || rangees.length === 0) {
-    return [];
-  }
-  const entetes = (rangees[0] ?? []).map(normaliserEntete);
+/** Index des colonnes du classeur `profs.xlsx` (feuille « Enseignants »). */
+interface ColonnesProfs {
+  login: number;
+  nom: number;
+  prenom: number;
+  secteur: number;
+  statut: number;
+  email: number;
+}
 
+/**
+ * Repère les colonnes de la feuille `Enseignants` à partir de ses en-têtes,
+ * avec repli sur l'ordre du fichier (`login`, `nom`, `prénom`, `secteur`,
+ * `statut`, `email`).
+ */
+function colonnesProfsExcel(entetes: readonly string[]): ColonnesProfs {
   // Le prénom est cherché avant le nom : « prenom usuel » contient « nom usuel ».
   let indexPrenom = indexDeColonne(entetes, 'prenom usuel');
   if (indexPrenom < 0) {
@@ -241,16 +246,45 @@ export function normaliserProfsExcel(rangees: readonly unknown[][]): Prof[] {
   if (indexSecteur < 0) {
     indexSecteur = indexDeColonne(entetes, 'secteur');
   }
+  let indexStatut = entetes.findIndex((entete) => entete === 'statut');
+  if (indexStatut < 0) {
+    indexStatut = indexDeColonne(entetes, 'statut');
+  }
+  let indexEmail = entetes.findIndex((entete) => entete === 'email');
+  if (indexEmail < 0) {
+    indexEmail = indexDeColonne(entetes, 'email');
+  }
 
-  // Repli sur l'ordre des colonnes du fichier.
-  const colonnes = {
+  return {
     login: indexLogin >= 0 ? indexLogin : 0,
     nom: indexNom >= 0 ? indexNom : 1,
     prenom: indexPrenom >= 0 ? indexPrenom : 2,
     secteur: indexSecteur >= 0 ? indexSecteur : 3,
+    statut: indexStatut >= 0 ? indexStatut : 4,
+    email: indexEmail >= 0 ? indexEmail : 5,
   };
+}
+
+/**
+ * Normalise la feuille `Enseignants` du classeur `profs.xlsx`.
+ *
+ * Le classeur est la **source primaire** de la liste : mêmes notions, colonnes
+ * libellées « Identité / Identifiant Oasis », « Identité / Nom usuel »,
+ * « Identité / Prénom usuel » et « Secteur ». Les colonnes sont reconnues par
+ * leur en-tête ; en cas d'en-tête inconnu, l'ordre des colonnes du fichier
+ * (`login`, `nom`, `prénom`, `secteur`) est utilisé.
+ *
+ * Fonction **pure** : testable sans Angular ni réseau.
+ */
+export function normaliserProfsExcel(rangees: readonly unknown[][]): Prof[] {
+  if (!rangees || rangees.length === 0) {
+    return [];
+  }
+  const entetes = (rangees[0] ?? []).map(normaliserEntete);
+  const colonnes = colonnesProfsExcel(entetes);
 
   const elements: ProfOasis[] = [];
+  const statutsParLogin = new Map<string, string>();
   for (const ligne of rangees.slice(1)) {
     const login = texteCellule(ligne?.[colonnes.login]);
     const nom = texteCellule(ligne?.[colonnes.nom]);
@@ -258,15 +292,134 @@ export function normaliserProfsExcel(rangees: readonly unknown[][]): Prof[] {
     if (!login && !nom && !prenom) {
       continue;
     }
+    const email = texteCellule(ligne?.[colonnes.email]) || undefined;
+    const statut = texteCellule(ligne?.[colonnes.statut]) || undefined;
+    if (login && statut) {
+      statutsParLogin.set(login, statut);
+    }
     elements.push({
       login,
       nom_usuel: nom,
       prenom_usuel: prenom,
       secteur: texteCellule(ligne?.[colonnes.secteur]) || undefined,
+      mail_pro: email,
       present: 'ACT',
     });
   }
-  return normaliserProfs(elements);
+  const profs = normaliserProfs(elements);
+  return profs.map((prof) => {
+    const statut = statutsParLogin.get(prof.login);
+    return statut ? { ...prof, statut } : prof;
+  });
+}
+
+/**
+ * Une ligne du classeur `profs.xlsx` avant import (avec son éventuelle erreur).
+ */
+export interface LigneProfImport {
+  /** N° de ligne dans le fichier (pour les messages d'erreur). */
+  ligne: number;
+  /** Identifiant LDAP Oasis (ex. `judith.abensour`). */
+  login: string;
+  /** Nom d'usage, ex. `ABENSOUR`. */
+  nom: string;
+  /** Prénom d'usage, ex. `Judith`. */
+  prenom: string;
+  /** Secteur de rattachement (facultatif). */
+  secteur?: string;
+  /** Adresse électronique professionnelle (colonne « Email »). */
+  email?: string;
+  /** Statut fonctionnel (colonne « Statut » : `TP`, `MI-T`, …). */
+  statut?: string;
+  /** Message français si la ligne est invalide. */
+  erreur?: string;
+}
+
+/**
+ * Lit la feuille `Enseignants` ligne à ligne, **sans** écarter les lignes
+ * invalides : chaque ligne renvoie ses champs et, le cas échéant, un message
+ * d'erreur (login manquant, nom/prénom manquant). Les lignes vides sont
+ * ignorées.
+ *
+ * Fonction **pure** : testable sans Angular ni réseau.
+ */
+export function lireLignesProfs(rangees: readonly unknown[][]): LigneProfImport[] {
+  if (!rangees || rangees.length === 0) {
+    return [];
+  }
+  const entetes = (rangees[0] ?? []).map(normaliserEntete);
+  const colonnes = colonnesProfsExcel(entetes);
+
+  const lignes: LigneProfImport[] = [];
+  for (let index = 1; index < rangees.length; index++) {
+    const ligne = rangees[index] ?? [];
+    const login = texteCellule(ligne?.[colonnes.login]);
+    const nom = texteCellule(ligne?.[colonnes.nom]);
+    const prenom = texteCellule(ligne?.[colonnes.prenom]);
+    if (!login && !nom && !prenom) {
+      continue;
+    }
+    const secteur = texteCellule(ligne?.[colonnes.secteur]) || undefined;
+    const email = texteCellule(ligne?.[colonnes.email]) || undefined;
+    const statut = texteCellule(ligne?.[colonnes.statut]) || undefined;
+    const base: LigneProfImport = {
+      ligne: index + 1,
+      login,
+      nom,
+      prenom,
+      ...(secteur ? { secteur } : {}),
+      ...(email ? { email } : {}),
+      ...(statut ? { statut } : {}),
+    };
+    if (!login) {
+      lignes.push({ ...base, erreur: 'Identifiant Oasis manquant.' });
+      continue;
+    }
+    if (!nom && !prenom) {
+      lignes.push({ ...base, erreur: 'Nom ou prénom manquant.' });
+      continue;
+    }
+    lignes.push(base);
+  }
+  return lignes;
+}
+
+/**
+ * Construit la liste des professeurs à partir de l'inventaire `users/*`.
+ *
+ * Seules les partitions portant un `login` non vide (professeur identifié)
+ * sont retenues : ce sont les « logins possibles » proposés à la connexion.
+ * Les fiches de saisie libre (« Autre nom », sans login) en sont exclues.
+ *
+ * Fonction **pure** : testable sans Angular ni réseau.
+ */
+export function profsDepuisProfils(profils: readonly ProfilAdmin[]): Prof[] {
+  const parLogin = new Map<string, Prof>();
+  for (const profil of profils) {
+    const login = texteCellule(profil.data?.['login']);
+    const nom = texteCellule(profil.data?.['nom']);
+    const prenom = texteCellule(profil.data?.['prenom']);
+    const secteur = texteCellule(profil.data?.['secteur']) || undefined;
+    const email = texteCellule(profil.data?.['email']) || undefined;
+    const statut = texteCellule(profil.data?.['statut']) || undefined;
+    const nomComplet = [prenom, nom].filter(Boolean).join(' ');
+    if (!login || !nomComplet || parLogin.has(login)) {
+      continue;
+    }
+    parLogin.set(login, {
+      login,
+      nom,
+      prenom,
+      nomComplet,
+      subjects: [],
+      ...(secteur ? { secteur } : {}),
+      ...(email ? { mailPro: email } : {}),
+      ...(statut ? { statut } : {}),
+    });
+  }
+  return [...parLogin.values()].sort((a, b) =>
+    a.nomComplet.localeCompare(b.nomComplet, 'fr', { sensitivity: 'base' }),
+  );
 }
 
 /**

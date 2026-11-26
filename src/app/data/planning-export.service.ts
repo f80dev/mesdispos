@@ -31,6 +31,8 @@ export const NOM_FEUILLE_PLANNING = 'Planning';
 
 /** En-tête de la première colonne. */
 export const ENTETE_PROFESSEUR = 'Professeur';
+/** En-tête de la colonne « Email ». */
+export const ENTETE_EMAIL = 'Email';
 
 /** En-tête de la colonne « capacité à suivre des soutenances en anglais ». */
 export const ENTETE_ANGLAIS = 'Anglais';
@@ -59,6 +61,11 @@ export interface ColonneCreneau {
 export interface LignePlanning {
   /** Nom affiché du professeur. */
   readonly nom: string;
+  /**
+   * Adresse électronique professionnelle du professeur (colonne « Email » de
+   * `profs.xlsx`). Vide si l'adresse est inconnue.
+   */
+  readonly email?: string;
   /**
    * Capacité du professeur à **comprendre l'anglais** (peut suivre des
    * soutenances en anglais). `undefined` : la préférence n'a pas été
@@ -148,6 +155,7 @@ export function construireMatricePlanning(
 
   const lignes: LignePlanning[] = profs.map((prof) => ({
     nom: prof.nomComplet,
+    ...(prof.email ? { email: prof.email } : {}),
     anglais: prof.soutenanceAnglais,
     creneauxIds: new Set(prof.dispos.map((dispo) => dispo.creneauId)),
   }));
@@ -197,7 +205,26 @@ export function completerAvecAnnuaire(
     noms.add(nomNormalise(prof.nomComplet));
   }
 
-  const resultat: ProfDispo[] = [...profs];
+  // Annuaire indexé par `login` et par nom normalisé : sert à compléter
+  // l'email des fiches de disponibilité qui ne le portent pas encore.
+  const annuaireParLogin = new Map<string, Prof>();
+  const annuaireParNom = new Map<string, Prof>();
+  for (const prof of annuaire) {
+    annuaireParLogin.set(prof.login.trim().toLowerCase(), prof);
+    annuaireParNom.set(nomNormalise(prof.nomComplet), prof);
+  }
+
+  const resultat: ProfDispo[] = profs.map((prof) => {
+    if (prof.email) {
+      return prof;
+    }
+    const source =
+      annuaireParLogin.get((prof.login ?? '').trim().toLowerCase()) ??
+      annuaireParNom.get(nomNormalise(prof.nomComplet));
+    const email = source?.mailPro?.trim();
+    return email ? { ...prof, email } : prof;
+  });
+
   for (const prof of annuaire) {
     const login = prof.login.trim().toLowerCase();
     const nom = nomNormalise(prof.nomComplet);
@@ -208,12 +235,14 @@ export function completerAvecAnnuaire(
       logins.add(login);
     }
     noms.add(nom);
+    const email = prof.mailPro?.trim();
     resultat.push({
       uid: `annuaire:${prof.login}`,
       login: prof.login,
       nom: prof.nom,
       prenom: prof.prenom,
       nomComplet: prof.nomComplet,
+      ...(email ? { email } : {}),
       dispos: [],
     });
   }
@@ -256,6 +285,14 @@ export class PlanningExportService {
         alignVertical: 'center',
       },
       {
+        value: ENTETE_EMAIL,
+        type: String,
+        fontWeight: 'bold',
+        backgroundColor: COULEUR_ENTETE_FOND,
+        textColor: COULEUR_ENTETE_TEXTE,
+        alignVertical: 'center',
+      },
+      {
         value: ENTETE_ANGLAIS,
         type: String,
         fontWeight: 'bold',
@@ -279,6 +316,7 @@ export class PlanningExportService {
 
     const corps: Cell[][] = lignes.map((ligne) => [
       { value: ligne.nom, type: String },
+      { value: ligne.email ?? '', type: String },
       ligne.anglais === undefined
         ? { type: String, align: 'center' }
         : {
@@ -310,7 +348,12 @@ export class PlanningExportService {
     const classeur = await writeXlsxFile([entete, ...corps], {
       sheet: NOM_FEUILLE_PLANNING,
       orientation: 'landscape',
-      columns: [{ width: 28 }, { width: 10 }, ...colonnes.map(() => ({ width: 16 }))],
+      columns: [
+        { width: 28 },
+        { width: 32 },
+        { width: 10 },
+        ...colonnes.map(() => ({ width: 16 })),
+      ],
     });
     await classeur.toFile(NOM_FICHIER_PLANNING);
 

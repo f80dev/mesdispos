@@ -2,6 +2,7 @@ import {
   Component,
   ElementRef,
   computed,
+  effect,
   inject,
   signal,
   viewChild,
@@ -16,8 +17,11 @@ import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 
 import { ErreurImport, ExcelImportService, MESSAGE_FORMAT } from '../../data/excel-import.service';
+import { ProfsImportService, type ResultatImportProfs } from '../../data/profs-import.service';
+import type { LigneProfImport } from '../../data/prof.service';
 import { BackupService, MESSAGE_BACKUP_ECHEC } from '../../core/backup.service';
 import { ComposantAdmin } from '../../core/composant-admin';
+import { ConfigService } from '../../data/config.service';
 import { PlanningApiService } from '../../core/planning-api.service';
 import { CreneauService } from '../../data/creneau.service';
 import {
@@ -37,9 +41,7 @@ import type { ResultatImport } from '../../data/models';
 @Component({
   selector: 'app-import',
   imports: [
-    AttributionComponent,
     DateGroupPipe,
-    JsonPipe,
     MatButtonModule,
     MatFormFieldModule,
     MatIconModule,
@@ -52,10 +54,30 @@ import type { ResultatImport } from '../../data/models';
 })
 export class ImportComponent extends ComposantAdmin implements OnDestroy {
   private readonly importService = inject(ExcelImportService);
+  private readonly profsImport = inject(ProfsImportService);
   private readonly creneaux = inject(CreneauService);
   private readonly planningApi = inject(PlanningApiService);
   private readonly attribution = inject(AttributionService);
   private readonly backup = inject(BackupService);
+  private readonly config = inject(ConfigService);
+
+  /**
+   * Date limite de réponse : lue **en base** (`config/app`), modifiable par
+   * l'administrateur depuis cette page.
+   */
+  readonly deadline = this.config.deadline;
+
+  /** Valeur du champ de saisie (format `YYYY-MM-DD`). */
+  readonly deadlineSaisi = signal<string>(this.config.deadline());
+
+  /** `true` pendant l'écriture de la date limite en base. */
+  readonly deadlineEnCours = signal<boolean>(false);
+
+  /** Message d'erreur de l'enregistrement de la date limite. */
+  readonly deadlineErreur = signal<string | null>(null);
+
+  /** `true` tant que l'administrateur saisit la date (évite l'écrasement). */
+  private readonly saisieActive = signal<boolean>(false);
 
   /**
    * Accès à l'API locale de planning (`AutoPlanning/api.py`) : disponible
@@ -82,6 +104,7 @@ export class ImportComponent extends ComposantAdmin implements OnDestroy {
   }
 
   private readonly champFichier = viewChild<ElementRef<HTMLInputElement>>('fichier');
+  private readonly champFichierProfs = viewChild<ElementRef<HTMLInputElement>>('fichierProfs');
 
   readonly nomFichier = signal<string | null>(null);
   readonly lectureEnCours = signal<boolean>(false);
@@ -89,6 +112,14 @@ export class ImportComponent extends ComposantAdmin implements OnDestroy {
   readonly survol = signal<boolean>(false);
   readonly resultat = signal<ResultatImport | null>(null);
   readonly message = signal<string | null>(null);
+
+  /** État de l'import de la **liste des professeurs** (`profs.xlsx`). */
+  readonly nomFichierProfs = signal<string | null>(null);
+  readonly lectureProfsEnCours = signal<boolean>(false);
+  readonly importProfsEnCours = signal<boolean>(false);
+  readonly survolProfs = signal<boolean>(false);
+  readonly resultatProfs = signal<ResultatImportProfs | null>(null);
+  readonly messageProfs = signal<string | null>(null);
 
   /** `true` quand la confirmation de suppression totale est affichée. */
   readonly confirmationSuppression = signal<boolean>(false);
@@ -141,16 +172,73 @@ export class ImportComponent extends ComposantAdmin implements OnDestroy {
   readonly invalides = computed(() => this.resultat()?.invalides ?? []);
   readonly totalValides = computed(() => this.valides().length);
 
+  readonly profsValides = computed(() => this.resultatProfs()?.valides ?? []);
+  readonly profsInvalides = computed(() => this.resultatProfs()?.invalides ?? []);
+  readonly totalProfsValides = computed(() => this.profsValides().length);
+
   constructor() {
     super();
     // Les créneaux proposés sont chargés en temps réel sur la page admin :
     // l'attribution automatique en a besoin (et la suppression totale doit
     // refléter l'état courant de la base).
     this.creneaux.ecouter();
+    // La date limite provient de `config/app` : on l'écoute pour rester à
+    // jour, et on suit la base tant que l'administrateur ne saisit rien.
+    this.config.ecouter();
+    effect(() => {
+      const valeur = this.config.deadline();
+      if (!this.saisieActive()) {
+        this.deadlineSaisi.set(valeur);
+      }
+    });
+  }
+
+  /** Saisie de la date limite (champ `type="date"`). */
+  surDeadline(evenement: Event): void {
+    const valeur = (evenement.target as HTMLInputElement).value;
+    this.saisieActive.set(true);
+    this.deadlineErreur.set(null);
+    this.deadlineSaisi.set(valeur);
+  }
+
+  /**
+   * Enregistre la date limite dans `config/app` : elle s'applique
+   * immédiatement à tous les clients (compte à rebours du header).
+   */
+  async enregistrerDeadline(): Promise<void> {
+    if (!this.exigerAdmin()) {
+      return;
+    }
+    const valeur = this.deadlineSaisi().trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(valeur)) {
+      this.deadlineErreur.set('Saisissez une date valide (format JJ/MM/AAAA).');
+      return;
+    }
+    this.deadlineEnCours.set(true);
+    this.deadlineErreur.set(null);
+    try {
+      const ok = await this.config.enregistrerDeadline(valeur);
+      if (!ok) {
+        this.deadlineErreur.set(
+          this.config.erreur() ?? 'La date limite n’a pas pu être enregistrée.',
+        );
+        return;
+      }
+      this.saisieActive.set(false);
+      this.deadlineSaisi.set(this.config.deadline());
+      this.notif.succes('Date limite de réponse enregistrée.');
+    } catch (erreur) {
+      this.deadlineErreur.set(
+        erreur instanceof Error ? erreur.message : 'La date limite n’a pas pu être enregistrée.',
+      );
+    } finally {
+      this.deadlineEnCours.set(false);
+    }
   }
 
   ngOnDestroy(): void {
     this.creneaux.arreter();
+    this.config.arreter();
   }
 
   /** Ouvre le sélecteur de fichiers (la zone de dépôt reste cliquable). */
@@ -220,6 +308,80 @@ export class ImportComponent extends ComposantAdmin implements OnDestroy {
     } finally {
       this.importEnCours.set(false);
     }
+  }
+
+  /** Ouvre le sélecteur de fichiers des professeurs. */
+  choisirFichierProfs(): void {
+    if (!this.exigerAdmin()) {
+      return;
+    }
+    this.champFichierProfs()?.nativeElement.click();
+  }
+
+  /** Réception du fichier `profs.xlsx` (input file ou drag & drop). */
+  async surFichierProfs(evenement: Event): Promise<void> {
+    const input = evenement.target as HTMLInputElement;
+    const fichier = input.files?.[0];
+    input.value = '';
+    if (fichier) {
+      await this.analyserProfs(fichier);
+    }
+  }
+
+  async surDepotProfs(evenement: DragEvent): Promise<void> {
+    evenement.preventDefault();
+    this.survolProfs.set(false);
+    const fichier = evenement.dataTransfer?.files?.[0];
+    if (fichier) {
+      await this.analyserProfs(fichier);
+    }
+  }
+
+  private async analyserProfs(fichier: File): Promise<void> {
+    if (!this.autorise()) {
+      this.messageProfs.set(this.messageAdminRequis);
+      return;
+    }
+    this.messageProfs.set(null);
+    this.resultatProfs.set(null);
+    this.nomFichierProfs.set(fichier.name);
+    this.lectureProfsEnCours.set(true);
+    try {
+      this.resultatProfs.set(await this.profsImport.lire(fichier));
+    } catch (erreur) {
+      this.messageProfs.set(erreur instanceof ErreurImport ? erreur.message : MESSAGE_FORMAT);
+    } finally {
+      this.lectureProfsEnCours.set(false);
+    }
+  }
+
+  /** Upsert batch des professeurs valides dans `users`. */
+  async importerProfs(): Promise<void> {
+    const lignes = this.profsValides();
+    if (lignes.length === 0) {
+      return;
+    }
+    if (!this.exigerAdmin()) {
+      return;
+    }
+    this.importProfsEnCours.set(true);
+    try {
+      const { importes } = await this.profsImport.importer(lignes);
+      this.notif.succes(
+        `${importes} professeur(s) importé(s), ${this.profsInvalides().length} ligne(s) ignorée(s)`,
+      );
+      this.resultatProfs.set({ valides: [], invalides: this.profsInvalides() });
+      this.nomFichierProfs.set(null);
+    } catch (erreur) {
+      this.notif.erreur(erreur instanceof Error ? erreur.message : "L'import a échoué. Réessayez.");
+    } finally {
+      this.importProfsEnCours.set(false);
+    }
+  }
+
+  /** Nom affichable d'une ligne de professeurs (rappel dans la liste des erreurs). */
+  nomLigneProf(ligne: LigneProfImport): string {
+    return [ligne.prenom, ligne.nom].filter(Boolean).join(' ') || ligne.login;
   }
 
   /** Affiche la confirmation avant la suppression de tous les créneaux. */

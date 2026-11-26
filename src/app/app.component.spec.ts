@@ -38,6 +38,10 @@ const FAUX_FIRESTORE: FirestoreBackend = {
   supprimerTousCreneaux: async () => 0,
   supprimerToutesDispos: async () => 0,
   estAdmin: async () => false,
+  creerAdmin: async () => undefined,
+  listerProfils: async () => [],
+  upsertProfils: async () => 0,
+  lireToutesDispos: async () => [],
 };
 
 const ROUTES: Route[] = [

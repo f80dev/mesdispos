@@ -99,15 +99,32 @@ export class AdminService {
    * incorrecte, l'écriture est refusée (`permission-denied`) et l'appel
    * échoue.
    *
+   * Cas particulier : si la fiche `admins/{uid}` existe déjà (connexion
+   * antérieure, ou fiche créée depuis la console Firebase **sans** champ
+   * `empreinte`), l'écriture est refusée — l'accès est alors **déjà**
+   * acquis pour cette session, qui est donc ouverte malgré l'échec. Le mot
+   * de passe reste exigé dans le cas normal : c'est l'écriture qui prouve
+   * sa connaissance.
+   *
    * @param `uid` uid de la session Firebase anonyme ouverte pour l'admin.
    * @param `empreinte` empreinte SHA-256 (hex) du mot de passe saisi.
    */
   async autoriserParMotDePasse(uid: string, empreinte: string): Promise<void> {
-    await this.backend.creerAdmin(uid, {
-      email: 'admin-mot-de-passe',
-      empreinte,
-      updatedAt: Date.now(),
-    });
+    try {
+      await this.backend.creerAdmin(uid, {
+        email: 'admin-mot-de-passe',
+        empreinte,
+        updatedAt: Date.now(),
+      });
+    } catch (erreur) {
+      if (!(await this.backend.estAdmin(uid))) {
+        throw erreur;
+      }
+      console.warn(
+        '[MesDispos] Fiche admins déjà présente : accès administrateur conservé malgré l’échec de l’écriture.',
+        erreur,
+      );
+    }
     this.autorise.set(true);
     this.verifie.set(true);
   }

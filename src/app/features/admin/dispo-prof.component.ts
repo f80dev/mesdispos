@@ -221,7 +221,8 @@ export class DispoProfComponent extends ComposantAdmin implements OnDestroy {
 
   /** Adresse professionnelle d'un professeur (`null` si inconnue). */
   mail(prof: ProfDispo): string | null {
-    const mail = this.annuaire().get(prof.login)?.mailPro?.trim();
+    const mail =
+      this.annuaire().get(prof.login)?.mailPro?.trim() ?? prof.email?.trim() ?? null;
     return mail && mail.length > 0 ? mail : null;
   }
 

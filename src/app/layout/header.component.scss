@@ -105,11 +105,12 @@
   }
 
 .echeance {
-  display: inline-flex;
+  display: flex;
+  flex-direction: column;
   align-items: center;
   gap: var(--md-spacing-1);
-  padding: 0 var(--md-spacing-2);
   min-height: 32px;
+  width: 150px;
   border-radius: var(--app-corner-full);
   background: var(--app-secondary-container);
   color: var(--app-on-secondary-container);

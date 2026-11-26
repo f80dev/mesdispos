@@ -78,6 +78,24 @@ describe('completerAvecAnnuaire (tous les professeurs, y compris sans créneau)'
 
     expect(resultat).toHaveLength(1);
   });
+
+  it('complète l’email des fiches manquantes à partir de l’annuaire', () => {
+    const resultat = completerAvecAnnuaire(
+      [{ ...prof('Ana ALLA', []), login: 'ana.alla' }],
+      [{ ...annuaire('ana.alla', 'Ana ALLA'), mailPro: 'ana.alla@ensad.fr' }],
+    );
+
+    expect(resultat[0]?.email).toBe('ana.alla@ensad.fr');
+  });
+
+  it('porte l’email de l’annuaire sur les lignes des enseignants sans disponibilité', () => {
+    const resultat = completerAvecAnnuaire(
+      [],
+      [{ ...annuaire('paul.dupont', 'Paul DUPONT'), mailPro: 'paul.dupont@ensad.fr' }],
+    );
+
+    expect(resultat[0]?.email).toBe('paul.dupont@ensad.fr');
+  });
 });
 
 describe('etiquetteCreneau', () => {
@@ -137,6 +155,15 @@ describe('construireMatricePlanning', () => {
 
   it('expose la marque de disponibilité', () => {
     expect(MARQUE_DISPONIBLE).toBe('X');
+  });
+
+  it('reporte l’email du professeur sur sa ligne', () => {
+    const matrice = construireMatricePlanning(
+      [{ ...prof('Ana ALLA', []), email: 'ana.alla@ensad.fr' }],
+      [],
+    );
+
+    expect(matrice.lignes[0]?.email).toBe('ana.alla@ensad.fr');
   });
 
   it('reporte la capacité à comprendre l’anglais de chaque professeur', () => {

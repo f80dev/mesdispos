@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { normaliserProfs, normaliserProfsExcel } from './prof.service';
+import {
+  lireLignesProfs,
+  normaliserProfs,
+  normaliserProfsExcel,
+  profsDepuisProfils,
+} from './prof.service';
 import type { ProfOasis } from '../core/cours.services';
 
 function prof(partiel: Partial<ProfOasis> & { login: string }): ProfOasis {
@@ -185,6 +190,102 @@ describe('normaliserProfsExcel (repli sur public/profs.xlsx)', () => {
       ['a.b', 'BEL', 'Ana', 'Design', 'Design'],
       ['', '', '', '', ''],
       ['a.b', 'BEL', 'Ana', 'Design', 'Design'],
+    ]);
+    expect(resultat).toHaveLength(1);
+  });
+
+  it('lit les colonnes « Statut » et « Email »', () => {
+    const resultat = normaliserProfsExcel([
+      ['Identité / Identifiant Oasis', 'Identité / Nom usuel', 'Identité / Prénom usuel', 'Secteur', 'Statut', 'Email'],
+      ['a.b', 'BEL', 'Ana', 'Design', 'MI-T', 'a.b@ensad.fr'],
+    ]);
+    expect(resultat[0]?.statut).toBe('MI-T');
+    expect(resultat[0]?.mailPro).toBe('a.b@ensad.fr');
+  });
+});
+
+describe('lireLignesProfs (import de la liste des professeurs)', () => {
+  const entetes = [
+    'Identité / Identifiant Oasis',
+    'Identité / Nom usuel',
+    'Identité / Prénom usuel',
+    'Secteur',
+  ];
+
+  it('renvoie une liste vide si le classeur est vide', () => {
+    expect(lireLignesProfs([])).toEqual([]);
+  });
+
+  it('lit les colonnes par leur en-tête', () => {
+    const resultat = lireLignesProfs([
+      entetes,
+      ['judith.abensour', 'ABENSOUR', 'Judith', "Cinéma d'Animation"],
+    ]);
+    expect(resultat).toEqual([
+      {
+        ligne: 2,
+        login: 'judith.abensour',
+        nom: 'ABENSOUR',
+        prenom: 'Judith',
+        secteur: "Cinéma d'Animation",
+      },
+    ]);
+  });
+
+  it('signale un login manquant sans bloquer la lecture', () => {
+    const resultat = lireLignesProfs([entetes, ['', 'BEL', 'Ana', 'Design']]);
+    expect(resultat[0]?.erreur).toBe('Identifiant Oasis manquant.');
+  });
+
+  it('lit les colonnes « Statut » et « Email »', () => {
+    const resultat = lireLignesProfs([
+      [...entetes, 'Statut', 'Email'],
+      ['a.b', 'BEL', 'Ana', 'Design', 'TP', 'a.b@ensad.fr'],
+    ]);
+    expect(resultat[0]?.statut).toBe('TP');
+    expect(resultat[0]?.email).toBe('a.b@ensad.fr');
+  });
+
+  it('signale une ligne sans nom ni prénom', () => {
+    const resultat = lireLignesProfs([entetes, ['a.b', '', '', 'Design']]);
+    expect(resultat[0]?.erreur).toBe('Nom ou prénom manquant.');
+  });
+
+  it('ignore les lignes vides', () => {
+    const resultat = lireLignesProfs([
+      entetes,
+      ['a.b', 'BEL', 'Ana', 'Design'],
+      ['', '', '', ''],
+    ]);
+    expect(resultat).toHaveLength(1);
+  });
+});
+
+describe('profsDepuisProfils (liste des logins depuis users/*)', () => {
+  it('renvoie une liste vide si l’inventaire est vide', () => {
+    expect(profsDepuisProfils([])).toEqual([]);
+  });
+
+  it('ne retient que les fiches portant un login', () => {
+    const resultat = profsDepuisProfils([
+      { uid: 'anon_a', data: { login: 'judith.abensour', nom: 'ABENSOUR', prenom: 'Judith' } },
+      { uid: 'anon_b', data: { prenom: 'Pauline' } },
+    ]);
+    expect(resultat.map((p) => p.login)).toEqual(['judith.abensour']);
+  });
+
+  it('compose le nom complet et trie par nom', () => {
+    const resultat = profsDepuisProfils([
+      { uid: 'anon_z', data: { login: 'z.z', nom: 'ZULU', prenom: 'Zoé' } },
+      { uid: 'anon_a', data: { login: 'a.a', nom: 'ALVAREZ', prenom: 'Ana' } },
+    ]);
+    expect(resultat.map((p) => p.nomComplet)).toEqual(['Ana ALVAREZ', 'Zoé ZULU']);
+  });
+
+  it('déduplique par login', () => {
+    const resultat = profsDepuisProfils([
+      { uid: 'anon_1', data: { login: 'a.a', nom: 'ALVAREZ', prenom: 'Ana' } },
+      { uid: 'anon_2', data: { login: 'a.a', nom: 'ALVAREZ', prenom: 'Ana' } },
     ]);
     expect(resultat).toHaveLength(1);
   });

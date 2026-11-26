@@ -45,6 +45,11 @@ export interface ProfDispo {
   /** Nom affiché (« Judith ABENSOUR »). */
   readonly nomComplet: string;
   /**
+   * Adresse électronique professionnelle du professeur (colonne « Email » de
+   * `profs.xlsx`, enregistrée dans `users/{uid}.email`).
+   */
+  readonly email?: string;
+  /**
    * `true` lorsque le professeur a déclaré **pouvoir suivre des soutenances
    * en anglais** (préférence enregistrée dans `users/{uid}.soutenanceAnglais`).
    */
@@ -100,12 +105,14 @@ export function regrouperDisposParProf(
     const nom = texte(data['nom']) || texte(premier?.nom);
     const prenom = texte(data['prenom']) || texte(premier?.prenom);
     const nomComplet = [prenom, nom].filter(Boolean).join(' ') || login || 'Professeur';
+    const email = texte(data['email']) || texte(data['mail']) || undefined;
     resultat.push({
       uid,
       login,
       nom,
       prenom,
       nomComplet,
+      ...(email ? { email } : {}),
       ...(typeof data['soutenanceAnglais'] === 'boolean'
         ? { soutenanceAnglais: data['soutenanceAnglais'] }
         : {}),
@@ -123,12 +130,14 @@ export function regrouperDisposParProf(
     const nom = texte(data['nom']);
     const prenom = texte(data['prenom']);
     const nomComplet = [prenom, nom].filter(Boolean).join(' ') || login || 'Professeur';
+    const email = texte(data['email']) || texte(data['mail']) || undefined;
     resultat.push({
       uid,
       login,
       nom,
       prenom,
       nomComplet,
+      ...(email ? { email } : {}),
       ...(typeof data['soutenanceAnglais'] === 'boolean'
         ? { soutenanceAnglais: data['soutenanceAnglais'] }
         : {}),

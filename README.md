@@ -157,6 +157,62 @@ le bundle JavaScript, ni dans le fichier `firestore.rules`.
 > devient administrateur. Pour un accès réellement nominatif, préférez la
 > connexion Google (ci-dessus) ou des _custom claims_ Firebase.
 
+### Dépannage — « Mot de passe incorrect… »
+
+Le message est affiché quand `firestore.rules` **refuse** l'écriture de la
+fiche `admins/{uid}` (erreur Firestore `permission-denied`). Le code
+d'erreur est désormais affiché entre parenthèses à la fin du message, et
+l'erreur brute est journalisée dans la console du navigateur.
+
+Causes possibles, dans l'ordre :
+
+1. **règles non déployées** (ou version antérieure) : déployer
+   `npx firebase deploy --only firestore:rules` — c'est la cause la plus
+   fréquente après une modification du fichier de règles ;
+2. **`config/admin` absent** : la comparaison côté serveur porte sur une
+   valeur nulle → refus. Créer le document `config/admin` (collection
+   `config`, ID `admin`) avec le champ texte `empreinte` ;
+3. **empreinte différente** : le champ `empreinte` de `config/admin` ne
+   correspond pas au mot de passe saisi. Le recalculer avec
+   `npm run empreinte-mdp -- "mon mot de passe"` (le script applique le même
+   `trim()` que l'application) ;
+4. **mot de passe erroné**.
+
+> ℹ️ Depuis la révision des règles, une **seconde** connexion par mot de
+> passe sur le même navigateur est possible : la session Firebase anonyme
+> étant persistée, la fiche `admins/{uid}` existe déjà et l'écriture est un
+> `update` (auparavant refusé par les règles, d'où un échec trompeur même
+> avec le bon mot de passe).
+
+## Date limite de réponse (`config/app`)
+
+La date limite affichée dans le compte à rebours du header est stockée **en
+base**, dans le document Firestore **`config/app`** (champ `deadline`, chaîne
+`YYYY-MM-DD`). Elle est modifiable par l'administrateur depuis le module
+d'import (`/admin/import` → « Date limite de réponse ») et s'applique
+immédiatement à tous les postes clients, sans redéploiement.
+
+La valeur de `src/environments/settings.ts` (`settings.deadline`) n'est plus
+qu'un **repli** : elle sert de valeur initiale tant que `config/app` n'existe
+pas ou que sa lecture est refusée.
+
+### Dépannage — « Missing or insufficient permissions. » à l'enregistrement
+
+L'erreur vient des **règles de sécurité** (`permission-denied`) : l'écriture
+dans `config/app` est refusée.
+
+1. **Règles non déployées** (cause la plus probable) : le bloc
+   `match /config/app { allow read: if true; allow write: if admin(); }` doit
+   exister dans les règles **déployées** sur le projet. Déployer avec
+   `npx firebase deploy --only firestore:rules` (ou coller le contenu de
+   `firestore.rules` dans Console Firebase → Firestore → Règles) ;
+2. **Session administrateur non reconnue** : `admin()` exige
+   `request.auth != null` **et** l'existence du document
+   `admins/{request.auth.uid}`. Avec la session Google, vérifier que le
+   document de la console porte le bon `uid` ; avec la session par mot de
+   passe, la fiche `admins/{uid}` est créée par l'application ;
+3. **projet Firebase non configuré** dans `src/environments/firebase.config.ts`.
+
 ## Liste des professeurs (API Oasis)
 
 La page `/login` propose les enseignants dans une **liste déroulante**, alimentée

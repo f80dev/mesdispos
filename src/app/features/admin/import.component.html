@@ -4,478 +4,650 @@
   Desktop : aperçu en tableau, sections secondaires repliées.
 -->
 <section class="page-import">
-  <header class="entete">
-    <h1>Importer les créneaux</h1>
-    <p class="aide">
-      Fichier Excel <code>.xlsx</code> — colonnes <code>date</code>, <code>heure_debut</code>,
-      <code>heure_fin</code> et <code>libelle</code> (facultatif). Lecture dans le navigateur : le
-      fichier n'est jamais envoyé sur un serveur.
-    </p>
-  </header>
 
-  @if (!verifie()) {
-    <mat-progress-bar mode="indeterminate" aria-label="Vérification des droits" />
-  } @else if (!autorise()) {
-    <p class="message-erreur" role="alert">{{ messageAdminRequis }}</p>
-  } @else {
-    <div
-      class="zone-depot"
-      [class.survol]="survol()"
-      role="button"
-      tabindex="0"
-      aria-label="Déposer un fichier Excel ou cliquer pour parcourir"
-      (click)="choisirFichier()"
-      (keyup.enter)="choisirFichier()"
-      (keyup.space)="choisirFichier()"
-      (dragover)="$event.preventDefault(); survol.set(true)"
-      (dragleave)="survol.set(false)"
-      (drop)="surDepot($event)"
-    >
-      <mat-icon aria-hidden="true">upload_file</mat-icon>
-      <span class="zone-texte">Déposez votre fichier .xlsx ici</span>
-      <span class="zone-sous-texte">ou cliquez pour le choisir</span>
-      <input
-        #fichier
-        type="file"
-        accept=".xlsx"
-        class="input-fichier"
-        (change)="surFichier($event)"
-      />
-    </div>
-  }
+  <div class="grille-sections">
+    <section class="bloc" aria-labelledby="titre-import-creneaux">
+      <h2 id="titre-import-creneaux" class="titre-section">Importer des créneaux</h2>
 
-  @if (nomFichier(); as nom) {
-    <p class="nom-fichier">
-      Fichier : <strong>{{ nom }}</strong>
-    </p>
-  }
+      @if (!verifie()) {
+        <mat-progress-bar mode="indeterminate" aria-label="Vérification des droits" />
+      } @else if (!autorise()) {
+        <p class="message-erreur" role="alert">{{ messageAdminRequis }}</p>
+      } @else {
+        <p class="aide">
+          Liste des créneaux proposés pour les soutenances
+          <br>
+          colonnes « Date » « heure_debut » « heure_fin »
+          <br><br>
+        </p>
+        <div
+          class="zone-depot"
+          [class.survol]="survol()"
+          role="button"
+          tabindex="0"
+          aria-label="Déposer un fichier Excel ou cliquer pour parcourir"
+          (click)="choisirFichier()"
+          (keyup.enter)="choisirFichier()"
+          (keyup.space)="choisirFichier()"
+          (dragover)="$event.preventDefault(); survol.set(true)"
+          (dragleave)="survol.set(false)"
+          (drop)="surDepot($event)"
+        >
+          <mat-icon aria-hidden="true">upload_file</mat-icon>
+          <span class="zone-texte">Déposez votre fichier .xlsx ici</span>
+          <span class="zone-sous-texte">ou cliquez pour le choisir</span>
+          <input
+            #fichier
+            type="file"
+            accept=".xlsx"
+            class="input-fichier"
+            (change)="surFichier($event)"
+          />
+        </div>
+      }
 
-  @if (lectureEnCours()) {
-    <mat-progress-bar mode="indeterminate" aria-label="Lecture du fichier" />
-  }
+      @if (nomFichier(); as nom) {
+        <p class="nom-fichier">
+          Fichier : <strong>{{ nom }}</strong>
+        </p>
+      }
 
-  @if (message(); as texte) {
-    <p class="message-erreur" role="alert">{{ texte }}</p>
-  }
+      @if (lectureEnCours()) {
+        <mat-progress-bar mode="indeterminate" aria-label="Lecture du fichier" />
+      }
 
-  @if (resultat(); as analyse) {
-    @if (analyse.valides.length === 0 && analyse.invalides.length === 0) {
-      <p class="vide">Le fichier ne contient aucune ligne de créneau exploitable.</p>
-    }
+      @if (message(); as texte) {
+        <p class="message-erreur" role="alert">{{ texte }}</p>
+      }
 
-    @if (totalValides() > 0) {
-      <h2 class="titre-section">{{ totalValides() }} créneaux valides</h2>
+      @if (resultat(); as analyse) {
+        @if (analyse.valides.length === 0 && analyse.invalides.length === 0) {
+          <p class="vide">Le fichier ne contient aucune ligne de créneau exploitable.</p>
+        }
 
-      <!-- Desktop : tableau. Mobile : cartes. -->
-      <div class="table-wrapper">
-        <table class="tableau">
-          <thead>
-            <tr>
-              <th scope="col">Ligne</th>
-              <th scope="col">Date</th>
-              <th scope="col">Début</th>
-              <th scope="col">Fin</th>
-              <th scope="col">Libellé</th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (ligne of valides(); track ligne.ligne) {
+        @if (totalValides() > 0) {
+          <h2 class="titre-section">{{ totalValides() }} créneaux valides</h2>
+
+          <!-- Desktop : tableau. Mobile : cartes. -->
+          <div class="table-wrapper">
+            <table class="tableau">
+              <thead>
               <tr>
-                <td data-intitule="Ligne">{{ ligne.ligne }}</td>
-                <td data-intitule="Date">{{ ligne.date | dateGroup }}</td>
-                <td data-intitule="Début">{{ ligne.heureDebut }}</td>
-                <td data-intitule="Fin">{{ ligne.heureFin }}</td>
-                <td data-intitule="Libellé">{{ ligne.libelle ?? '—' }}</td>
+                <th scope="col">Ligne</th>
+                <th scope="col">Date</th>
+                <th scope="col">Début</th>
+                <th scope="col">Fin</th>
+                <th scope="col">Libellé</th>
               </tr>
+              </thead>
+              <tbody>
+                @for (ligne of valides(); track ligne.ligne) {
+                  <tr>
+                    <td data-intitule="Ligne">{{ ligne.ligne }}</td>
+                    <td data-intitule="Date">{{ ligne.date | dateGroup }}</td>
+                    <td data-intitule="Début">{{ ligne.heureDebut }}</td>
+                    <td data-intitule="Fin">{{ ligne.heureFin }}</td>
+                    <td data-intitule="Libellé">{{ ligne.libelle ?? '—' }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+
+          <button
+            matButton
+            type="button"
+            class="bouton-importer"
+            [disabled]="importEnCours() || !autorise()"
+            (click)="importer()"
+          >
+            @if (importEnCours()) {
+              <mat-spinner diameter="18" />
+            } @else {
+              <mat-icon aria-hidden="true">download</mat-icon>
             }
-          </tbody>
-        </table>
+            Importer {{ totalValides() }} créneaux
+          </button>
+        }
+
+        @if (analyse.invalides.length > 0) {
+          <details class="invalides">
+            <summary>
+              {{ analyse.invalides.length }} ligne{{
+                analyse.invalides.length > 1 ? 's' : ''
+              }}
+              invalide{{ analyse.invalides.length > 1 ? 's' : '' }}
+              (détail)
+            </summary>
+            <ul class="liste-invalides">
+              @for (ligne of invalides(); track ligne.ligne) {
+                <li>
+                  <strong>Ligne {{ ligne.ligne }}</strong> — {{ ligne.erreur }}
+                  @if (ligne.date || ligne.heureDebut) {
+                    <span class="rappel">
+                    ({{ ligne.date }} {{ ligne.heureDebut }}–{{ ligne.heureFin }})
+                  </span>
+                  }
+                </li>
+              }
+            </ul>
+          </details>
+        }
+      }
+    </section>
+
+    <section class="section-profs" aria-labelledby="titre-import-profs">
+      <h2 id="titre-import-profs" class="titre-section">Importer la liste des professeurs</h2>
+      <p class="aide">
+        colonnes
+        « Identifiant Oasis », « Nom usuel », « Prénom usuel », « Secteur » (facultatif),
+        « Statut » et « Email » (facultatifs).
+      </p>
+
+      <div
+        class="zone-depot"
+        [class.survol]="survolProfs()"
+        role="button"
+        tabindex="0"
+        aria-label="Déposer le fichier profs.xlsx ou cliquer pour parcourir"
+        (click)="choisirFichierProfs()"
+        (keyup.enter)="choisirFichierProfs()"
+        (keyup.space)="choisirFichierProfs()"
+        (dragover)="$event.preventDefault(); survolProfs.set(true)"
+        (dragleave)="survolProfs.set(false)"
+        (drop)="surDepotProfs($event)"
+      >
+        <mat-icon aria-hidden="true">groups</mat-icon>
+        <span class="zone-texte">Déposez le fichier profs.xlsx ici</span>
+        <span class="zone-sous-texte">ou cliquez pour le choisir</span>
+        <input
+          #fichierProfs
+          type="file"
+          accept=".xlsx"
+          class="input-fichier"
+          (change)="surFichierProfs($event)"
+        />
       </div>
 
-      <button
-        matButton
-        type="button"
-        class="bouton-importer"
-        [disabled]="importEnCours() || !autorise()"
-        (click)="importer()"
-      >
-        @if (importEnCours()) {
-          <mat-spinner diameter="18" />
-        } @else {
-          <mat-icon aria-hidden="true">download</mat-icon>
+      @if (nomFichierProfs(); as nom) {
+        <p class="nom-fichier">
+          Fichier : <strong>{{ nom }}</strong>
+        </p>
+      }
+
+      @if (lectureProfsEnCours()) {
+        <mat-progress-bar mode="indeterminate" aria-label="Lecture du fichier des professeurs" />
+      }
+
+      @if (messageProfs(); as texte) {
+        <p class="message-erreur" role="alert">{{ texte }}</p>
+      }
+
+      @if (resultatProfs(); as analyse) {
+        @if (analyse.valides.length === 0 && analyse.invalides.length === 0) {
+          <p class="vide">Le fichier ne contient aucun professeur exploitable.</p>
         }
-        Importer {{ totalValides() }} créneaux
-      </button>
-    }
 
-    @if (analyse.invalides.length > 0) {
-      <details class="invalides">
-        <summary>
-          {{ analyse.invalides.length }} ligne{{
-            analyse.invalides.length > 1 ? 's' : ''
-          }}
-          invalide{{ analyse.invalides.length > 1 ? 's' : '' }}
-          (détail)
-        </summary>
-        <ul class="liste-invalides">
-          @for (ligne of invalides(); track ligne.ligne) {
-            <li>
-              <strong>Ligne {{ ligne.ligne }}</strong> — {{ ligne.erreur }}
-              @if (ligne.date || ligne.heureDebut) {
-                <span class="rappel">
-                  ({{ ligne.date }} {{ ligne.heureDebut }}–{{ ligne.heureFin }})
-                </span>
-              }
-            </li>
-          }
-        </ul>
-      </details>
-    }
-  }
+        @if (totalProfsValides() > 0) {
+          <h3 class="titre-section">{{ totalProfsValides() }} professeurs valides</h3>
 
-  @if (verifie() && autorise()) {
-    <app-attribution />
-  }
-
-  @if (verifie() && autorise()) {
-    <section class="zone-repliable" aria-labelledby="titre-planning">
-      <details>
-        <summary>
-          <mat-icon aria-hidden="true">cloud_download</mat-icon>
-          <span id="titre-planning">API planning locale (développement)</span>
-        </summary>
-        <div class="corps">
-          <p class="aide">
-            Route <code>/calendar/json</code> (méthode <code>get_filtered_json</code>) du serveur
-            Flask <code>AutoPlanning</code> sur <code>localhost</code>. Développement uniquement.
-          </p>
-
-          <mat-form-field appearance="outline" class="champ-filtres">
-            <mat-label>Filtres (tags, séparés par des virgules)</mat-label>
-            <input
-              matInput
-              type="text"
-              autocomplete="off"
-              [value]="filtresTags()"
-              (input)="surFiltres($event)"
-            />
-          </mat-form-field>
-
-          <button
-            matButton="outlined"
-            type="button"
-            class="bouton-importer"
-            [disabled]="planningChargement()"
-            (click)="chargerPlanning()"
-          >
-            @if (planningChargement()) {
-              <mat-spinner diameter="18" />
-            } @else {
-              <mat-icon aria-hidden="true">cloud_download</mat-icon>
-            }
-            Charger le planning
-          </button>
-
-          @if (planningErreur(); as texte) {
-            <p class="message-erreur" role="alert">{{ texte }}</p>
-          }
-
-          @if (planningEntrees().length > 0) {
-            <p class="nom-fichier">{{ planningEntrees().length }} entrée(s) reçue(s).</p>
-            <details class="invalides">
-              <summary>Voir le JSON reçu</summary>
-              <pre class="json-planning">{{ planningEntrees() | json }}</pre>
-            </details>
-          }
-        </div>
-      </details>
-    </section>
-  }
-
-  @if (verifie() && autorise()) {
-    <section class="zone-repliable" aria-labelledby="titre-sauvegarde">
-      <details>
-        <summary>
-          <mat-icon aria-hidden="true">archive</mat-icon>
-          <span id="titre-sauvegarde">Sauvegarde complète de la base</span>
-        </summary>
-        <div class="corps">
-          <p class="aide">
-            Archive ZIP complète : <strong>créneaux</strong>, <strong>profils</strong> et
-            <strong>disponibilités</strong> (JSON et CSV). La collection des accès administrateurs
-            n'y figure pas.
-          </p>
-
-          @if (backupErreur(); as texte) {
-            <p class="message-erreur" role="alert">{{ texte }}</p>
-          }
-
-          <button
-            matButton="outlined"
-            type="button"
-            class="bouton-importer"
-            [disabled]="backupEnCours()"
-            (click)="sauvegarder()"
-          >
-            @if (backupEnCours()) {
-              <mat-spinner diameter="18" />
-            } @else {
-              <mat-icon aria-hidden="true">archive</mat-icon>
-            }
-            Télécharger la sauvegarde (.zip)
-          </button>
-        </div>
-      </details>
-    </section>
-  }
-
-  @if (verifie() && autorise()) {
-    <section class="zone-repliable zone-repliable-danger" aria-labelledby="titre-fictives">
-      <details>
-        <summary>
-          <mat-icon aria-hidden="true">auto_awesome</mat-icon>
-          <span id="titre-fictives">Générer des disponibilités fictives</span>
-        </summary>
-        <div class="corps">
-          <p class="aide">
-            {{ nbFictifsMin }}–{{ nbFictifsMax }} créneaux tirés au hasard pour chaque professeur de
-            <code>profs.xlsx</code>, marqués <code>fictif: true</code> (supprimables en bloc).
-          </p>
-
-          @if (erreurFictifs(); as texte) {
-            <p class="message-erreur" role="alert">{{ texte }}</p>
-          }
-
-          @if (confirmationFictives()) {
-            <p class="message-confirmation" role="alert">
-              Confirmez-vous la génération de disponibilités fictives pour tous les professeurs de
-              la liste ?
-            </p>
-            <div class="actions">
-              <button
-                matButton="outlined"
-                type="button"
-                class="bouton-importer"
-                [disabled]="generationFictivesEnCours()"
-                (click)="annulerGenerationFictives()"
-              >
-                Annuler
-              </button>
-              <button
-                matButton="filled"
-                type="button"
-                class="bouton-importer"
-                [disabled]="generationFictivesEnCours()"
-                (click)="genererFictives()"
-              >
-                @if (generationFictivesEnCours()) {
-                  <mat-spinner diameter="18" />
-                } @else {
-                  <mat-icon aria-hidden="true">auto_awesome</mat-icon>
+          <!-- Desktop : tableau. Mobile : cartes. -->
+          <div class="table-wrapper">
+            <table class="tableau">
+              <thead>
+              <tr>
+                <th scope="col">Ligne</th>
+                <th scope="col">Identifiant Oasis</th>
+                <th scope="col">Prénom</th>
+                <th scope="col">Nom</th>
+                <th scope="col">Secteur</th>
+                <th scope="col">Statut</th>
+                <th scope="col">Email</th>
+              </tr>
+              </thead>
+              <tbody>
+                @for (ligne of profsValides(); track ligne.ligne) {
+                  <tr>
+                    <td data-intitule="Ligne">{{ ligne.ligne }}</td>
+                    <td data-intitule="Identifiant">{{ ligne.login }}</td>
+                    <td data-intitule="Prénom">{{ ligne.prenom }}</td>
+                    <td data-intitule="Nom">{{ ligne.nom }}</td>
+                    <td data-intitule="Secteur">{{ ligne.secteur ?? '—' }}</td>
+                    <td data-intitule="Statut">{{ ligne.statut ?? '—' }}</td>
+                    <td data-intitule="Email">{{ ligne.email ?? '—' }}</td>
+                  </tr>
                 }
-                Générer
-              </button>
-            </div>
-          } @else {
+              </tbody>
+            </table>
+          </div>
+
+          <button
+            matButton
+            type="button"
+            class="bouton-importer"
+            [disabled]="importProfsEnCours() || !autorise()"
+            (click)="importerProfs()"
+          >
+            @if (importProfsEnCours()) {
+              <mat-spinner diameter="18" />
+            } @else {
+              <mat-icon aria-hidden="true">group_add</mat-icon>
+            }
+            Importer {{ totalProfsValides() }} professeurs
+          </button>
+        }
+
+        @if (analyse.invalides.length > 0) {
+          <details class="invalides">
+            <summary>
+              {{ analyse.invalides.length }} ligne{{
+                analyse.invalides.length > 1 ? 's' : ''
+              }}
+              invalide{{ analyse.invalides.length > 1 ? 's' : '' }}
+              (détail)
+            </summary>
+            <ul class="liste-invalides">
+              @for (ligne of profsInvalides(); track ligne.ligne) {
+                <li>
+                  <strong>Ligne {{ ligne.ligne }}</strong> — {{ ligne.erreur }}
+                  @if (ligne.login || ligne.nom || ligne.prenom) {
+                    <span class="rappel">
+                    ({{ nomLigneProf(ligne) }})
+                  </span>
+                  }
+                </li>
+              }
+            </ul>
+          </details>
+        }
+      }
+    </section>
+
+    <!--  @if (verifie() && autorise()) {-->
+    <!--    <app-attribution />-->
+    <!--  }-->
+
+    <!--  @if (verifie() && autorise()) {-->
+    <!--    <section class="zone-repliable" aria-labelledby="titre-planning">-->
+    <!--      <details>-->
+    <!--        <summary>-->
+    <!--          <mat-icon aria-hidden="true">cloud_download</mat-icon>-->
+    <!--          <span id="titre-planning">API planning locale (développement)</span>-->
+    <!--        </summary>-->
+    <!--        <div class="corps">-->
+    <!--          <p class="aide">-->
+    <!--            Route <code>/calendar/json</code> (méthode <code>get_filtered_json</code>) du serveur-->
+    <!--            Flask <code>AutoPlanning</code> sur <code>localhost</code>. Développement uniquement.-->
+    <!--          </p>-->
+
+    <!--          <mat-form-field appearance="outline" class="champ-filtres">-->
+    <!--            <mat-label>Filtres (tags, séparés par des virgules)</mat-label>-->
+    <!--            <input-->
+    <!--              matInput-->
+    <!--              type="text"-->
+    <!--              autocomplete="off"-->
+    <!--              [value]="filtresTags()"-->
+    <!--              (input)="surFiltres($event)"-->
+    <!--            />-->
+    <!--          </mat-form-field>-->
+
+    <!--          <button-->
+    <!--            matButton="outlined"-->
+    <!--            type="button"-->
+    <!--            class="bouton-importer"-->
+    <!--            [disabled]="planningChargement()"-->
+    <!--            (click)="chargerPlanning()"-->
+    <!--          >-->
+    <!--            @if (planningChargement()) {-->
+    <!--              <mat-spinner diameter="18" />-->
+    <!--            } @else {-->
+    <!--              <mat-icon aria-hidden="true">cloud_download</mat-icon>-->
+    <!--            }-->
+    <!--            Charger le planning-->
+    <!--          </button>-->
+
+    <!--          @if (planningErreur(); as texte) {-->
+    <!--            <p class="message-erreur" role="alert">{{ texte }}</p>-->
+    <!--          }-->
+
+    <!--          @if (planningEntrees().length > 0) {-->
+    <!--            <p class="nom-fichier">{{ planningEntrees().length }} entrée(s) reçue(s).</p>-->
+    <!--            <details class="invalides">-->
+    <!--              <summary>Voir le JSON reçu</summary>-->
+    <!--              <pre class="json-planning">{{ planningEntrees() | json }}</pre>-->
+    <!--            </details>-->
+    <!--          }-->
+    <!--        </div>-->
+    <!--      </details>-->
+    <!--    </section>-->
+    <!--  }-->
+
+    @if (verifie() && autorise()) {
+      <section class="zone-repliable" aria-labelledby="titre-config">
+        <details>
+          <summary>
+            <mat-icon aria-hidden="true">event</mat-icon>
+            <span id="titre-config">Date limite de réponse</span>
+          </summary>
+          <div class="corps">
+            <p class="aide">
+              La date limite est stockée <strong>en base</strong> (<code>config/app</code>) : sa
+              modification s’applique immédiatement à tous les postes, sans redéploiement.
+            </p>
+
+            <mat-form-field appearance="outline" class="champ-deadline">
+              <mat-label>Date limite de réponse</mat-label>
+              <input matInput type="date" [value]="deadlineSaisi()" (input)="surDeadline($event)" />
+            </mat-form-field>
+
+            @if (deadlineErreur(); as texte) {
+              <p class="message-erreur" role="alert">{{ texte }}</p>
+            }
+
+            <button
+              matButton="filled"
+              type="button"
+              class="bouton-importer"
+              [disabled]="deadlineEnCours()"
+              (click)="enregistrerDeadline()"
+            >
+              @if (deadlineEnCours()) {
+                <mat-spinner diameter="18" />
+              } @else {
+                <mat-icon aria-hidden="true">save</mat-icon>
+              }
+              Enregistrer la date limite
+            </button>
+          </div>
+        </details>
+      </section>
+    }
+
+    @if (verifie() && autorise()) {
+      <section class="zone-repliable" aria-labelledby="titre-sauvegarde">
+        <details>
+          <summary>
+            <mat-icon aria-hidden="true">archive</mat-icon>
+            <span id="titre-sauvegarde">Sauvegarde complète de la base</span>
+          </summary>
+          <div class="corps">
+            <p class="aide">
+              Archive ZIP complète : <strong>créneaux</strong>, <strong>profils</strong> et
+              <strong>disponibilités</strong> (JSON et CSV). La collection des accès administrateurs
+              n'y figure pas.
+            </p>
+
+            @if (backupErreur(); as texte) {
+              <p class="message-erreur" role="alert">{{ texte }}</p>
+            }
+
             <button
               matButton="outlined"
               type="button"
               class="bouton-importer"
-              [disabled]="generationFictivesEnCours()"
-              (click)="demanderGenerationFictives()"
+              [disabled]="backupEnCours()"
+              (click)="sauvegarder()"
             >
-              <mat-icon aria-hidden="true">auto_awesome</mat-icon>
-              Générer {{ nbFictifsMin }}–{{ nbFictifsMax }} disponibilités fictives par professeur
+              @if (backupEnCours()) {
+                <mat-spinner diameter="18" />
+              } @else {
+                <mat-icon aria-hidden="true">archive</mat-icon>
+              }
+              Télécharger la sauvegarde (.zip)
             </button>
-          }
-        </div>
-      </details>
-    </section>
-  }
+          </div>
+        </details>
+      </section>
+    }
 
-  @if (verifie() && autorise()) {
-    <section class="zone-repliable zone-repliable-danger" aria-labelledby="titre-suppression">
-      <details>
-        <summary>
-          <mat-icon aria-hidden="true">delete_forever</mat-icon>
-          <span id="titre-suppression">Supprimer tous les créneaux</span>
-        </summary>
-        <div class="corps">
-          <p class="aide">
-            Supprime <strong>définitivement</strong> tous les créneaux proposés. Les disponibilités
-            déclarées ne sont pas modifiées.
-          </p>
-
-          @if (confirmationSuppression()) {
-            <p class="message-erreur" role="alert">
-              Confirmez-vous la suppression de tous les créneaux ? Cette action est irréversible.
+    @if (verifie() && autorise()) {
+      <section class="zone-repliable zone-repliable-danger" aria-labelledby="titre-fictives">
+        <details>
+          <summary>
+            <mat-icon aria-hidden="true">auto_awesome</mat-icon>
+            <span id="titre-fictives">Générer des disponibilités fictives</span>
+          </summary>
+          <div class="corps">
+            <p class="aide">
+              {{ nbFictifsMin }}–{{ nbFictifsMax }} créneaux tirés au hasard pour chaque professeur de
+              <code>profs.xlsx</code>, marqués <code>fictif: true</code> (supprimables en bloc).
             </p>
-            <div class="actions-danger">
+
+            @if (erreurFictifs(); as texte) {
+              <p class="message-erreur" role="alert">{{ texte }}</p>
+            }
+
+            @if (confirmationFictives()) {
+              <p class="message-confirmation" role="alert">
+                Confirmez-vous la génération de disponibilités fictives pour tous les professeurs de
+                la liste ?
+              </p>
+              <div class="actions">
+                <button
+                  matButton="outlined"
+                  type="button"
+                  class="bouton-importer"
+                  [disabled]="generationFictivesEnCours()"
+                  (click)="annulerGenerationFictives()"
+                >
+                  Annuler
+                </button>
+                <button
+                  matButton="filled"
+                  type="button"
+                  class="bouton-importer"
+                  [disabled]="generationFictivesEnCours()"
+                  (click)="genererFictives()"
+                >
+                  @if (generationFictivesEnCours()) {
+                    <mat-spinner diameter="18" />
+                  } @else {
+                    <mat-icon aria-hidden="true">auto_awesome</mat-icon>
+                  }
+                  Générer
+                </button>
+              </div>
+            } @else {
               <button
                 matButton="outlined"
                 type="button"
                 class="bouton-importer"
-                [disabled]="suppressionEnCours()"
-                (click)="annulerSuppression()"
+                [disabled]="generationFictivesEnCours()"
+                (click)="demanderGenerationFictives()"
               >
-                Annuler
+                <mat-icon aria-hidden="true">auto_awesome</mat-icon>
+                Générer {{ nbFictifsMin }}–{{ nbFictifsMax }} disponibilités fictives par professeur
               </button>
-              <button
-                matButton="filled"
-                type="button"
-                class="danger"
-                [disabled]="suppressionEnCours()"
-                (click)="supprimerTous()"
-              >
-                @if (suppressionEnCours()) {
-                  <mat-spinner diameter="18" />
-                } @else {
-                  <mat-icon aria-hidden="true">delete_forever</mat-icon>
-                }
-                Supprimer définitivement
-              </button>
-            </div>
-          } @else {
-            <button
-              matButton="outlined"
-              type="button"
-              class="danger bouton-supprimer-tout"
-              [disabled]="suppressionEnCours()"
-              (click)="demanderSuppression()"
-            >
-              <mat-icon aria-hidden="true">delete_forever</mat-icon>
-              Supprimer tous les créneaux
-            </button>
-          }
-        </div>
-      </details>
-    </section>
-  }
+            }
+          </div>
+        </details>
+      </section>
+    }
 
-  @if (verifie() && autorise()) {
-    <section
-      class="zone-repliable zone-repliable-danger"
-      aria-labelledby="titre-suppression-dispos"
-    >
-      <details>
-        <summary>
-          <mat-icon aria-hidden="true">person_remove</mat-icon>
-          <span id="titre-suppression-dispos">Supprimer les disponibilités des professeurs</span>
-        </summary>
-        <div class="corps">
-          <p class="aide">
-            Supprime <strong>définitivement</strong> tous les créneaux retenus par les professeurs.
-            Les créneaux proposés ne sont pas modifiés.
-          </p>
+    <!--  @if (verifie() && autorise()) {-->
+    <!--    <section class="zone-repliable zone-repliable-danger" aria-labelledby="titre-suppression">-->
+    <!--      <details>-->
+    <!--        <summary>-->
+    <!--          <mat-icon aria-hidden="true">delete_forever</mat-icon>-->
+    <!--          <span id="titre-suppression">Supprimer tous les créneaux</span>-->
+    <!--        </summary>-->
+    <!--        <div class="corps">-->
+    <!--          <p class="aide">-->
+    <!--            Supprime <strong>définitivement</strong> tous les créneaux proposés. Les disponibilités-->
+    <!--            déclarées ne sont pas modifiées.-->
+    <!--          </p>-->
 
-          @if (confirmationSuppressionDispos()) {
-            <p class="message-erreur" role="alert">
-              Confirmez-vous la suppression de toutes les disponibilités déclarées ? Cette action
-              est irréversible.
+    <!--          @if (confirmationSuppression()) {-->
+    <!--            <p class="message-erreur" role="alert">-->
+    <!--              Confirmez-vous la suppression de tous les créneaux ? Cette action est irréversible.-->
+    <!--            </p>-->
+    <!--            <div class="actions-danger">-->
+    <!--              <button-->
+    <!--                matButton="outlined"-->
+    <!--                type="button"-->
+    <!--                class="bouton-importer"-->
+    <!--                [disabled]="suppressionEnCours()"-->
+    <!--                (click)="annulerSuppression()"-->
+    <!--              >-->
+    <!--                Annuler-->
+    <!--              </button>-->
+    <!--              <button-->
+    <!--                matButton="filled"-->
+    <!--                type="button"-->
+    <!--                class="danger"-->
+    <!--                [disabled]="suppressionEnCours()"-->
+    <!--                (click)="supprimerTous()"-->
+    <!--              >-->
+    <!--                @if (suppressionEnCours()) {-->
+    <!--                  <mat-spinner diameter="18" />-->
+    <!--                } @else {-->
+    <!--                  <mat-icon aria-hidden="true">delete_forever</mat-icon>-->
+    <!--                }-->
+    <!--                Supprimer définitivement-->
+    <!--              </button>-->
+    <!--            </div>-->
+    <!--          } @else {-->
+    <!--            <button-->
+    <!--              matButton="outlined"-->
+    <!--              type="button"-->
+    <!--              class="danger bouton-supprimer-tout"-->
+    <!--              [disabled]="suppressionEnCours()"-->
+    <!--              (click)="demanderSuppression()"-->
+    <!--            >-->
+    <!--              <mat-icon aria-hidden="true">delete_forever</mat-icon>-->
+    <!--              Supprimer tous les créneaux-->
+    <!--            </button>-->
+    <!--          }-->
+    <!--        </div>-->
+    <!--      </details>-->
+    <!--    </section>-->
+    <!--  }-->
+
+    @if (verifie() && autorise()) {
+      <section
+        class="zone-repliable zone-repliable-danger"
+        aria-labelledby="titre-suppression-dispos"
+      >
+        <details>
+          <summary>
+            <mat-icon aria-hidden="true">person_remove</mat-icon>
+            <span id="titre-suppression-dispos">Supprimer les disponibilités des professeurs</span>
+          </summary>
+          <div class="corps">
+            <p class="aide">
+              Supprime <strong>définitivement</strong> tous les créneaux retenus par les professeurs.
+              Les créneaux proposés ne sont pas modifiés.
             </p>
-            <div class="actions-danger">
+
+            @if (confirmationSuppressionDispos()) {
+              <p class="message-erreur" role="alert">
+                Confirmez-vous la suppression de toutes les disponibilités déclarées ? Cette action
+                est irréversible.
+              </p>
+              <div class="actions-danger">
+                <button
+                  matButton="outlined"
+                  type="button"
+                  class="bouton-importer"
+                  [disabled]="suppressionDisposEnCours()"
+                  (click)="annulerSuppressionDispos()"
+                >
+                  Annuler
+                </button>
+                <button
+                  matButton="filled"
+                  type="button"
+                  class="danger"
+                  [disabled]="suppressionDisposEnCours()"
+                  (click)="supprimerDispos()"
+                >
+                  @if (suppressionDisposEnCours()) {
+                    <mat-spinner diameter="18" />
+                  } @else {
+                    <mat-icon aria-hidden="true">person_remove</mat-icon>
+                  }
+                  Supprimer définitivement
+                </button>
+              </div>
+            } @else {
               <button
                 matButton="outlined"
                 type="button"
-                class="bouton-importer"
+                class="danger bouton-supprimer-tout"
                 [disabled]="suppressionDisposEnCours()"
-                (click)="annulerSuppressionDispos()"
+                (click)="demanderSuppressionDispos()"
               >
-                Annuler
+                <mat-icon aria-hidden="true">person_remove</mat-icon>
+                Supprimer les disponibilités des professeurs
               </button>
-              <button
-                matButton="filled"
-                type="button"
-                class="danger"
-                [disabled]="suppressionDisposEnCours()"
-                (click)="supprimerDispos()"
-              >
-                @if (suppressionDisposEnCours()) {
-                  <mat-spinner diameter="18" />
-                } @else {
-                  <mat-icon aria-hidden="true">person_remove</mat-icon>
-                }
-                Supprimer définitivement
-              </button>
-            </div>
-          } @else {
-            <button
-              matButton="outlined"
-              type="button"
-              class="danger bouton-supprimer-tout"
-              [disabled]="suppressionDisposEnCours()"
-              (click)="demanderSuppressionDispos()"
-            >
-              <mat-icon aria-hidden="true">person_remove</mat-icon>
-              Supprimer les disponibilités des professeurs
-            </button>
-          }
-        </div>
-      </details>
-    </section>
-  }
+            }
+          </div>
+        </details>
+      </section>
+    }
 
-  @if (verifie() && autorise()) {
-    <section class="zone-repliable zone-repliable-danger" aria-labelledby="titre-suppression-profs">
-      <details>
-        <summary>
-          <mat-icon aria-hidden="true">person_off</mat-icon>
-          <span id="titre-suppression-profs">Effacer tous les professeurs</span>
-        </summary>
-        <div class="corps">
-          <p class="aide">
-            Efface <strong>définitivement</strong> les professeurs (profil et disponibilités). Les
-            créneaux proposés ne sont pas modifiés. Téléchargez une sauvegarde avant.
-          </p>
-
-          @if (erreurProfs(); as texte) {
-            <p class="message-erreur" role="alert">{{ texte }}</p>
-          }
-
-          @if (confirmationSuppressionProfs()) {
-            <p class="message-erreur" role="alert">
-              Confirmez-vous l'effacement de tous les professeurs et de toutes leurs disponibilités
-              ? Cette action est irréversible.
+    @if (verifie() && autorise()) {
+      <section class="zone-repliable zone-repliable-danger" aria-labelledby="titre-suppression-profs">
+        <details>
+          <summary>
+            <mat-icon aria-hidden="true">person_off</mat-icon>
+            <span id="titre-suppression-profs">Effacer tous les professeurs</span>
+          </summary>
+          <div class="corps">
+            <p class="aide">
+              Efface <strong>définitivement</strong> les professeurs (profil et disponibilités). Les
+              créneaux proposés ne sont pas modifiés. Téléchargez une sauvegarde avant.
             </p>
-            <div class="actions-danger">
+
+            @if (erreurProfs(); as texte) {
+              <p class="message-erreur" role="alert">{{ texte }}</p>
+            }
+
+            @if (confirmationSuppressionProfs()) {
+              <p class="message-erreur" role="alert">
+                Confirmez-vous l'effacement de tous les professeurs et de toutes leurs disponibilités
+                ? Cette action est irréversible.
+              </p>
+              <div class="actions-danger">
+                <button
+                  matButton="outlined"
+                  type="button"
+                  class="bouton-importer"
+                  [disabled]="suppressionProfsEnCours()"
+                  (click)="annulerSuppressionProfs()"
+                >
+                  Annuler
+                </button>
+                <button
+                  matButton="filled"
+                  type="button"
+                  class="danger"
+                  [disabled]="suppressionProfsEnCours()"
+                  (click)="supprimerProfs()"
+                >
+                  @if (suppressionProfsEnCours()) {
+                    <mat-spinner diameter="18" />
+                  } @else {
+                    <mat-icon aria-hidden="true">person_off</mat-icon>
+                  }
+                  Effacer définitivement
+                </button>
+              </div>
+            } @else {
               <button
                 matButton="outlined"
                 type="button"
-                class="bouton-importer"
+                class="danger bouton-supprimer-tout"
                 [disabled]="suppressionProfsEnCours()"
-                (click)="annulerSuppressionProfs()"
+                (click)="demanderSuppressionProfs()"
               >
-                Annuler
+                <mat-icon aria-hidden="true">person_off</mat-icon>
+                Effacer tous les professeurs
               </button>
-              <button
-                matButton="filled"
-                type="button"
-                class="danger"
-                [disabled]="suppressionProfsEnCours()"
-                (click)="supprimerProfs()"
-              >
-                @if (suppressionProfsEnCours()) {
-                  <mat-spinner diameter="18" />
-                } @else {
-                  <mat-icon aria-hidden="true">person_off</mat-icon>
-                }
-                Effacer définitivement
-              </button>
-            </div>
-          } @else {
-            <button
-              matButton="outlined"
-              type="button"
-              class="danger bouton-supprimer-tout"
-              [disabled]="suppressionProfsEnCours()"
-              (click)="demanderSuppressionProfs()"
-            >
-              <mat-icon aria-hidden="true">person_off</mat-icon>
-              Effacer tous les professeurs
-            </button>
-          }
-        </div>
-      </details>
-    </section>
-  }
+            }
+          </div>
+        </details>
+      </section>
+    }
+  </div>
 </section>

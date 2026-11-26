@@ -28,7 +28,7 @@ export class AdminMain {
   readonly onglets: readonly OngletAdmin[] = [
     { label: 'Prompt', route: ROUTES.adminPrompt },
     { label: 'Disponibilités', route: ROUTES.adminDispos },
-    { label: 'Imports et Données', route: ROUTES.adminImport },
+    { label: 'Paramétrage', route: ROUTES.adminImport },
   ];
 
   /** URL courante (mise à jour à chaque navigation). */

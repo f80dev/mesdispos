@@ -1,4 +1,4 @@
-import { Component, computed, inject } from '@angular/core';
+import { Component, computed, inject, type OnDestroy } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
@@ -6,8 +6,9 @@ import { Router, RouterLink } from '@angular/router';
 
 import { AdminService } from '../core/admin.service';
 import { AuthService } from '../core/auth.service';
+import { ConfigService } from '../data/config.service';
 import { ROUTES } from '../app.routes';
-import { settings } from '../../environments/settings';
+import { dateLocale } from '../shared/date.util';
 import { ThemeSwitcherComponent } from './theme-switcher.component';
 
 // Mobile: header compact — logo court, avatar sans nom, bouton déconnexion
@@ -15,14 +16,17 @@ import { ThemeSwitcherComponent } from './theme-switcher.component';
 // Desktop: logo « MesDispos », nom + avatar à droite, lien admin si concerné.
 @Component({
   selector: 'app-header',
-  imports: [RouterLink, MatIconModule, MatButtonModule, MatMenuModule, ThemeSwitcherComponent],
+  imports: [MatIconModule, MatButtonModule, MatMenuModule, ThemeSwitcherComponent],
   templateUrl: './header.component.html',
   styleUrl: './header.component.scss',
 })
-export class HeaderComponent {
+export class HeaderComponent implements OnDestroy {
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
   private readonly admin = inject(AdminService);
+
+  /** Configuration applicative (date limite stockée en base). */
+  private readonly config = inject(ConfigService);
 
   /** Signal unifié : session « nom seul » ou session Firebase (admin). */
   readonly user = this.auth.user;
@@ -43,15 +47,17 @@ export class HeaderComponent {
   readonly estAdminCourant = this.admin.autorise;
 
   /**
-   * Nombre de jours restants avant la date limite de réponse
-   * (`settings.deadline`, format `JJ/MM/AAAA`). `null` si la date est illisible.
+   * Nombre de jours restants avant la date limite de réponse.
+   *
+   * La date limite est lue **en base** (`config/app`, format `YYYY-MM-DD`) ;
+   * `settings.deadline` n'est que le repli quand le document est absent.
    * Compte des journées entières : la limite est atteinte le jour même.
    */
-  private readonly deadlineDate = parseDeadline(settings.deadline);
+  private readonly deadlineDate = computed(() => dateLocale(this.config.deadline()));
 
 
   readonly joursRestants = computed(() => {
-    const deadline = this.deadlineDate;
+    const deadline = this.deadlineDate();
     if (!deadline) {
       return 0
     }
@@ -75,18 +81,14 @@ export class HeaderComponent {
     await this.auth.signOut();
     await this.router.navigateByUrl(ROUTES.login);
   }
-}
 
-/** Parse une date `JJ/MM/AAAA` en Date locale (minuit). `null` si invalide. */
-function parseDeadline(valeur: string): Date | null {
-  const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(valeur?.trim() ?? '');
-  if (!m) {
-    return null;
+  constructor() {
+    // La date limite est lue en base : le compte à rebours suit la valeur
+    // enregistrée par l'administrateur, sans redéploiement.
+    this.config.ecouter();
   }
-  const [, jour, mois, annee] = m;
-  const date = new Date(Number(annee), Number(mois) - 1, Number(jour));
-  if (date.getFullYear() !== Number(annee) || date.getMonth() !== Number(mois) - 1) {
-    return null;
+
+  ngOnDestroy(): void {
+    this.config.arreter();
   }
-  return date;
 }

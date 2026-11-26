@@ -29,6 +29,8 @@ export interface IdentiteProf {
   login: string;
   nom: string;
   prenom: string;
+  email?: string;
+  statut?: string;
 }
 
 /**
@@ -40,6 +42,8 @@ export function profilDepuisProf(identite: IdentiteProf): ProfilProf {
     login: identite.login.trim(),
     nom: identite.nom.trim(),
     prenom: identite.prenom.trim(),
+    ...(identite.email?.trim() ? { email: identite.email.trim() } : {}),
+    ...(identite.statut?.trim() ? { statut: identite.statut.trim() } : {}),
     updatedAt: Date.now(),
   };
 }
@@ -66,7 +70,9 @@ export function versProfil(data: Record<string, unknown> | null | undefined): Pr
   const prenom = typeof data['prenom'] === 'string' ? data['prenom'].trim() : '';
   const ang = data['soutenanceAnglais'];
   const angConnu = typeof ang === 'boolean';
-  if (!login && !nom && !prenom && !angConnu) {
+  const email = typeof data['email'] === 'string' ? data['email'].trim() : '';
+  const statut = typeof data['statut'] === 'string' ? data['statut'].trim() : '';
+  if (!login && !nom && !prenom && !angConnu && !email && !statut) {
     return null;
   }
   const maj = data['updatedAt'];
@@ -74,6 +80,8 @@ export function versProfil(data: Record<string, unknown> | null | undefined): Pr
     login,
     nom,
     prenom,
+    ...(email ? { email } : {}),
+    ...(statut ? { statut } : {}),
     ...(angConnu ? { soutenanceAnglais: ang } : {}),
     updatedAt: typeof maj === 'number' && Number.isFinite(maj) ? maj : 0,
   };
@@ -104,6 +112,8 @@ export class ProfilService {
         login: profil.login,
         nom: profil.nom,
         prenom: profil.prenom,
+        ...(profil.email ? { email: profil.email } : {}),
+        ...(profil.statut ? { statut: profil.statut } : {}),
         updatedAt: profil.updatedAt,
       });
       this.profil.set(profil);

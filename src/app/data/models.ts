@@ -24,6 +24,16 @@ export interface ProfilProf {
   /** Prénom d'usage, ex. `Judith`. */
   prenom: string;
   /**
+   * Adresse électronique professionnelle du professeur, extraite de
+   * `profs.xlsx` (colonne « Email »).
+   */
+  email?: string;
+  /**
+   * Statut fonctionnel du professeur, extrait de `profs.xlsx` (colonne
+   * « Statut » : `TP` — temps plein, `MI-T` — mi-temps).
+   */
+  statut?: string;
+  /**
    * `true` lorsque le professeur peut suivre des soutenances **en anglais**.
    * Case à cocher de la page `/dispos` ; `false` = uniquement en français.
    */

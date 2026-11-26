@@ -30,20 +30,7 @@
 <!--    </mat-menu>-->
 <!--  }-->
 
-  @if (joursRestants() < 30) {
-    <span
-      class="echeance"
-      [class.urgente]="(joursRestants() ?? 0) <= 7"
-      [attr.title]="
-        (joursRestants() ?? 0) > 0
-          ? 'Il reste ' + joursRestants() + ' jour(s) pour répondre'
-          : 'Date limite de réponse dépassée'
-      "
-    >
-      <mat-icon aria-hidden="true">schedule</mat-icon>
-      <span class="echeance-libelle">{{ libelleEcheance() }}</span>
-    </span>
-  }
+
 
 
 
@@ -58,6 +45,15 @@
 
 
 
+        @if (joursRestants() < 30) {
+          <div
+            class="echeance" [class.urgente]="true">
+      <mat-icon aria-hidden="true" style="margin-bottom: -7px;">schedule</mat-icon>&nbsp;
+      <span class="echeance-libelle">{{ (joursRestants() ?? 0) > 0 ? 'Il reste ' + joursRestants() + ' jour(s) pour répondre' : 'Date limite de réponse dépassée' }}</span>
+    </div>
+        }
+
+
       <div>
         <app-theme-switcher />
 
@@ -67,8 +63,7 @@
           class="deconnexion"
           aria-label="Se déconnecter"
           title="Se déconnecter"
-          (click)="seDeconnecter()"
-        >
+          (click)="seDeconnecter()">
           <mat-icon>logout</mat-icon>
         </button>
       </div>

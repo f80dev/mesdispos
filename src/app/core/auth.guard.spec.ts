@@ -58,6 +58,10 @@ function creerFauxBackend(admin: boolean): FirestoreBackend {
     supprimerTousCreneaux: vi.fn(async () => 0),
     supprimerToutesDispos: vi.fn(async () => 0),
     estAdmin: vi.fn(async () => admin),
+    creerAdmin: vi.fn(async () => undefined),
+    listerProfils: vi.fn(async () => []),
+    upsertProfils: vi.fn(async () => 0),
+    lireToutesDispos: vi.fn(async () => []),
   };
 }
 

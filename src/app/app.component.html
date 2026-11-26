@@ -15,14 +15,13 @@
 
 @if (splashVisible()) {
   <div class="splash">
-    <div class="logo">
-      <img src="logo-ensad.png" style="display:inline;position:relative;max-width:150px;max-height:200px;height: 20vh;">
-    </div>
-
     <div class="main_title">
-      <h1>{{settings.appname}}</h1>
+      <h1 [style.color]="settings.color">{{settings.appname}}</h1>
       <small>version {{settings.version}}</small>
     </div>
-    <img src="soutenance.jpg" alt="" />
+    @if (settings.splash_screen) {
+      <img [src]="settings.splash_screen" alt="" />
+    }
+
   </div>
 }

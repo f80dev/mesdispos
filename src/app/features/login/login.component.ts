@@ -25,7 +25,8 @@ import { CookieService } from '../../core/cookie.service';
 import { AdminService } from '../../core/admin.service';
 import { ROUTES } from '../../app.routes';
 import { ThemeSwitcherComponent } from '../../layout/theme-switcher.component';
-import { ProfService, filtrerProfs, type Prof } from '../../data/prof.service';
+import { filtrerProfs, type Prof } from '../../data/prof.service';
+import { LoginsService } from '../../data/logins.service';
 import { profilDepuisProf, profilDepuisSaisieLibre } from '../../data/profil.service';
 import { LONGUEUR_NOM_MAX } from '../../shared/date.util';
 import { sha256Hex } from '../../shared/sha256.util';
@@ -63,7 +64,7 @@ export class LoginComponent {
   private readonly cookie = inject(CookieService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
-  private readonly profService = inject(ProfService);
+  private readonly loginsService = inject(LoginsService);
   private readonly adminService = inject(AdminService);
 
   private readonly champ = viewChild<ElementRef<HTMLInputElement>>('champ');
@@ -96,10 +97,10 @@ export class LoginComponent {
     motDePasse: [''],
   });
 
-  /** Enseignants proposés, chargés depuis l'API Oasis. */
-  readonly profs = this.profService.profs;
-  readonly chargementProfs = this.profService.chargement;
-  readonly erreurProfs = this.profService.erreur;
+  /** Enseignants proposés, chargés depuis la collection `users` (logins possibles). */
+  readonly profs = this.loginsService.logins;
+  readonly chargementProfs = this.loginsService.chargement;
+  readonly erreurProfs = this.loginsService.erreur;
 
   /** Requête de filtrage saisie par l'utilisateur (nom / prénom). */
   readonly filtre = signal<string>('');
@@ -188,7 +189,7 @@ export class LoginComponent {
     // La liste déroulante prend le focus à l'ouverture de /login, pour que le
     // parcours complet tienne en moins de 3 interactions au pouce.
     afterNextRender(() => {
-      void this.profService.charger().then(() => {
+      void this.loginsService.charger().then(() => {
         this.reprendreNomDuCookie();
         if (this.erreurProfs()) {
           // Liste indisponible : on bascule d'emblée en saisie libre.
@@ -287,7 +288,7 @@ export class LoginComponent {
 
   /** Relance le chargement de la liste des enseignants. */
   reessayerProfs(): void {
-    this.profService.reessayer();
+    this.loginsService.reessayer();
   }
 
   /** Soumission du formulaire « nom seul ». */
@@ -311,7 +312,13 @@ export class LoginComponent {
     const identite = this.saisieLibre()
       ? profilDepuisSaisieLibre(this.prenom())
       : prof
-        ? profilDepuisProf(prof)
+        ? profilDepuisProf({
+            login: prof.login,
+            nom: prof.nom,
+            prenom: prof.prenom,
+            email: prof.mailPro,
+            statut: prof.statut,
+          })
         : undefined;
     const ok = await this.auth.connecterParNom(nom, identite);
     if (ok) {
@@ -389,10 +396,8 @@ export class LoginComponent {
       }
       try {
         await this.adminService.autoriserParMotDePasse(uid, sha256Hex(motDePasse));
-      } catch {
-        this.erreurAdmin.set(
-          'Mot de passe incorrect, ou document « config/admin » absent de la console Firebase (champ « empreinte »).',
-        );
+      } catch (erreur) {
+        this.erreurAdmin.set(this.messageEchecAdmin(erreur));
         return;
       }
       await this.router.navigateByUrl(this.retour() ?? ROUTES.admin);
@@ -405,6 +410,29 @@ export class LoginComponent {
 
   /** Dernier `uid` dont les droits ont été vérifiés (évite les appels en boucle). */
   private uidVerifie: string | null = null;
+
+  /**
+   * Message d'échec de la connexion administrateur par mot de passe.
+   *
+   * Le refus vient des règles de sécurité : soit l'empreinte ne correspond
+   * pas à celle de `config/admin` (mot de passe différent), soit le document
+   * `config/admin` est absent (la comparaison côté serveur échoue alors sur
+   * une valeur nulle), soit les règles ne sont pas déployées sur le projet.
+   * Le code d'erreur est renvoyé tel quel pour que l'humain puisse trancher.
+   */
+  private messageEchecAdmin(erreur: unknown): string {
+    const code =
+      typeof (erreur as { code?: unknown })?.code === 'string'
+        ? (erreur as { code: string }).code
+        : '';
+    console.warn('[MesDispos] Connexion administrateur refusée :', code, erreur);
+    const base =
+      'Mot de passe incorrect, ou document « config/admin » absent de la console Firebase (champ « empreinte »).';
+    if (!code) {
+      return base;
+    }
+    return `${base} (code Firestore : ${code})`;
+  }
 
   /**
    * Vérifie `admins/{uid}` puis ouvre l'import. Sinon, affiche l'erreur et

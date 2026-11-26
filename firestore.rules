@@ -84,16 +84,33 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // Configuration applicative (`config/app`) : date limite de réponse.
+    // Lecture ouverte (le header affiche le compte à rebours à tous) ;
+    // écriture réservée à l'administrateur, qui la modifie depuis le module
+    // d'import. Aucun secret ici (contrairement à `config/admin`).
+    match /config/app {
+      allow read: if true;
+      allow write: if admin();
+    }
+
     // Liste des administrateurs : lecture par le concerné. L'écriture est
-    // interdite **sauf** la création de la fiche d'un accès par mot de passe :
-    // la règle compare l'empreinte transmise à celle de `config/admin`
-    // (comparaison côté serveur — le mot de passe ne transite jamais en clair,
-    // et le secret ne se trouve ni dans le bundle ni dans ce fichier).
+    // interdite **sauf** la création (ou la mise à jour) de la fiche d'un accès
+    // par mot de passe : la règle compare l'empreinte transmise à celle de
+    // `config/admin` (comparaison côté serveur — le mot de passe ne transite
+    // jamais en clair, et le secret ne se trouve ni dans le bundle ni dans ce
+    // fichier).
+    //
+    // `update` est autorisé **pour la même raison** que `create` : la session
+    // Firebase anonyme étant persistée (`browserLocalPersistence`), une
+    // seconde connexion par mot de passe sur le même navigateur réécrit un
+    // document **existant** (donc un `update`, pas un `create`) — l'interdire
+    // rendait l'accès administrateur impossible au second essai, y compris
+    // avec le bon mot de passe.
     match /admins/{uid} {
       allow read: if connecte() && request.auth.uid == uid;
-      allow create: if connecte()
+      allow create, update: if connecte()
         && request.resource.data.empreinte == get(/databases/$(database)/documents/config/admin).data.empreinte;
-      allow update, delete: if false; // géré via la console Firebase / Admin SDK
+      allow delete: if false; // géré via la console Firebase / Admin SDK
     }
 
     // Tout le reste est interdit par défaut.
